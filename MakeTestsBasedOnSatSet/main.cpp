@@ -42,14 +42,13 @@ int main( int argc, char** argv )
 		if ( cur_clause[0] == '-' )
 			continue;
 		cout << "cur_clause " << cur_clause << endl;
-
 		clause_sstream << cur_clause;
-		
 		count++;
+		// for correct sotring of files in folder
 		addit_zeros = "";
-		if ( count < 10 )
-			addit_zeros += "0";
 		if ( count < 100 )
+			addit_zeros += "0";
+		if ( count < 10 )
 			addit_zeros += "0";
 
 		sstream << cnf_name_common_part << "_test" << addit_zeros << count << ".cnf";
