@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LSChecker", "LSChecker.vcxproj", "{7F36DDC5-06B2-4392-A124-FF5217F5CC0E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7F36DDC5-06B2-4392-A124-FF5217F5CC0E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7F36DDC5-06B2-4392-A124-FF5217F5CC0E}.Debug|Win32.Build.0 = Debug|Win32
+		{7F36DDC5-06B2-4392-A124-FF5217F5CC0E}.Release|Win32.ActiveCfg = Release|Win32
+		{7F36DDC5-06B2-4392-A124-FF5217F5CC0E}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
