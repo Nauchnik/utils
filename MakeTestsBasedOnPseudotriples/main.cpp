@@ -10,7 +10,6 @@
 #include <dirent.h>
 #endif
 
-
 using namespace std;
 
 int getdir( string dir, vector<string> &files )
@@ -40,7 +39,7 @@ int main( int argc, char** argv )
 
 	if ( argc < 3 ) {
 		cerr << "Usage : [cnf_file] [assumptions_path]" << endl;
-		exit;
+		return 1;
 	}
 
 	string cnf_file_name = argv[1];
@@ -53,7 +52,7 @@ int main( int argc, char** argv )
 	getdir( assumption_dir_name, assumption_files_names );
 	
 	// read main CNF - common part of every tests
-	ifstream cnf_file( cnf_file_name );
+	ifstream cnf_file( cnf_file_name.c_str() );
 	while ( getline( cnf_file, str ) ) {
 		if ( str.length() < 2 ) 
 		{ cout << "skipping " << str << endl; continue; }
@@ -63,15 +62,22 @@ int main( int argc, char** argv )
 			main_clauses_sstream << str << endl;
 	}
 	cnf_file.close();
+
+	unsigned found = cnf_file_name.find( "." );
+	string cnf_name_common_part;
+	if ( found != string::npos )
+		cnf_name_common_part = cnf_file_name.substr( 0, found );
+	else 
+		cnf_name_common_part = cnf_file_name;
 	
 	for ( unsigned i=0; i < assumption_files_names.size(); i++ ) {
 		full_assumptions_file_name = "./" + assumption_dir_name + "/" + assumption_files_names[i];
-		cur_assumption_file.open( full_assumptions_file_name );
+		cur_assumption_file.open( full_assumptions_file_name.c_str() );
 		cout << "reading " << assumption_files_names[i] << endl;
 		while ( getline( cur_assumption_file, str ) )
 			if ( str.length() > 1 )	assumptions_sstream << str << endl;
 		cur_assumption_file.close();
-		cur_test_name = "test_" + cnf_file_name + "_" + assumption_files_names[i];
+		cur_test_name = "test_" + cnf_name_common_part + "_" + assumption_files_names[i];
 		cout << "making " << cur_test_name << endl;
 		cur_test_file.open( cur_test_name.c_str() );
 		cur_test_file << cnf_head << endl << assumptions_sstream.str() << main_clauses_sstream.str();
