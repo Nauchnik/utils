@@ -2,53 +2,60 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <sstream>
 
 using namespace std;
 
+void AddSquaresToHtml( vector< vector<string> > &squares, stringstream &html_code );
+
 int main( int argc, char **argv )
 {
+#ifdef _DEBUG
 	argc = 2;
 	argv[1] = "in.txt";
 	argv[2] = "out.txt";
-	
+#endif	
+
 	if ( argc < 2 ) {
-		cerr << "USAGE: prog [infile - list of pairs of squares] [outfile - html code]" << endl;
+		cerr << "USAGE: prog [infile - list of triples of squares] [outfile - html code]" << endl;
 		return 1;
 	}
 	ifstream infile( argv[1] );
 	ofstream ofile( argv[2] );
 	string cur_string;
-	vector< vector<string> > html_code_string; // html codes
-	bool IsReadingFirstSquare;
+	vector< vector<string> > squares;
+	stringstream html_code;
+	int square_index = 0;
 	unsigned square_row_index = 0;
 	while ( getline( infile, cur_string ) ) {
-		if ( ( cur_string.size() == 0 ) && ( IsReadingFirstSquare ) ) { // start of 2nd square
-			IsReadingFirstSquare = false;
-			square_row_index = 0;
-		}
-		else if ( cur_string.size() == 0 ) // end reading of current pair
+		if ( cur_string.size() == 0 ) {
+			squares.resize( squares.size() + 1 ); // new square
 			continue;
-		else if ( cur_string[0] == 'S' ) { // start reading new pair
-			IsReadingFirstSquare = true;
-			square_row_index = 0;
-			html_code_string.resize( html_code_string.size() + 1 );
-			html_code_string[html_code_string.size() - 1].resize( 10 );
 		}
-		else { // reading row of square
-			if ( IsReadingFirstSquare )
-				html_code_string[ html_code_string.size() - 1 ][square_row_index++] += cur_string + "&nbsp;&nbsp ";
-			else
-				html_code_string[ html_code_string.size() - 1 ][square_row_index++] += cur_string + "<br>";
+		else if ( ( cur_string[0] == 'T' ) || ( cur_string[0] == 'S' ) ) { // start reading new set of squares
+			if ( squares.size() > 0 ) { // if end of solution - write it to sstream
+				squares.resize( squares.size() - 1 ); // remove last empty square
+				AddSquaresToHtml( squares, html_code );
+			}
+			squares.resize( 0 );
 		}
+		else // reading row of square
+			squares[squares.size()-1].push_back( cur_string );
 	}
+	AddSquaresToHtml( squares, html_code ); // add last set of squares
 	infile.close();
-	for ( unsigned i = 0; i < html_code_string.size(); i++ ) {
-		ofile << "SAT" << i+1 << endl;
-		for ( unsigned j = 0; j < html_code_string[i].size(); j++ )
-			ofile << html_code_string[i][j] << endl;
-		ofile << endl;
-	}
+	ofile << html_code.rdbuf();
 	ofile.close();
 
 	return 0; 
+}
+
+void AddSquaresToHtml( vector< vector<string> > &squares, stringstream &html_code )
+{
+	for ( unsigned j=0; j < squares[0].size(); ++j ) {
+		for ( unsigned i=0; i < squares.size() - 1; ++i )
+			html_code << squares[i][j] + "&nbsp;&nbsp ";
+		html_code << squares[squares.size()-1][j] + "<br>" << endl;
+	}
+	html_code << endl;
 }
