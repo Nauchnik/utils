@@ -5,12 +5,10 @@
 
 using namespace std;
 
-int main( int argc, char *argv[] )
+int main( int argc, char **argv )
 {
 	//argc = 3;
 	//argv[1] = "diag9_2.cnf";
-	//argv[1] = "diag7_2.cnf";
-	//argv[2] = "diag7_2.inc";
 	//argv[1] = "test.cnf";
 	//argv[2] = "diag9_2.inc";
 	
