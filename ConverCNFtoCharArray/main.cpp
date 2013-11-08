@@ -5,7 +5,7 @@
 
 using namespace std;
 
-int main( int argc, char **argv )
+int main( int argc, char *argv[] )
 {
 	//argc = 3;
 	//argv[1] = "diag9_2.cnf";
