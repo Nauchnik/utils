@@ -144,7 +144,7 @@ void MakeHTMLfromWU( MYSQL *conn, string wu_id_str )
 			*result_vec[i][1] >> u_val; // get teamid
 			teamid_vec.push_back( u_val );
 			cout << "teamid " << u_val << endl;
-			str = (*result_vec[i][2]).str();     // get mod_time
+			str = (*result_vec[i][2]).str(); // get mod_time
 			cout << str << endl;
 			cout << "mod_time " << str << endl;
 			cout << endl;
@@ -154,7 +154,11 @@ void MakeHTMLfromWU( MYSQL *conn, string wu_id_str )
 		}
 		result_vec.clear();
 	}
-
+	
+	cout << "teamid_vec:" << endl; 
+	for ( unsigned i = 0; i < teamid_vec.size(); i++ )
+		cout << teamid_vec[i] << endl;
+	
 	// get names of users
 	for ( vector<int>::iterator it = userid_vec.begin(); it != userid_vec.end(); it++ ) {
 		sstream << "SELECT name FROM user WHERE id=" << *it;
@@ -171,9 +175,12 @@ void MakeHTMLfromWU( MYSQL *conn, string wu_id_str )
 		}
 		result_vec.clear();
 	}
-
+	
 	// get names of teams
 	for ( vector<int>::iterator it = teamid_vec.begin(); it != teamid_vec.end(); it++ ) {
+		if ( *it == 0 )
+			teamname_vec.push_back( "" );
+		
 		sstream << "SELECT name FROM team WHERE id=" << *it;
 		str = sstream.str();
 		sstream.clear(); sstream.str("");
@@ -188,13 +195,19 @@ void MakeHTMLfromWU( MYSQL *conn, string wu_id_str )
 		}
 		result_vec.clear();
 	}
-
-	sstream << "<tr> <td> <b>" << mod_time_vec[0] << " UTC </b> </td>" << endl;
+	
+	sstream << "<tr>" << endl << "<td> <b>" << mod_time_vec[0] << " UTC </b> </td>" << endl;
 	sstream << "<td> <a href = 'http://sat.isa.ru/pdsat/show_user.php?userid=" << userid_vec[0] << 
-			   "'>" << username_vec[0] << "</a> /" << endl;
+			   "'>" << username_vec[0] << "</a>";
+	if ( teamname_vec[0] != "" )
+		sstream << " from " << teamname_vec[0]; 
+	sstream << " /" << endl;
 	sstream << "<a href = 'http://sat.isa.ru/pdsat/show_user.php?userid=" << userid_vec[1] << 
-			   "'>" << username_vec[1] << "</a> </td>" << endl;
-	sstream << "<td>diag10_2</td>" << endl << "<td> </td>" << endl << "</tr>" << endl;
+			   "'>" << username_vec[1] << "</a>"; 
+	if ( teamname_vec[1] != "" )
+		sstream << " from " << teamname_vec[1];
+	sstream << " </td>" << endl;
+	sstream << "<td>Bivium</td>" << endl << "<td> </td>" << endl << "</tr>" << endl;
 
 	cout << sstream.rdbuf();
 }
