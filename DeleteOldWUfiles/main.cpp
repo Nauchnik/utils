@@ -74,6 +74,7 @@ int main( int argc, char **argv )
 	int all_name_count = 0;
 	int deleted_files = 0;
 	string system_str;
+	int delete_count = 0;
 	
 	if ( !count ) {
 		for ( unsigned i=0; i < dir_names.size(); i++ ) {
@@ -86,23 +87,32 @@ int main( int argc, char **argv )
 						sql_string = "SELECT id FROM workunit WHERE name LIKE '%" + file_names[j] + "%'";
 						if ( all_name_count == 0 )
 							cout << "first SQL query: " << sql_string << endl;
-						cout << "before query" << endl;
+						//cout << "before query" << endl;
 						ProcessQuery( conn, sql_string, result_vec );
-						cout << "query done" << endl;
+						//cout << "query done" << endl;
 						if ( result_vec.size() != 0 )
 							name_db_count++;
 						else {
-							system_str = "rm -rf ./" + dir_names[i] + "/" + file_names[j];
-							cout << "before command " << system_str << endl;
-							system( system_str.c_str() );
-							cout << "after command " << endl;
-							deleted_files++;
-							cout << "deleted_files " << deleted_files << endl;
+							if ( !delete_count )
+								system_str = "rm -rf ";
+							if ( delete_count < 10 ) {
+								system_str += ( "./" + dir_names[i] + "/" + file_names[j] + " " );
+								delete_count++;
+							}
+							else {
+								cout << "command : " << system_str << endl;
+								system( system_str.c_str() );
+								cout << "after command " << endl;
+								deleted_files += delete_count;
+								cout << "deleted_files " << deleted_files << endl;
+								delete_count = 0;
+							}
 						}
 						all_name_count++;
 						count++;
 						result_vec.clear();
-						cout << "name_db_count  " << name_db_count << " from " << all_name_count << endl;
+						if ( name_db_count % 100 == 0 )
+							cout << "name_db_count " << name_db_count << " from " << all_name_count << endl;
 					}
 				cout << "file count " << count << endl;
 				file_names.clear();
