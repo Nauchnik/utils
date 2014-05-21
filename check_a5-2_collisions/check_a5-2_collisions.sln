@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "check_a5-2_collisions", "check_a5-2_collisions.vcxproj", "{50F0FCAE-7D6E-4C7C-8AE1-DD0E8823EF99}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{50F0FCAE-7D6E-4C7C-8AE1-DD0E8823EF99}.Debug|Win32.ActiveCfg = Debug|Win32
+		{50F0FCAE-7D6E-4C7C-8AE1-DD0E8823EF99}.Debug|Win32.Build.0 = Debug|Win32
+		{50F0FCAE-7D6E-4C7C-8AE1-DD0E8823EF99}.Release|Win32.ActiveCfg = Release|Win32
+		{50F0FCAE-7D6E-4C7C-8AE1-DD0E8823EF99}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
