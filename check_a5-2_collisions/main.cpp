@@ -17,8 +17,13 @@ int main()
 	a5_2 a5_obj;
 	stringstream sstream;
 	ofstream ofile;
+	int count = 0;\
+	string ofile_name;
 	while ( getline( infile, str ) ) {
-		ofile.open( "literals.txt" );
+		sstream << "literals_" << count++; 
+		ofile_name = sstream.str();
+		sstream.str(""); sstream.clear();
+		ofile.open( ofile_name.c_str() );
 		for ( unsigned i=0; i<str.size(); i++ ) {
 			state_vec[i] = ( str[i] == '1' ) ? true : false;
 			if ( !state_vec[i] )
