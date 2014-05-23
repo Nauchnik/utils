@@ -17,8 +17,9 @@ int main()
 	a5_2 a5_obj;
 	stringstream sstream;
 	ofstream ofile;
-	int count = 0;\
+	int count = 0;
 	string ofile_name;
+	stringstream out_sstream;
 	while ( getline( infile, str ) ) {
 		sstream << "literals_" << count++; 
 		ofile_name = sstream.str();
@@ -36,10 +37,14 @@ int main()
 		a5_obj.setKey( state_vec );
 		for ( unsigned i=0; i < stream_vec.size(); i++ ) {
 			stream_vec[i] = a5_obj.getNextBit();
-			cout << stream_vec[i];
+			out_sstream << stream_vec[i];
 		}
-		cout << endl;
+		out_sstream << endl;
 	}
 	infile.close();
+	cout << out_sstream.str();
+	ofstream outfile("out.txt");
+	outfile << out_sstream.rdbuf();
+	outfile.close();
 	return 0;
 }
