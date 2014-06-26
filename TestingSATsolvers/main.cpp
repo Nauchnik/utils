@@ -84,11 +84,13 @@ int main( int argc, char **argv )
 		sum_time = 0;
 		solved_problems_count = 0;
 		for ( unsigned j=0; j < cnf_files_names.size(); j++ ) {
-			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
+			//current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			current_stream_name = "stream_" + solver_files_names[i] + "_" + cnf_files_names[j];
-			system_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " "./" + solvers_dir + "/" + 
+			//system_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 ./" + solvers_dir + "/" + 
+			system_str = "./" + solvers_dir + "/" + 
 				         solver_files_names[i] + " ./" + cnfs_dir + "/" + cnf_files_names[j] + 
-						 " " + current_out_name + " > " + current_stream_name;
+						 //" " + current_out_name + 
+						 " &> " + current_stream_name;
 			cout << system_str << endl;
 			system( system_str.c_str( ) );
 			current_out.open( current_out_name.c_str() );

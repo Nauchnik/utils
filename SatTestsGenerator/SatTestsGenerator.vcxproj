@@ -41,7 +41,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>D:\Distr\Programming\boost_1_53_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Programming;D:\Programming\pdsat\src_common;D:\Programming\pdsat\src_mpi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -61,7 +61,30 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="..\..\pdsat\src_common\addit_func.cpp" />
+    <ClCompile Include="..\..\pdsat\src_common\minisat22_wrapper.cpp" />
+    <ClCompile Include="..\..\pdsat\src_common\minisat\core\Solver.cc" />
+    <ClCompile Include="..\..\pdsat\src_common\minisat\utils\Options.cc" />
+    <ClCompile Include="..\..\pdsat\src_common\minisat\utils\SolverStateAccessor.cpp" />
+    <ClCompile Include="..\..\pdsat\src_common\minisat\utils\System.cc" />
+    <ClCompile Include="..\..\pdsat\src_mpi\mpi_base.cpp" />
+    <ClCompile Include="test_generator.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\pdsat\src_common\addit_func.h" />
+    <ClInclude Include="..\..\pdsat\src_common\minisat22_wrapper.h" />
+    <ClInclude Include="..\..\pdsat\src_common\minisat\core\Dimacs.h" />
+    <ClInclude Include="..\..\pdsat\src_common\minisat\core\Solver.h" />
+    <ClInclude Include="..\..\pdsat\src_common\minisat\core\SolverTypes.h" />
+    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\MinisatLogger.h" />
+    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\Options.h" />
+    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\ParseUtils.h" />
+    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\SolverStateAccessor.h" />
+    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\System.h" />
+    <ClInclude Include="..\..\pdsat\src_mpi\mpi_base.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Makefile" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

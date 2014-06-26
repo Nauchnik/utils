@@ -26,8 +26,8 @@ class makeSample
 {
 public:
 	makeSample();
-	bool readInput( int argc, char **argv );
-	bool init();
+	void readInput( int argc, char **argv );
+	void init();
 	bool ifSatSample();
 	void makeUnsatSample();
 private:
@@ -52,11 +52,11 @@ makeSample :: makeSample() :
 
 bool makeSample :: ifSatSample() { return isSatSample; }
 
-bool makeSample :: readInput( int argc, char **argv )
+void makeSample :: readInput( int argc, char **argv )
 {
 	if ( argc < 4 ) {
-		cout << "Usage: cnf_file decomp_set_file tests_count [-sat]";
-		return false;
+		cerr << "Usage: cnf_file decomp_set_file tests_count [-sat]";
+		exit(1);
 	}
 	
 	cnf_file_name = argv[1];
@@ -78,27 +78,25 @@ bool makeSample :: readInput( int argc, char **argv )
 			isSatSample = true;
 	}
 	cout << "isSatSample " << isSatSample << endl;
-
-	return true;
 }
 
-bool makeSample :: init()
+void makeSample :: init()
 {
 	cnf_file.open( cnf_file_name.c_str() );
 	if ( !cnf_file.is_open() ) {
-		cout << "Error. !cnf_file.is_open()" << endl;
-		return false;
+		cerr << "Error. !cnf_file.is_open()" << endl;
+		exit(1);
 	}
 	
 	decomp_set_file.open( decomp_set_file_name.c_str() );
 	if ( !decomp_set_file.is_open() ) {
-		cout << "Error. !cnf_file.is_open()" << endl;
-		return false;	
+		cerr << "Error. !cnf_file.is_open()" << endl;
+		exit(1);	
 	}
 
 	if ( tests_count <= 0 ) {
-		cout << "Error. tests_count <= 0" << endl;
-		return false;
+		cerr << "Error. tests_count <= 0" << endl;
+		exit(1);
 	}
 
 	test_cnf_files.resize( tests_count );
@@ -106,7 +104,7 @@ bool makeSample :: init()
 	unsigned found = cnf_file_name.find( "." );
 	cnf_name_common_part = (found != string::npos) ? cnf_file_name.substr( 0, found ) : cnf_file_name;
 	cout << "cnf_name_common_part " << cnf_name_common_part << endl;
-
+	
 	unsigned comment_str_count = 0, main_str_count = 0;
 	string str;
 	while ( getline( cnf_file, str ) ) {
@@ -156,8 +154,6 @@ bool makeSample :: init()
 	
 	decomp_set_file.close();
 	cnf_file.close();
-
-	return true;
 }
 
 void makeSample :: makeUnsatSample()
@@ -184,18 +180,21 @@ void makeSample :: makeUnsatSample()
 
 int main( int argc, char **argv )
 {
-	// debug
+#ifdef _DEBUG
 	argc = 4;
 	argv[1] = "./bivium_test_0.cnf";
 	argv[2] = "decomp_set.txt";
 	argv[3] = "2";
-
+#endif
+	
 	makeSample make_s;
 	make_s.readInput( argc, argv );
 	make_s.init();
-	if ( !make_s.ifSatSample() )
+	if ( make_s.ifSatSample() )
+		make_s.makeSatSample();
+	else
 		make_s.makeUnsatSample();
-	
+
 	//system("pause");
 	return 0;
 }

@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\pdsat\src_common\minisat\core\Solver.cc">
+      <Filter>minisat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pdsat\src_common\minisat\utils\Options.cc">
+      <Filter>minisat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pdsat\src_common\minisat\utils\SolverStateAccessor.cpp">
+      <Filter>minisat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pdsat\src_common\minisat\utils\System.cc">
+      <Filter>minisat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pdsat\src_mpi\mpi_base.cpp" />
+    <ClCompile Include="..\..\pdsat\src_common\addit_func.cpp" />
+    <ClCompile Include="..\..\pdsat\src_common\minisat22_wrapper.cpp" />
+    <ClCompile Include="test_generator.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="minisat">
+      <UniqueIdentifier>{cc9f1d05-937b-4fc0-9cc7-0ec92dd2ae0d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\pdsat\src_common\minisat\core\Dimacs.h">
+      <Filter>minisat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\pdsat\src_common\minisat\core\Solver.h">
+      <Filter>minisat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\pdsat\src_common\minisat\core\SolverTypes.h">
+      <Filter>minisat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\MinisatLogger.h">
+      <Filter>minisat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\Options.h">
+      <Filter>minisat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\ParseUtils.h">
+      <Filter>minisat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\SolverStateAccessor.h">
+      <Filter>minisat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\System.h">
+      <Filter>minisat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\pdsat\src_mpi\mpi_base.h" />
+    <ClInclude Include="..\..\pdsat\src_common\addit_func.h" />
+    <ClInclude Include="..\..\pdsat\src_common\minisat22_wrapper.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Makefile" />
+  </ItemGroup>
+</Project>
