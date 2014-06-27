@@ -45,7 +45,7 @@ int main( int argc, char **argv )
 	argv[1] = "solvers";
 	argv[2] = "cnfs";*/
 
-	string system_str, current_out_name, current_stream_name, str;
+	string system_str, current_out_name, current_res_name, str;
 	unsigned copy_from, copy_to;
 	ifstream current_out;
 	double cur_time, avg_time = 0;
@@ -84,13 +84,12 @@ int main( int argc, char **argv )
 		sum_time = 0;
 		solved_problems_count = 0;
 		for ( unsigned j=0; j < cnf_files_names.size(); j++ ) {
-			//current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
-			current_stream_name = "stream_" + solver_files_names[i] + "_" + cnf_files_names[j];
-			//system_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 ./" + solvers_dir + "/" + 
-			system_str = "./" + solvers_dir + "/" + 
-				         solver_files_names[i] + " ./" + cnfs_dir + "/" + cnf_files_names[j] + 
-						 //" " + current_out_name + 
-						 " &> " + current_stream_name;
+			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
+			current_res_name = "res_" + solver_files_names[i] + "_" + cnf_files_names[j];
+			system_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " "./" + solvers_dir + "/" + 
+				         solver_files_names[i] + " " + "./" + cnfs_dir + "/" + cnf_files_names[j];
+						 //+ " " + current_res_name 
+					    // + " &> ./" + current_out_name;
 			cout << system_str << endl;
 			system( system_str.c_str( ) );
 			current_out.open( current_out_name.c_str() );

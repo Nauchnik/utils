@@ -30,13 +30,14 @@ public:
 	void init();
 	bool ifSatSample();
 	void makeUnsatSample();
+	void makeSatSample();
 private:
 	unsigned tests_count;
 	string cnf_file_name;
 	string decomp_set_file_name;
 	string cnf_name_common_part;
 	vector<ofstream*> test_cnf_files;
-	vector<int> decomp_set;
+	vector<unsigned> decomp_set;
 	bool isSatSample;
 	ifstream cnf_file;
 	ifstream decomp_set_file;
@@ -44,6 +45,7 @@ private:
 	stringstream head_cnf_sstream;
 	stringstream main_cnf_sstream;
 	vector<vector<bool>> state_vec_vec, stream_vec_vec;
+	MPI_Base mpi_b;
 };
 
 makeSample :: makeSample() :
@@ -121,22 +123,19 @@ void makeSample :: init()
 	}
 	cout << "main_str_count " << main_str_count << endl;
 
-	int val;
+	unsigned val;
 	cout << "reading decomp_set ";
-	while ( !decomp_set_file.eof() ) {
-		decomp_set_file >> val; 
+	while ( decomp_set_file >> val ) {
 		cout << val << " ";
 		decomp_set.push_back( val );
 	}
 	cout << endl;
 	cout << "decomp_set.size() " << decomp_set.size() << endl; 
 
-	MPI_Base mpi_b;
 	mpi_b.isMakeSatSampleAnyWay = true;
 	mpi_b.input_cnf_name = new char[cnf_file_name.size() + 1];
 	strcpy( mpi_b.input_cnf_name, cnf_file_name.c_str() );
 	mpi_b.ReadIntCNF();
-	delete[] mpi_b.input_cnf_name;
 	cout << "mpi_b.var_count " << mpi_b.var_count << endl;
 	cout << "mpi_b.clause_count "  << mpi_b.clause_count  << endl;
 	
@@ -145,13 +144,14 @@ void makeSample :: init()
 	if ( isSatSample ) {
 		mpi_b.cnf_in_set_count = tests_count;
 		mpi_b.MakeSatSample( state_vec_vec, stream_vec_vec );
-		new_clause_count = mpi_b.clause_count + state_vec_vec[0].size() + stream_vec_vec[0].size();
+		new_clause_count = mpi_b.clause_count + decomp_set.size() + stream_vec_vec[0].size();
 	}
 	else
 		new_clause_count = mpi_b.clause_count + decomp_set.size();
 	
 	head_cnf_sstream << "p cnf " << mpi_b.var_count << " " << new_clause_count << endl;
 	
+	delete[] mpi_b.input_cnf_name;
 	decomp_set_file.close();
 	cnf_file.close();
 }
@@ -178,13 +178,47 @@ void makeSample :: makeUnsatSample()
 	cout << tests_count << " tests were created" << endl;
 }
 
+void makeSample :: makeSatSample()
+{
+	unsigned cur_var_ind;
+	unsigned cur_stream_index;
+	stringstream oneliteral_sstream, current_name_sstream;
+	for ( unsigned i=0; i < tests_count; i++ ) {
+		for ( vector<unsigned>::iterator it = decomp_set.begin(); it != decomp_set.end(); it++ ) {
+			cur_var_ind = (*it)-1;
+			if ( !(state_vec_vec[i][cur_var_ind]) )
+				oneliteral_sstream << "-";
+			oneliteral_sstream << cur_var_ind+1 << " 0" << endl;
+		}
+		cur_stream_index = 0;
+		for ( vector<bool>::iterator it = stream_vec_vec[i].begin(); it != stream_vec_vec[i].end(); it++ ) {
+			cur_var_ind = (mpi_b.var_count - mpi_b.keystream_len) + cur_stream_index;
+			if (!(*it))
+				oneliteral_sstream << "-";
+			oneliteral_sstream << cur_var_ind+1 << " 0" << endl;
+			cur_stream_index++;
+		}
+		current_name_sstream << cnf_name_common_part << "_" << i << ".cnf";
+		test_cnf_files[i] = new ofstream( current_name_sstream.str().c_str() );
+		(*test_cnf_files[i]) << comment_cnf_sstream.str(); // write comments of cnf file
+		(*test_cnf_files[i]) << head_cnf_sstream.str(); // write head of cnf file
+		(*test_cnf_files[i]) << oneliteral_sstream.str(); // write oneliteral clauses
+		(*test_cnf_files[i]) << main_cnf_sstream.str(); // write clauses of main cnf
+		(*test_cnf_files[i]).close();
+		delete test_cnf_files[i];
+		current_name_sstream.clear(); current_name_sstream.str("");
+		oneliteral_sstream.str(""); oneliteral_sstream.clear();
+	}
+}
+
 int main( int argc, char **argv )
 {
 #ifdef _DEBUG
-	argc = 4;
-	argv[1] = "./bivium_test_0.cnf";
+	argc = 5;
+	argv[1] = "./bivium_template.cnf";
 	argv[2] = "decomp_set.txt";
 	argv[3] = "2";
+	argv[4] = "-sat";
 #endif
 	
 	makeSample make_s;
