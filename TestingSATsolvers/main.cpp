@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <stdio.h>
 
 #ifdef _WIN32
 #include "dirent.h"
@@ -21,7 +22,28 @@ struct solver_info
 	double max_time;
 };
 
-int getdir( string dir, vector<string> &files )
+std::string exec(char* cmd) {
+#ifdef _WIN32
+    FILE* pipe = _popen(cmd, "r");
+#else
+	FILE* pipe = popen(cmd, "r");
+#endif
+    if (!pipe) return "ERROR";
+    char buffer[128];
+    std::string result = "";
+    while(!feof(pipe)) {
+    	if(fgets(buffer, 128, pipe) != NULL)
+    		result += buffer;
+    }
+#ifdef _WIN32
+    _pclose(pipe);
+#else
+	pclose(pipe);
+#endif
+    return result;
+}
+
+int getdir( std::string dir, vector<std::string> &files )
 {
     DIR *dp;
 	string cur_name;
@@ -44,6 +66,10 @@ int main( int argc, char **argv )
 	/*argc = 3;
 	argv[1] = "solvers";
 	argv[2] = "cnfs";*/
+
+	char* cmd = "ipconfig";
+	std::string strc = exec(cmd);
+	cout << strc << endl;
 
 	string system_str, current_out_name, current_res_name, str;
 	unsigned copy_from, copy_to;
