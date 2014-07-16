@@ -110,6 +110,7 @@ void makeSample :: init()
 	unsigned comment_str_count = 0, main_str_count = 0;
 	string str;
 	while ( getline( cnf_file, str ) ) {
+		str.erase( std::remove(str.begin(), str.end(), '\r'), str.end() );
 		if ( str[0] == 'c' ) {
 			comment_cnf_sstream << str << endl;
 			comment_str_count++;
