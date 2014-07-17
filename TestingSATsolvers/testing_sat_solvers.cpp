@@ -5,6 +5,8 @@
 #include <vector>
 #include <algorithm>
 #include <stdio.h>
+#include <string.h>
+#include <thread>
 
 #ifdef _WIN32
 #include "dirent.h"
@@ -22,12 +24,17 @@ struct solver_info
 	double max_time;
 };
 
-std::string exec(char* cmd) {
+// ececute command via system process
+std::string exec( std::string cmd_str ) {
+	char* cmd = new char[cmd_str.size() + 1];
+	strcpy( cmd, cmd_str.c_str() );
+	cmd[cmd_str.size()] = '\0';
 #ifdef _WIN32
     FILE* pipe = _popen(cmd, "r");
 #else
 	FILE* pipe = popen(cmd, "r");
 #endif
+	delete[] cmd;
     if (!pipe) return "ERROR";
     char buffer[128];
     std::string result = "";
@@ -49,7 +56,7 @@ int getdir( std::string dir, vector<std::string> &files )
 	string cur_name;
     struct dirent *dirp;
     if((dp  = opendir(dir.c_str())) == NULL) {
-        cout << endl << "Error in opening " << dir;
+        std::cout << endl << "Error in opening " << dir;
         return 1;
     }
     while ((dirp = readdir(dp)) != NULL) { 
@@ -60,6 +67,52 @@ int getdir( std::string dir, vector<std::string> &files )
     return 0;
 }
 
+string get_cpu_lim_str( std::string solvers_dir, std::string solver_name, std::string maxtime_seconds_str )
+{
+	string result_str;
+	if ( solver_name.find( "minisat_simp" ) != std::string::npos ) {
+		std::cout << "minisat_simp detected" << std::endl;
+		result_str =  "-cpu-lim=";
+	}
+	if ( solver_name.find( "glucose" ) != std::string::npos ) {
+		std::cout << "glucose detected" << std::endl;
+		result_str = "-cpu-lim=";
+	}
+	if ( solver_name.find( "sinn" ) != std::string::npos ) {
+		std::cout << "sinn detected" << std::endl;
+		return "-cpu-lim=" +  maxtime_seconds_str;
+	}
+	if ( solver_name.find( "minisat_bit" ) != std::string::npos ) {
+		std::cout << "minisat_bit detected" << std::endl;
+		result_str = "-cpu-lim=";
+	}
+	if ( solver_name.find( "zenn" ) != std::string::npos ) {
+		std::cout << "zenn detected" << std::endl;
+		result_str = "-cpu-lim=";
+	}
+	if ( solver_name.find( "glueminisat" ) != std::string::npos ) {
+		std::cout << "glueminisat detected" << std::endl;
+		result_str = "-cpu-lim=";
+	}
+	if ( solver_name.find( "minigolf" ) != std::string::npos ) {
+		std::cout << "minigolf detected" << std::endl;
+		result_str = "-cpu-lim=";
+	}
+	if ( solver_name.find( "lingeling" ) != std::string::npos ) {
+		std::cout << "lingeling detected" << std::endl;
+		result_str = "-t ";
+	}
+	
+	if ( result_str == "" ) {
+		std::cout << "unknown solver detected. using timelimit" << std::endl;
+		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" + solvers_dir + "/" + solver_name;
+	}
+	else
+		result_str = "./" + solvers_dir + "/" + solver_name + " " + result_str + maxtime_seconds_str;
+
+	return result_str;
+}
+
 int main( int argc, char **argv )
 {
 	// debug
@@ -67,43 +120,43 @@ int main( int argc, char **argv )
 	argv[1] = "solvers";
 	argv[2] = "cnfs";*/
 
-	char* cmd = "ipconfig";
-	std::string strc = exec(cmd);
-	cout << strc << endl;
-
+	unsigned int nthreads = std::thread::hardware_concurrency();
+	std::cout << "nthreads " << nthreads << std::endl;
+	
 	string system_str, current_out_name, current_res_name, str;
 	unsigned copy_from, copy_to;
-	ifstream current_out;
+	fstream current_out;
 	double cur_time, avg_time = 0;
 	stringstream sstream;
 	string maxtime_seconds_str;
 
-	vector<string> solver_files_names = vector<string>( );
-	vector<string> cnf_files_names = vector<string>( );
+	vector<string> solver_files_names = vector<string>();
+	vector<string> cnf_files_names = vector<string>();
 	string solvers_dir, cnfs_dir;
 
 	if ( argc < 3 ) {
-		cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem]" << endl;
+		std::cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem]" << endl;
 		return 1;
 	}
 
 	if ( argc == 3 ) {
 		maxtime_seconds_str = "600"; 
-		cout << "maxtime_seconds was set to default == 600 seconds" << endl;
+		std::cout << "maxtime_seconds was set to default == 600 seconds" << endl;
 	}
 
 	solvers_dir = argv[1];
 	cnfs_dir = argv[2];
 	maxtime_seconds_str = argv[3];
-	cout << "solvers_dir "     << solvers_dir         << endl;
-	cout << "cnfs_dir "        << cnfs_dir            << endl;
-	cout << "maxtime_seconds " << maxtime_seconds_str << endl;
+	std::cout << "solvers_dir "     << solvers_dir         << endl;
+	std::cout << "cnfs_dir "        << cnfs_dir            << endl;
+	std::cout << "maxtime_seconds " << maxtime_seconds_str << endl;
 
 	getdir( solvers_dir, solver_files_names );
 	getdir( cnfs_dir, cnf_files_names );
-
+	
 	vector<solver_info> solver_info_vec;
 	solver_info cur_solver_info;
+	
 	unsigned solved_problems_count = 0;
 	double sum_time, min_time, max_time;
 	for ( unsigned i=0; i < solver_files_names.size(); i++ ) {
@@ -112,13 +165,19 @@ int main( int argc, char **argv )
 		for ( unsigned j=0; j < cnf_files_names.size(); j++ ) {
 			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			current_res_name = "res_" + solver_files_names[i] + "_" + cnf_files_names[j];
-			system_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " "./" + solvers_dir + "/" + 
-				         solver_files_names[i] + " " + "./" + cnfs_dir + "/" + cnf_files_names[j];
+			
+			system_str = get_cpu_lim_str( solvers_dir, solver_files_names[i], maxtime_seconds_str ) + 
+				         " ./" + cnfs_dir + "/" + cnf_files_names[j];
+			std::cout << system_str << std::endl;
 						 //+ " " + current_res_name 
 					    // + " &> ./" + current_out_name;
-			cout << system_str << endl;
-			system( system_str.c_str( ) );
-			current_out.open( current_out_name.c_str() );
+			//std::cout << system_str << std::endl;
+			//cout << "system_result_stream" << endl;
+			//cout << system_result_stream.str() << endl;
+			//system( system_str.c_str( ) );
+			current_out.open( current_out_name.c_str(), ios_base :: out );
+			current_out << exec( system_str );
+			
 			while ( getline( current_out, str ) ) {
 				if ( str.find("CPU time") != string::npos ) {
 					copy_from = str.find(":") + 2;
@@ -127,11 +186,11 @@ int main( int argc, char **argv )
 					//cout << "time str " << str << endl;
 					sstream << str;
 					sstream >> cur_time;
-					if ( cur_time == 0 ) {
+					if ( cur_time == 0.0 ) {
 						cur_time = 0.01; // if unit propagation
-						cout << "Warning. cur_time == 0. changed to 0.1" << endl;
+						std::cout << "Warning. cur_time == 0. changed to 0.1" << endl;
 					}
-					cout << "time " << cur_time << endl;
+					std::cout << "time " << cur_time << endl;
 					sum_time += cur_time;
 					if ( j == 0 ) {
 						min_time = cur_time;
