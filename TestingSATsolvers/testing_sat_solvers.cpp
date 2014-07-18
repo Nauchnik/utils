@@ -74,10 +74,11 @@ string get_cpu_lim_str( std::string solvers_dir, std::string solver_name, std::s
 		std::cout << "minisat_simp detected" << std::endl;
 		result_str =  "-cpu-lim=";
 	}
-	if ( solver_name.find( "glucose" ) != std::string::npos ) {
+	// glucose can't stop in time
+	/*if ( solver_name.find( "glucose" ) != std::string::npos ) {
 		std::cout << "glucose detected" << std::endl;
 		result_str = "-cpu-lim=";
-	}
+	}*/
 	if ( solver_name.find( "sinn" ) != std::string::npos ) {
 		std::cout << "sinn detected" << std::endl;
 		return "-cpu-lim=" +  maxtime_seconds_str;
@@ -156,6 +157,10 @@ int main( int argc, char **argv )
 	
 	vector<solver_info> solver_info_vec;
 	solver_info cur_solver_info;
+	std::vector<unsigned> sat_count_vec;
+	sat_count_vec.resize( solver_files_names.size() );
+	for ( auto &x : sat_count_vec )
+		x = 0;
 	
 	unsigned solved_problems_count = 0;
 	double sum_time, min_time, max_time;
@@ -177,9 +182,21 @@ int main( int argc, char **argv )
 			//system( system_str.c_str( ) );
 			current_out.open( current_out_name.c_str(), ios_base :: out );
 			current_out << exec( system_str );
+			current_out.close();
+			current_out.open( current_out_name.c_str(), ios_base :: in );
 			
 			while ( getline( current_out, str ) ) {
-				if ( str.find("CPU time") != string::npos ) {
+				if ( str.find("SATISFIABLE") != std::string::npos ) {
+					sat_count_vec[i]++;
+					std::cout << "SAT found" << std::endl;
+					std::cout << "current_out_name " << current_out_name << std::endl;
+					std::cout << "sat_count_vec" << std::endl;
+					for ( unsigned t=0; t < sat_count_vec.size(); t++ )
+						std::cout << solver_files_names[t] << " : " << sat_count_vec[i] << " sat from " << 
+						             cnf_files_names.size() << std::endl;
+				}
+				if ( str.find("CPU time") != std::string::npos ) {
+					std::cout << str << std::endl;
 					copy_from = str.find(":") + 2;
 					copy_to = str.find(" s") - 1;
 					str = str.substr( copy_from, (copy_to-copy_from+1) );
@@ -200,11 +217,11 @@ int main( int argc, char **argv )
 						max_time = ( cur_time > max_time ) ? cur_time : max_time;
 					}
 					solved_problems_count++;
-					cout << "solved_problems_count " << solved_problems_count << endl;
+					std::cout << "solved_problems_count " << solved_problems_count << endl;
 					avg_time = sum_time / (double)solved_problems_count;
-					cout << "cur_avg_time " << avg_time << endl;
-					cout << "cur_min_time " << min_time << endl;
-					cout << "cur_max_time " << max_time << endl;
+					std::cout << "cur_avg_time " << avg_time << endl;
+					std::cout << "cur_min_time " << min_time << endl;
+					std::cout << "cur_max_time " << max_time << endl;
 					sstream.str(""); sstream.clear();
 				}
 			}
@@ -217,13 +234,13 @@ int main( int argc, char **argv )
 		solver_info_vec.push_back( cur_solver_info );
 	}
 
-	cout << "*** Final statistics ***" << endl;
-	cout << "Total problems " << cnf_files_names.size() << endl;
+	std::cout << "*** Final statistics ***" << std::endl;
+	std::cout << "Total problems " << cnf_files_names.size() << std::endl;
 	for ( vector<solver_info> :: iterator it = solver_info_vec.begin(); it != solver_info_vec.end(); it++ ) {
-		cout << (*it).name << endl;
-		cout << "  avg_time " << (*it).avg_time << " s" << endl;
-		cout << "  min_time " << (*it).min_time << " s" << endl;
-		cout << "  max_time " << (*it).max_time << " s" << endl;
+		std::cout << (*it).name << std::endl;
+		std::cout << "  avg_time " << (*it).avg_time << " s" << std::endl;
+		std::cout << "  min_time " << (*it).min_time << " s" << std::endl;
+		std::cout << "  max_time " << (*it).max_time << " s" << std::endl;
 	}
 	return 0;
 }
