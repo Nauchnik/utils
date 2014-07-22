@@ -67,11 +67,12 @@ int getdir( std::string dir, vector<std::string> &files )
     return 0;
 }
 
-string get_cpu_lim_str( std::string solvers_dir, std::string solver_name, std::string maxtime_seconds_str )
+string get_cpu_lim_str( std::string solvers_dir, std::string solver_name, 
+					    std::string maxtime_seconds_str, std::string nof_threads_str )
 {
 	string result_str;
 	if ( solver_name.find( "minisat_simp" ) != std::string::npos ) {
-		std::cout << "minisat_simp detected" << std::endl;
+		//std::cout << "minisat_simp detected" << std::endl;
 		result_str =  "-cpu-lim=";
 	}
 	// glucose can't stop in time
@@ -79,28 +80,39 @@ string get_cpu_lim_str( std::string solvers_dir, std::string solver_name, std::s
 		std::cout << "glucose detected" << std::endl;
 		result_str = "-cpu-lim=";
 	}*/
-	if ( solver_name.find( "sinn" ) != std::string::npos ) {
-		std::cout << "sinn detected" << std::endl;
+	else if ( solver_name.find( "sinn" ) != std::string::npos ) {
+		//std::cout << "sinn detected" << std::endl;
 		return "-cpu-lim=" +  maxtime_seconds_str;
 	}
-	if ( solver_name.find( "minisat_bit" ) != std::string::npos ) {
-		std::cout << "minisat_bit detected" << std::endl;
+	else if ( solver_name.find( "minisat_bit" ) != std::string::npos ) {
+		//std::cout << "minisat_bit detected" << std::endl;
 		result_str = "-cpu-lim=";
 	}
-	if ( solver_name.find( "zenn" ) != std::string::npos ) {
-		std::cout << "zenn detected" << std::endl;
+	else if ( solver_name.find( "zenn" ) != std::string::npos ) {
+		//std::cout << "zenn detected" << std::endl;
 		result_str = "-cpu-lim=";
 	}
-	if ( solver_name.find( "glueminisat" ) != std::string::npos ) {
-		std::cout << "glueminisat detected" << std::endl;
+	else if ( solver_name.find( "glueminisat" ) != std::string::npos ) {
+		//std::cout << "glueminisat detected" << std::endl;
 		result_str = "-cpu-lim=";
 	}
-	if ( solver_name.find( "minigolf" ) != std::string::npos ) {
-		std::cout << "minigolf detected" << std::endl;
+	else if ( solver_name.find( "minigolf" ) != std::string::npos ) {
+		//std::cout << "minigolf detected" << std::endl;
 		result_str = "-cpu-lim=";
 	}
-	if ( solver_name.find( "lingeling" ) != std::string::npos ) {
-		std::cout << "lingeling detected" << std::endl;
+	/*else if ( solver_name.find( "plingeling" ) != std::string::npos ) {
+		//std::cout << "pingeling detected" << std::endl;
+		result_str = "-nof_threads ";
+		result_str += nof_threads_str;
+		result_str += " -t ";
+	}
+	else if ( solver_name.find( "trengeling" ) != std::string::npos ) {
+		//std::cout << "treengeling detected" << std::endl;
+		//result_str = "-t " + "11" + nof_threads_str;
+	}*/
+	else if ( ( solver_name.find( "lingeling" ) != std::string::npos ) && 
+		      ( solver_name.find( "plingeling" ) == std::string::npos ) ) {
+		//std::cout << "lingeling detected" << std::endl;
 		result_str = "-t ";
 	}
 	
@@ -123,12 +135,16 @@ int main( int argc, char **argv )
 
 	unsigned int nthreads = std::thread::hardware_concurrency();
 	std::cout << "nthreads " << nthreads << std::endl;
+	stringstream sstream;
+	sstream << nthreads;
+	std::string nof_threads_str = sstream.str();
+	sstream.clear(); sstream.str("");
+	std::cout << "nof_threads_str " << nof_threads_str << std::endl;
 	
 	string system_str, current_out_name, current_res_name, str;
 	unsigned copy_from, copy_to;
 	fstream current_out;
 	double cur_time, avg_time = 0;
-	stringstream sstream;
 	string maxtime_seconds_str;
 
 	vector<string> solver_files_names = vector<string>();
@@ -171,7 +187,7 @@ int main( int argc, char **argv )
 			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			current_res_name = "res_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			
-			system_str = get_cpu_lim_str( solvers_dir, solver_files_names[i], maxtime_seconds_str ) + 
+			system_str = get_cpu_lim_str( solvers_dir, solver_files_names[i], maxtime_seconds_str, nof_threads_str ) + 
 				         " ./" + cnfs_dir + "/" + cnf_files_names[j];
 			std::cout << system_str << std::endl;
 						 //+ " " + current_res_name 
@@ -192,7 +208,7 @@ int main( int argc, char **argv )
 					std::cout << "current_out_name " << current_out_name << std::endl;
 					std::cout << "sat_count_vec" << std::endl;
 					for ( unsigned t=0; t < sat_count_vec.size(); t++ )
-						std::cout << solver_files_names[t] << " : " << sat_count_vec[i] << " sat from " << 
+						std::cout << solver_files_names[t] << " : " << sat_count_vec[t] << " sat from " << 
 						             cnf_files_names.size() << std::endl;
 				}
 				if ( str.find("CPU time") != std::string::npos ) {
