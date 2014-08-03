@@ -34,6 +34,7 @@ public:
 private:
 	unsigned tests_count;
 	string cnf_file_name;
+	string cut_cnf_file_name;
 	string decomp_set_file_name;
 	string cnf_name_common_part;
 	vector<ofstream*> test_cnf_files;
@@ -63,9 +64,10 @@ void makeSample :: readInput( int argc, char **argv )
 	
 	cnf_file_name = argv[1];
 	cout << "cnf_file_name " << cnf_file_name << endl;
-	while ( (cnf_file_name[0] == '.') || ( cnf_file_name[0] == '/') )
-	    cnf_file_name = cnf_file_name.substr(1, cnf_file_name.length() - 1);
-	cout << "new cnf_file_name " << cnf_file_name << endl;
+	cut_cnf_file_name = cnf_file_name;
+	while ( (cut_cnf_file_name[0] == '.') || ( cut_cnf_file_name[0] == '/') )
+	    cut_cnf_file_name = cut_cnf_file_name.substr(1, cut_cnf_file_name.length() - 1);
+	cout << "cut_cnf_file_name " << cut_cnf_file_name << endl;
 	
 	decomp_set_file_name = argv[2];
 	cout << "decomp_set_file_name " << decomp_set_file_name << endl;
@@ -103,8 +105,8 @@ void makeSample :: init()
 
 	test_cnf_files.resize( tests_count );
 
-	unsigned found = cnf_file_name.find( "." );
-	cnf_name_common_part = (found != string::npos) ? cnf_file_name.substr( 0, found ) : cnf_file_name;
+	unsigned found = cut_cnf_file_name.find( "." );
+	cnf_name_common_part = (found != string::npos) ? cut_cnf_file_name.substr( 0, found ) : cut_cnf_file_name;
 	cout << "cnf_name_common_part " << cnf_name_common_part << endl;
 	
 	unsigned comment_str_count = 0, main_str_count = 0;
@@ -134,8 +136,8 @@ void makeSample :: init()
 	cout << "decomp_set.size() " << decomp_set.size() << endl; 
 
 	mpi_b.isMakeSatSampleAnyWay = true;
-	mpi_b.input_cnf_name = new char[cnf_file_name.size() + 1];
-	strcpy( mpi_b.input_cnf_name, cnf_file_name.c_str() );
+	mpi_b.input_cnf_name = new char[cut_cnf_file_name.size() + 1];
+	strcpy( mpi_b.input_cnf_name, cut_cnf_file_name.c_str() );
 	mpi_b.ReadIntCNF();
 	cout << "mpi_b.var_count " << mpi_b.var_count << endl;
 	cout << "mpi_b.clause_count "  << mpi_b.clause_count  << endl;

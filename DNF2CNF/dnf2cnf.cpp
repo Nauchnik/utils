@@ -7,17 +7,18 @@
 int main( int argc, char **argv )
 {
 #ifdef _DEBUG
-	argc = 3;
+	argc = 4;
 	argv[1] = "bivium_template.cnf";
-	argv[2] = "var_values.txt";
+	argv[2] = "set_35vars";
+	argv[3] = "known_sat_sample";
 #endif
 	if ( argc < 3 ) {
 		std::cerr << "Usage: template_cnf var_values" << std::endl;
 		return 1;
 	}
-	std::string ifile_name = argv[1];
-	std::cout << "Opening " << ifile_name << std::endl;
-	std::ifstream ifile( ifile_name.c_str() );
+	std::string template_cnf_file_name = argv[1];
+	std::cout << "Opening " << template_cnf_file_name << std::endl;
+	std::ifstream template_cnf_file( template_cnf_file_name.c_str() );
 	std::string str;
 	std::string prefix;
 	std::size_t found;
@@ -27,7 +28,7 @@ int main( int argc, char **argv )
 	// read count of variables in template CNF
 	prefix = "p cnf ";
 	unsigned processed_string_count = 0;
-	while ( getline( ifile, str ) ) {
+	while ( getline( template_cnf_file, str ) ) {
 		found = str.find( prefix );
 		if ( found != std::string::npos ) {
 			str.erase( found, prefix.size() );
@@ -39,7 +40,7 @@ int main( int argc, char **argv )
 		if ( processed_string_count > 10 )
 			break;
 	}
-	ifile.close();
+	template_cnf_file.close();
 	
 	if ( !template_cnf_varibales ) {
 		std::cerr << "template_cnf_varibales == 0" << std::endl;
@@ -47,29 +48,68 @@ int main( int argc, char **argv )
 	}
 	
 	// read decomposition varibales
-	ifile_name = argv[2];
-	ifile.open( ifile_name.c_str() );
-	getline( ifile, str );
-	prefix = "c var_set ";
-	found = str.find( prefix );
-	if ( found == std::string::npos ) {
-		std::cerr << "'c input variables ' wasn't found in 1st string" << std::endl;
-		return 1;
-	}
-	str.erase( found, prefix.size() );
-	std::vector<unsigned> var_vec;
+	std::string decomp_set_file_name = argv[2];
+	std::cout << "Opening " << decomp_set_file_name << std::endl;
+	std::ifstream decomp_set_file( decomp_set_file_name.c_str() );
+	getline( decomp_set_file, str );
+	std::vector<unsigned> decomp_set_vec;
 	sstream.clear(); sstream.str("");
 	sstream << str;
 	unsigned uint;
 	while ( sstream >> uint )
-		var_vec.push_back( uint );
-	
+		decomp_set_vec.push_back( uint );
+	decomp_set_file.close();
+
 	// read valus of decomposition variables
-	std::vector<std::string> values_vec;
-	while ( getline( ifile, str ) )
-		values_vec.push_back( str );
+	std::vector<std::vector<bool>> values_vec;
+	std::string values_file_name = argv[3];
+	std::ifstream values_file( values_file_name.c_str() );
+	std::vector<std::vector<bool>> stream_vec_vec, state_vec_vec;
+	std::vector<bool> stream_vec, state_vec;
+	std::cout << "reading state and stream from file " << values_file_name << std::endl;
+	bool isState = false, isStream = false;
+	while( getline( values_file, str ) ) {
+		if( str == "state" ) {
+			std::cout << "state string found" << std::endl;
+			isState = true;
+		}
+		else if ( str == "stream" ) {
+			std::cout << "stream string found" << std::endl;
+			isState = false;
+			isStream = true;
+		}
+		else {
+			if ( isState ) {
+				for ( unsigned i=0; i < str.size(); i++ )
+					state_vec.push_back( str[i] == '1' ? true : false );
+				state_vec_vec.push_back( state_vec );
+				state_vec.clear();
+			}
+			else if ( isStream ) {
+				for ( unsigned i=0; i < str.size(); i++ )
+					stream_vec.push_back( str[i] == '1' ? true : false );
+				stream_vec_vec.push_back( stream_vec );
+				stream_vec.clear();
+			}
+		}
+	} 
+	std::cout << "state_vec_vec.size() "  << state_vec_vec.size()  << std::endl;
+	std::cout << "stream_vec_vec.size() " << stream_vec_vec.size() << std::endl;
+	values_file.close();
+
+	unsigned i=0;
+	for ( auto &x : state_vec_vec ) {
+		for ( auto &y : decomp_set_vec ) 
+			values_vec[i].push_back( x[y-1] );
+		i++;
+	}
+	i=0;
+	for ( auto &x : stream_vec_vec ) {
+		for ( auto &y : x ) 
+			values_vec[i].push_back(y);
+		i++;
+	}
 	
-	ifile.close();
 	unsigned new_cnf_variables = values_vec.size();
 	std::vector<unsigned> new_cnf_variables_vec;
 	for ( unsigned i=0; i < values_vec.size(); i++ )
@@ -86,16 +126,16 @@ int main( int argc, char **argv )
 		// clause with positive phase of new variable
 		from_dnf_sstream << new_cnf_variables_vec[i] << " ";
 		for ( unsigned j=0; j < values_vec[i].size(); j++ ) {
-			if ( values_vec[i][j] == '1' ) // negative phase cause De Morgana rule
+			if ( values_vec[i][j] ) // negative phase cause De Morgana rule
 				from_dnf_sstream << "-";
-			from_dnf_sstream << var_vec[j] << " ";
+			from_dnf_sstream << decomp_set_vec[j] << " ";
 		}
 		from_dnf_sstream << "0" << std::endl;
 		for ( unsigned j=0; j < values_vec[i].size(); j++ ) {
 			from_dnf_sstream << "-" << new_cnf_variables_vec[i] << " "; // negative phase cause De Morgana rule
-			if ( values_vec[i][j] == '0' ) 
+			if ( !(values_vec[i][j]) ) 
 				from_dnf_sstream << "-";
-			from_dnf_sstream << var_vec[j] << " 0" << std::endl;
+			from_dnf_sstream << decomp_set_vec[j] << " 0" << std::endl;
 		}
 	}
 	
