@@ -178,6 +178,7 @@ int main( int argc, char **argv )
 	for ( auto &x : sat_count_vec )
 		x = 0;
 	
+	bool isTimeStr;
 	unsigned solved_problems_count = 0;
 	double sum_time, min_time, max_time;
 	for ( unsigned i=0; i < solver_files_names.size(); i++ ) {
@@ -211,12 +212,25 @@ int main( int argc, char **argv )
 						std::cout << solver_files_names[t] << " : " << sat_count_vec[t] << " sat from " << 
 						             cnf_files_names.size() << std::endl;
 				}
+				isTimeStr = true;
 				if ( str.find("CPU time") != std::string::npos ) {
-					std::cout << str << std::endl;
 					copy_from = str.find(":") + 2;
 					copy_to = str.find(" s") - 1;
+				}
+				else if ( ( str.find("seconds") != std::string::npos ) && // lingeling format
+						  ( str.find("MB") != std::string::npos ) && 
+						  ( str.size() < 30 ) ) {
+					copy_from = str.find("c ") + 2;
+					copy_to = str.find(" seconds") - 1;
+				}
+				else if ( str.find("c Running time=") != std::string::npos ) { // glueSplit_clasp format
+					copy_from = str.find("c Running time=") + 15;
+					copy_to = str.size() - 1;
+				}
+				else
+					isTimeStr = false;
+				if ( isTimeStr ) {
 					str = str.substr( copy_from, (copy_to-copy_from+1) );
-					//cout << "time str " << str << endl;
 					sstream << str;
 					sstream >> cur_time;
 					if ( cur_time == 0.0 ) {

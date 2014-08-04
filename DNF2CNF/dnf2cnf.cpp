@@ -7,13 +7,14 @@
 int main( int argc, char **argv )
 {
 #ifdef _DEBUG
-	argc = 4;
+	argc = 5;
 	argv[1] = "bivium_template.cnf";
 	argv[2] = "set_35vars";
 	argv[3] = "known_sat_sample";
+	argv[4] = "2";
 #endif
 	if ( argc < 3 ) {
-		std::cerr << "Usage: template_cnf var_values" << std::endl;
+		std::cerr << "Usage: template_cnf var_set sat_sample assumptions_count" << std::endl;
 		return 1;
 	}
 	std::string template_cnf_file_name = argv[1];
@@ -24,6 +25,7 @@ int main( int argc, char **argv )
 	std::size_t found;
 	std::stringstream sstream;
 	unsigned template_cnf_varibales = 0;
+	unsigned assumptions_number = atoi( argv[4] );
 	
 	// read count of variables in template CNF
 	prefix = "p cnf ";
@@ -97,18 +99,20 @@ int main( int argc, char **argv )
 	std::cout << "stream_vec_vec.size() " << stream_vec_vec.size() << std::endl;
 	values_file.close();
 
-	unsigned i=0;
-	for ( auto &x : state_vec_vec ) {
+	if ( assumptions_number > state_vec_vec.size() ) {
+		assumptions_number = state_vec_vec.size();
+		std::cout << "assumptions_number changed to " << assumptions_number << std::endl;
+	}
+	
+	values_vec.resize( assumptions_number );
+	// add values of variables from decomp set
+	for ( unsigned i=0; i < assumptions_number; i++ )
 		for ( auto &y : decomp_set_vec ) 
-			values_vec[i].push_back( x[y-1] );
-		i++;
-	}
-	i=0;
-	for ( auto &x : stream_vec_vec ) {
-		for ( auto &y : x ) 
+			values_vec[i].push_back( state_vec_vec[i][y-1] );
+	// add values of known output variables
+	for ( unsigned i=0; i < assumptions_number; i++ )
+		for ( auto &y : stream_vec_vec[i] ) 
 			values_vec[i].push_back(y);
-		i++;
-	}
 	
 	unsigned new_cnf_variables = values_vec.size();
 	std::vector<unsigned> new_cnf_variables_vec;
@@ -120,7 +124,12 @@ int main( int argc, char **argv )
 	for ( auto &x : new_cnf_variables_vec )
 		from_dnf_sstream << x << " ";
 	from_dnf_sstream << "0" << std::endl;
-	
+	std::vector<unsigned> assumptions_var_set = decomp_set_vec;
+	unsigned out_variables_count = stream_vec_vec[0].size();
+	unsigned first_out_varible = template_cnf_varibales - out_variables_count + 1;
+	for ( unsigned i=0; i < out_variables_count; i++ )
+		assumptions_var_set.push_back( first_out_varible + i );
+
 	// write clauses A == B -> (A or not(B)) and ( not(A) or B ) where A is a new variable
 	for ( unsigned i=0; i < values_vec.size(); i++ ) {
 		// clause with positive phase of new variable
@@ -128,14 +137,14 @@ int main( int argc, char **argv )
 		for ( unsigned j=0; j < values_vec[i].size(); j++ ) {
 			if ( values_vec[i][j] ) // negative phase cause De Morgana rule
 				from_dnf_sstream << "-";
-			from_dnf_sstream << decomp_set_vec[j] << " ";
+			from_dnf_sstream << assumptions_var_set[j] << " ";
 		}
 		from_dnf_sstream << "0" << std::endl;
 		for ( unsigned j=0; j < values_vec[i].size(); j++ ) {
 			from_dnf_sstream << "-" << new_cnf_variables_vec[i] << " "; // negative phase cause De Morgana rule
 			if ( !(values_vec[i][j]) ) 
 				from_dnf_sstream << "-";
-			from_dnf_sstream << decomp_set_vec[j] << " 0" << std::endl;
+			from_dnf_sstream << assumptions_var_set[j] << " 0" << std::endl;
 		}
 	}
 	
