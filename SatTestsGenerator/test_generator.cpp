@@ -204,9 +204,9 @@ void makeSample :: makeSatSample()
 		current_name_sstream << cnf_name_common_part << "_" << i << ".cnf";
 		test_cnf_files[i] = new ofstream( current_name_sstream.str().c_str() );
 		(*test_cnf_files[i]) << comment_cnf_sstream.str(); // write comments of cnf file
-		(*test_cnf_files[i]) << head_cnf_sstream.str(); // write head of cnf file
-		(*test_cnf_files[i]) << oneliteral_sstream.str(); // write oneliteral clauses
-		(*test_cnf_files[i]) << main_cnf_sstream.str(); // write clauses of main cnf
+		(*test_cnf_files[i]) << head_cnf_sstream.str();    // write head of cnf file
+		(*test_cnf_files[i]) << oneliteral_sstream.str();  // write oneliteral clauses
+		(*test_cnf_files[i]) << main_cnf_sstream.str();    // write clauses of main cnf
 		(*test_cnf_files[i]).close();
 		delete test_cnf_files[i];
 		current_name_sstream.clear(); current_name_sstream.str("");
