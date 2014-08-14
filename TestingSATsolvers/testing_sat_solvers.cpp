@@ -115,6 +115,7 @@ string get_cpu_lim_str( std::string solvers_dir, std::string solver_name,
 		//std::cout << "lingeling detected" << std::endl;
 		result_str = "-t ";
 	}
+
 	
 	if ( result_str == "" ) {
 		std::cout << "unknown solver detected. using timelimit" << std::endl;
@@ -123,6 +124,9 @@ string get_cpu_lim_str( std::string solvers_dir, std::string solver_name,
 	else
 		result_str = "./" + solvers_dir + "/" + solver_name + " " + result_str + maxtime_seconds_str;
 
+	if ( solver_name.find( "dimetheus" ) != std::string::npos )
+		result_str += " -formula";
+	
 	return result_str;
 }
 
