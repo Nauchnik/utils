@@ -130,6 +130,15 @@ string get_cpu_lim_str( std::string solvers_dir, std::string solver_name,
 	return result_str;
 }
 
+std::string get_params_str( std::string solver_name )
+{
+	std::string result_str;
+	if ( solver_name.find( "CSCC" ) != std::string::npos ) {
+		result_str = " 1";
+	}
+	return result_str;
+}
+
 int main( int argc, char **argv )
 {
 	// debug
@@ -182,7 +191,7 @@ int main( int argc, char **argv )
 	for ( auto &x : sat_count_vec )
 		x = 0;
 	
-	bool isTimeStr;
+	bool isTimeStr, isSAT;
 	unsigned solved_problems_count = 0;
 	double sum_time, min_time, max_time;
 	for ( unsigned i=0; i < solver_files_names.size(); i++ ) {
@@ -193,7 +202,7 @@ int main( int argc, char **argv )
 			current_res_name = "res_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			
 			system_str = get_cpu_lim_str( solvers_dir, solver_files_names[i], maxtime_seconds_str, nof_threads_str ) + 
-				         " ./" + cnfs_dir + "/" + cnf_files_names[j];
+				         " ./" + cnfs_dir + "/" + cnf_files_names[j] + get_params_str( solver_files_names[i] );
 			std::cout << system_str << std::endl;
 						 //+ " " + current_res_name 
 					    // + " &> ./" + current_out_name;
@@ -206,8 +215,11 @@ int main( int argc, char **argv )
 			current_out.close();
 			current_out.open( current_out_name.c_str(), ios_base :: in );
 			
+			isSAT = false;
+			cur_time = 0.0;
 			while ( getline( current_out, str ) ) {
 				if ( str.find("SATISFIABLE") != std::string::npos ) {
+					isSAT = true;
 					sat_count_vec[i]++;
 					std::cout << "SAT found" << std::endl;
 					std::cout << "current_out_name " << current_out_name << std::endl;
@@ -252,15 +264,20 @@ int main( int argc, char **argv )
 					}
 					solved_problems_count++;
 					std::cout << "solved_problems_count " << solved_problems_count << endl;
-					avg_time = sum_time / (double)solved_problems_count;
-					std::cout << "cur_avg_time " << avg_time << endl;
-					std::cout << "cur_min_time " << min_time << endl;
-					std::cout << "cur_max_time " << max_time << endl;
 					sstream.str(""); sstream.clear();
 				}
 			}
 			current_out.close();
 		}
+		if ( isSAT ) {
+			avg_time = sum_time / (double)solved_problems_count;
+			std::cout << "cur_avg_time " << avg_time << endl;
+			std::cout << "cur_min_time " << min_time << endl;
+			std::cout << "cur_max_time " << max_time << endl;
+		}
+		else
+			min_time = max_time = 0.0;
+		
 		cur_solver_info.name = solver_files_names[i];
 		cur_solver_info.avg_time = avg_time;
 		cur_solver_info.min_time = min_time;
