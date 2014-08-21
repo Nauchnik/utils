@@ -7,14 +7,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <thread>
+#include "addit_func.h"
 
-#ifdef _WIN32
-#include "dirent.h"
-#else
-#include <dirent.h>
-#endif
-
-using namespace std;
+using namespace Addit_func;
 
 struct solver_info
 {
@@ -48,23 +43,6 @@ std::string exec( std::string cmd_str ) {
 	pclose(pipe);
 #endif
     return result;
-}
-
-int getdir( std::string dir, vector<std::string> &files )
-{
-    DIR *dp;
-	string cur_name;
-    struct dirent *dirp;
-    if((dp  = opendir(dir.c_str())) == NULL) {
-        std::cout << endl << "Error in opening " << dir;
-        return 1;
-    }
-    while ((dirp = readdir(dp)) != NULL) { 
-		cur_name = string(dirp->d_name);
-		if ( cur_name[0] != '.' ) files.push_back(cur_name); 
-	}
-    closedir(dp);
-    return 0;
 }
 
 string get_cpu_lim_str( std::string solvers_dir, std::string solver_name, 
@@ -156,33 +134,39 @@ int main( int argc, char **argv )
 	
 	string system_str, current_out_name, current_res_name, str;
 	unsigned copy_from, copy_to;
-	fstream current_out;
+	std::fstream current_out;
 	double cur_time, avg_time = 0;
 	string maxtime_seconds_str;
 
-	vector<string> solver_files_names = vector<string>();
-	vector<string> cnf_files_names = vector<string>();
-	string solvers_dir, cnfs_dir;
-
 	if ( argc < 3 ) {
-		std::cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem]" << endl;
+		std::cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem]" << std::endl;
 		return 1;
 	}
 
 	if ( argc == 3 ) {
 		maxtime_seconds_str = "600"; 
-		std::cout << "maxtime_seconds was set to default == 600 seconds" << endl;
+		std::cout << "maxtime_seconds was set to default == 600 seconds" << std::endl;
 	}
 
+	string solvers_dir, cnfs_dir;
 	solvers_dir = argv[1];
 	cnfs_dir = argv[2];
 	maxtime_seconds_str = argv[3];
-	std::cout << "solvers_dir "     << solvers_dir         << endl;
-	std::cout << "cnfs_dir "        << cnfs_dir            << endl;
-	std::cout << "maxtime_seconds " << maxtime_seconds_str << endl;
-
-	getdir( solvers_dir, solver_files_names );
-	getdir( cnfs_dir, cnf_files_names );
+	std::cout << "solvers_dir "     << solvers_dir         << std::endl;
+	std::cout << "cnfs_dir "        << cnfs_dir            << std::endl;
+	std::cout << "maxtime_seconds " << maxtime_seconds_str << std::endl;
+	
+	vector<string> solver_files_names = vector<string>();
+	vector<string> cnf_files_names = vector<string>();
+	Addit_func::getdir( solvers_dir, solver_files_names );
+	Addit_func::getdir( cnfs_dir, cnf_files_names );
+	
+	std::cout << "solver_files_names" << std::endl;
+	for ( auto &x : solver_files_names )
+		std::cout << x << std::endl;
+	std::cout << "cnf_files_names" << std::endl;
+	for ( auto &x : solver_files_names )
+		std::cout << x << std::endl;
 	
 	vector<solver_info> solver_info_vec;
 	solver_info cur_solver_info;
@@ -191,6 +175,7 @@ int main( int argc, char **argv )
 	for ( auto &x : sat_count_vec )
 		x = 0;
 	
+	double clock_solving_time;
 	bool isTimeStr, isSAT;
 	unsigned solved_problems_count = 0;
 	double sum_time, min_time, max_time;
@@ -200,7 +185,6 @@ int main( int argc, char **argv )
 		for ( unsigned j=0; j < cnf_files_names.size(); j++ ) {
 			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			current_res_name = "res_" + solver_files_names[i] + "_" + cnf_files_names[j];
-			
 			system_str = get_cpu_lim_str( solvers_dir, solver_files_names[i], maxtime_seconds_str, nof_threads_str ) + 
 				         " ./" + cnfs_dir + "/" + cnf_files_names[j] + get_params_str( solver_files_names[i] );
 			std::cout << system_str << std::endl;
@@ -210,10 +194,13 @@ int main( int argc, char **argv )
 			//cout << "system_result_stream" << endl;
 			//cout << system_result_stream.str() << endl;
 			//system( system_str.c_str( ) );
-			current_out.open( current_out_name.c_str(), ios_base :: out );
+			current_out.open( current_out_name.c_str(), std::ios_base :: out );
+			clock_solving_time = Addit_func::cpuTime();
 			current_out << exec( system_str );
+			clock_solving_time = Addit_func::cpuTime() - clock_solving_time;
+			std::cout << "clock_solving_time " << clock_solving_time << std::endl;
 			current_out.close();
-			current_out.open( current_out_name.c_str(), ios_base :: in );
+			current_out.open( current_out_name.c_str(), std::ios_base :: in );
 			
 			isSAT = false;
 			cur_time = 0.0;
@@ -249,31 +236,30 @@ int main( int argc, char **argv )
 					str = str.substr( copy_from, (copy_to-copy_from+1) );
 					sstream << str;
 					sstream >> cur_time;
-					if ( cur_time == 0.0 ) {
-						cur_time = 0.01; // if unit propagation
-						std::cout << "Warning. cur_time == 0. changed to 0.1" << endl;
-					}
-					std::cout << "time " << cur_time << endl;
-					sum_time += cur_time;
-					if ( j == 0 ) {
-						min_time = cur_time;
-						max_time = cur_time;
-					} else {
-						min_time = ( cur_time < min_time ) ? cur_time : min_time;
-						max_time = ( cur_time > max_time ) ? cur_time : max_time;
-					}
-					solved_problems_count++;
-					std::cout << "solved_problems_count " << solved_problems_count << endl;
 					sstream.str(""); sstream.clear();
 				}
 			}
 			current_out.close();
+			
+			if ( cur_time <= 0.0 ) 
+				cur_time = clock_solving_time;
+			std::cout << "cur_time " << cur_time << std::endl;
+			sum_time += cur_time;
+			if ( j == 0 ) {
+				min_time = cur_time;
+				max_time = cur_time;
+			} else {
+				min_time = ( cur_time < min_time ) ? cur_time : min_time;
+				max_time = ( cur_time > max_time ) ? cur_time : max_time;
+			}
+			solved_problems_count++;
+			std::cout << "solved_problems_count " << solved_problems_count << std::endl;
 		}
 		if ( isSAT ) {
 			avg_time = sum_time / (double)solved_problems_count;
-			std::cout << "cur_avg_time " << avg_time << endl;
-			std::cout << "cur_min_time " << min_time << endl;
-			std::cout << "cur_max_time " << max_time << endl;
+			std::cout << "cur_avg_time " << avg_time << std::endl;
+			std::cout << "cur_min_time " << min_time << std::endl;
+			std::cout << "cur_max_time " << max_time << std::endl;
 		}
 		else
 			min_time = max_time = 0.0;

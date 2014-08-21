@@ -11,7 +11,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\pdsat\src_common\addit_func.cpp" />
     <ClCompile Include="testing_sat_solvers.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\pdsat\src_common\addit_func.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{C29085B4-93F7-40CE-B953-FB10D5BF06F5}</ProjectGuid>
@@ -46,6 +50,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>D:\Programming\pdsat\src_common;D:\Programming;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
