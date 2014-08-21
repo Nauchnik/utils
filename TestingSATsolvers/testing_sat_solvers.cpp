@@ -183,6 +183,7 @@ int main( int argc, char **argv )
 		sum_time = 0;
 		solved_problems_count = 0;
 		for ( unsigned j=0; j < cnf_files_names.size(); j++ ) {
+			clock_solving_time = Addit_func::cpuTime();
 			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			current_res_name = "res_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			system_str = get_cpu_lim_str( solvers_dir, solver_files_names[i], maxtime_seconds_str, nof_threads_str ) + 
@@ -195,11 +196,12 @@ int main( int argc, char **argv )
 			//cout << system_result_stream.str() << endl;
 			//system( system_str.c_str( ) );
 			current_out.open( current_out_name.c_str(), std::ios_base :: out );
-			clock_solving_time = Addit_func::cpuTime();
 			current_out << exec( system_str );
+			current_out.close();
+
 			clock_solving_time = Addit_func::cpuTime() - clock_solving_time;
 			std::cout << "clock_solving_time " << clock_solving_time << std::endl;
-			current_out.close();
+
 			current_out.open( current_out_name.c_str(), std::ios_base :: in );
 			
 			isSAT = false;
