@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <thread>
+#include <chrono>
 #include "addit_func.h"
 
 using namespace Addit_func;
@@ -123,7 +124,9 @@ int main( int argc, char **argv )
 	/*argc = 3;
 	argv[1] = "solvers";
 	argv[2] = "cnfs";*/
+	using namespace std::chrono;
 
+	double clock_solving_time;
 	unsigned int nthreads = std::thread::hardware_concurrency();
 	std::cout << "nthreads " << nthreads << std::endl;
 	stringstream sstream;
@@ -160,6 +163,7 @@ int main( int argc, char **argv )
 	vector<string> cnf_files_names = vector<string>();
 	Addit_func::getdir( solvers_dir, solver_files_names );
 	Addit_func::getdir( cnfs_dir, cnf_files_names );
+	sort( cnf_files_names.begin(), cnf_files_names.end() );
 	
 	std::cout << "solver_files_names" << std::endl;
 	for ( auto &x : solver_files_names )
@@ -175,7 +179,6 @@ int main( int argc, char **argv )
 	for ( auto &x : sat_count_vec )
 		x = 0;
 	
-	double clock_solving_time;
 	bool isTimeStr, isSAT;
 	unsigned solved_problems_count = 0;
 	double sum_time, min_time, max_time;
@@ -183,7 +186,6 @@ int main( int argc, char **argv )
 		sum_time = 0;
 		solved_problems_count = 0;
 		for ( unsigned j=0; j < cnf_files_names.size(); j++ ) {
-			clock_solving_time = Addit_func::cpuTime();
 			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			current_res_name = "res_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			system_str = get_cpu_lim_str( solvers_dir, solver_files_names[i], maxtime_seconds_str, nof_threads_str ) + 
@@ -196,12 +198,14 @@ int main( int argc, char **argv )
 			//cout << system_result_stream.str() << endl;
 			//system( system_str.c_str( ) );
 			current_out.open( current_out_name.c_str(), std::ios_base :: out );
+			high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 			current_out << exec( system_str );
+			std::chrono::high_resolution_clock::time_point t2 = high_resolution_clock::now();
+			std::chrono::duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+			clock_solving_time = time_span.count();
 			current_out.close();
-
-			clock_solving_time = Addit_func::cpuTime() - clock_solving_time;
 			std::cout << "clock_solving_time " << clock_solving_time << std::endl;
-
+			
 			current_out.open( current_out_name.c_str(), std::ios_base :: in );
 			
 			isSAT = false;
