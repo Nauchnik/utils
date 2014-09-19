@@ -1,0 +1,11 @@
+GTX 560 TI $249 25 January 2011 
+Intel i7 2600k $317
+
+Посмотреть в файле строки не более 60 символов
+grep -a -v -e '[^\]\{65,\}' file.txt
+
+*/10 * * * * /home/cluborun/CluBORun/Gears/catch_node.sh >> /home/cluborun/CluBORun/catch_node.log
+
+for f in out*; do mv "$f" ./path/; done
+
+01100111011010000101100101000000101100000011010011101111011110001100001011011100110110000

@@ -50,7 +50,9 @@ string get_cpu_lim_str( std::string solvers_dir, std::string solver_name,
 					    std::string maxtime_seconds_str, std::string nof_threads_str )
 {
 	string result_str;
-	if ( solver_name.find( "minisat_simp" ) != std::string::npos ) {
+	if ( ( solver_name.find( "minisat//minisat" ) != std::string::npos ) || 
+	     ( solver_name.find( "minisat_simp//minisat_simp" ) != std::string::npos ) )
+	{
 		//std::cout << "minisat_simp detected" << std::endl;
 		result_str =  "-cpu-lim=";
 	}
@@ -120,10 +122,12 @@ std::string get_params_str( std::string solver_name )
 
 int main( int argc, char **argv )
 {
-	// debug
-	/*argc = 3;
+	
+#ifdef _DEBUG
+	argc = 3;
 	argv[1] = "solvers";
-	argv[2] = "cnfs";*/
+	argv[2] = "cnfs";
+#endif
 	using namespace std::chrono;
 
 	double clock_solving_time;
@@ -149,33 +153,35 @@ int main( int argc, char **argv )
 	if ( argc == 3 ) {
 		maxtime_seconds_str = "600"; 
 		std::cout << "maxtime_seconds was set to default == 600 seconds" << std::endl;
-	}
+	} else
+		maxtime_seconds_str = argv[3];
 
 	string solvers_dir, cnfs_dir;
 	solvers_dir = argv[1];
 	cnfs_dir = argv[2];
-	maxtime_seconds_str = argv[3];
 	std::cout << "solvers_dir "     << solvers_dir         << std::endl;
 	std::cout << "cnfs_dir "        << cnfs_dir            << std::endl;
 	std::cout << "maxtime_seconds " << maxtime_seconds_str << std::endl;
 	
 	vector<string> solver_files_names = vector<string>();
 	vector<string> cnf_files_names = vector<string>();
-	Addit_func::getdir( solvers_dir, solver_files_names );
-	Addit_func::getdir( cnfs_dir, cnf_files_names );
+	
+	if ( !Addit_func::getdir( solvers_dir, solver_files_names ) ) { return 1; }
+	if ( !Addit_func::getdir( cnfs_dir, cnf_files_names ) ) { return 1; };
+	sort( solver_files_names.begin(), solver_files_names.end() );
 	sort( cnf_files_names.begin(), cnf_files_names.end() );
 	
-	std::cout << "solver_files_names" << std::endl;
+	std::cout << std::endl << "solver_files_names :" << std::endl;
 	for ( auto &x : solver_files_names )
 		std::cout << x << std::endl;
-	std::cout << "cnf_files_names" << std::endl;
-	for ( auto &x : solver_files_names )
+	std::cout << std::endl << "cnf_files_names :" << std::endl;
+	for ( auto &x : cnf_files_names )
 		std::cout << x << std::endl;
 	
 	vector<solver_info> solver_info_vec;
 	solver_info cur_solver_info;
 	std::vector<unsigned> sat_count_vec;
-	sat_count_vec.resize( solver_files_names.size() );
+	sat_count_vec.resize( cnf_files_names.size() );
 	for ( auto &x : sat_count_vec )
 		x = 0;
 	
