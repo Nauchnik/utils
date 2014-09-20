@@ -20,32 +20,6 @@ struct solver_info
 	double max_time;
 };
 
-// ececute command via system process
-std::string exec( std::string cmd_str ) {
-	char* cmd = new char[cmd_str.size() + 1];
-	strcpy( cmd, cmd_str.c_str() );
-	cmd[cmd_str.size()] = '\0';
-#ifdef _WIN32
-    FILE* pipe = _popen(cmd, "r");
-#else
-	FILE* pipe = popen(cmd, "r");
-#endif
-	delete[] cmd;
-    if (!pipe) return "ERROR";
-    char buffer[128];
-    std::string result = "";
-    while(!feof(pipe)) {
-    	if(fgets(buffer, 128, pipe) != NULL)
-    		result += buffer;
-    }
-#ifdef _WIN32
-    _pclose(pipe);
-#else
-	pclose(pipe);
-#endif
-    return result;
-}
-
 string get_cpu_lim_str( std::string solvers_dir, std::string solver_name, 
 					    std::string maxtime_seconds_str, std::string nof_threads_str )
 {
@@ -97,7 +71,6 @@ string get_cpu_lim_str( std::string solvers_dir, std::string solver_name,
 		result_str = "-t ";
 	}
 
-	
 	if ( result_str == "" ) {
 		std::cout << "unknown solver detected. using timelimit" << std::endl;
 		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" + solvers_dir + "/" + solver_name;
@@ -128,7 +101,6 @@ int main( int argc, char **argv )
 	argv[1] = "solvers";
 	argv[2] = "cnfs";
 #endif
-	using namespace std::chrono;
 
 	double clock_solving_time;
 	unsigned int nthreads = std::thread::hardware_concurrency();
@@ -139,7 +111,7 @@ int main( int argc, char **argv )
 	sstream.clear(); sstream.str("");
 	std::cout << "nof_threads_str " << nof_threads_str << std::endl;
 	
-	string system_str, current_out_name, current_res_name, str;
+	string system_str, current_out_name, str;
 	unsigned copy_from, copy_to;
 	std::fstream current_out;
 	double cur_time, avg_time = 0;
@@ -193,21 +165,19 @@ int main( int argc, char **argv )
 		solved_problems_count = 0;
 		for ( unsigned j=0; j < cnf_files_names.size(); j++ ) {
 			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
-			current_res_name = "res_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			system_str = get_cpu_lim_str( solvers_dir, solver_files_names[i], maxtime_seconds_str, nof_threads_str ) + 
 				         " ./" + cnfs_dir + "/" + cnf_files_names[j] + get_params_str( solver_files_names[i] );
 			std::cout << system_str << std::endl;
-						 //+ " " + current_res_name 
 					    // + " &> ./" + current_out_name;
 			//std::cout << system_str << std::endl;
 			//cout << "system_result_stream" << endl;
 			//cout << system_result_stream.str() << endl;
 			//system( system_str.c_str( ) );
 			current_out.open( current_out_name.c_str(), std::ios_base :: out );
-			high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-			current_out << exec( system_str );
-			std::chrono::high_resolution_clock::time_point t2 = high_resolution_clock::now();
-			std::chrono::duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+			std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+			current_out << Addit_func::exec( system_str );
+			std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+			std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 			clock_solving_time = time_span.count();
 			current_out.close();
 			std::cout << "clock_solving_time " << clock_solving_time << std::endl;
