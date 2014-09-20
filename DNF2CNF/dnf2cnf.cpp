@@ -12,7 +12,7 @@ int main( int argc, char **argv )
 	argv[1] = "bivium_template.cnf";
 	argv[2] = "set_35vars";
 	argv[3] = "known_sat_sample";
-	argv[4] = "2";
+	argv[4] = "1000";
 #endif
 	if ( argc < 5 ) {
 		std::cerr << "Usage: template_cnf var_set sat_sample assumptions_count" << std::endl;
