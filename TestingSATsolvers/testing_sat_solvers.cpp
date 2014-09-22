@@ -37,7 +37,7 @@ string get_cpu_lim_str( std::string solvers_dir, std::string solver_name,
 	}*/
 	else if ( solver_name.find( "sinn" ) != std::string::npos ) {
 		//std::cout << "sinn detected" << std::endl;
-		return "-cpu-lim=" +  maxtime_seconds_str;
+		result_str = "-cpu-lim=" +  maxtime_seconds_str;
 	}
 	else if ( solver_name.find( "minisat_bit" ) != std::string::npos ) {
 		//std::cout << "minisat_bit detected" << std::endl;
