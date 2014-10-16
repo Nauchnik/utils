@@ -14,16 +14,16 @@ using namespace Addit_func;
 
 struct solver_info
 {
-	string name;
+	std::string name;
 	double avg_time;
 	double min_time;
 	double max_time;
 };
 
-string get_cpu_lim_str( std::string solvers_dir, std::string solver_name, 
+std::string get_cpu_lim_str( std::string solvers_dir, std::string solver_name, 
 					    std::string maxtime_seconds_str, std::string nof_threads_str )
 {
-	string result_str;
+	std::string result_str;
 	if ( ( solver_name.find( "minisat//minisat" ) != std::string::npos ) || 
 	     ( solver_name.find( "minisat_simp//minisat_simp" ) != std::string::npos ) )
 	{
@@ -105,17 +105,17 @@ int main( int argc, char **argv )
 	double clock_solving_time;
 	unsigned int nthreads = std::thread::hardware_concurrency();
 	std::cout << "nthreads " << nthreads << std::endl;
-	stringstream sstream;
+	std::stringstream sstream;
 	sstream << nthreads;
 	std::string nof_threads_str = sstream.str();
 	sstream.clear(); sstream.str("");
 	std::cout << "nof_threads_str " << nof_threads_str << std::endl;
 	
-	string system_str, current_out_name, str;
+	std::string system_str, current_out_name, str;
 	unsigned copy_from, copy_to;
 	std::fstream current_out;
 	double cur_time, avg_time = 0;
-	string maxtime_seconds_str;
+	std::string maxtime_seconds_str;
 
 	if ( argc < 3 ) {
 		std::cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem]" << std::endl;
@@ -128,15 +128,15 @@ int main( int argc, char **argv )
 	} else
 		maxtime_seconds_str = argv[3];
 
-	string solvers_dir, cnfs_dir;
+	std::string solvers_dir, cnfs_dir;
 	solvers_dir = argv[1];
 	cnfs_dir = argv[2];
 	std::cout << "solvers_dir "     << solvers_dir         << std::endl;
 	std::cout << "cnfs_dir "        << cnfs_dir            << std::endl;
 	std::cout << "maxtime_seconds " << maxtime_seconds_str << std::endl;
 	
-	vector<string> solver_files_names = vector<string>();
-	vector<string> cnf_files_names = vector<string>();
+	std::vector<std::string> solver_files_names = std::vector<std::string>();
+	std::vector<std::string> cnf_files_names = std::vector<std::string>();
 	
 	if ( !Addit_func::getdir( solvers_dir, solver_files_names ) ) { return 1; }
 	if ( !Addit_func::getdir( cnfs_dir, cnf_files_names ) ) { return 1; };
@@ -144,18 +144,18 @@ int main( int argc, char **argv )
 	sort( cnf_files_names.begin(), cnf_files_names.end() );
 	
 	std::cout << std::endl << "solver_files_names :" << std::endl;
-	for ( auto &x : solver_files_names )
-		std::cout << x << std::endl;
+	for ( std::vector<std::string> :: iterator it = solver_files_names.begin(); it != solver_files_names.end(); it++ )
+		std::cout << *it << std::endl;
 	std::cout << std::endl << "cnf_files_names :" << std::endl;
-	for ( auto &x : cnf_files_names )
-		std::cout << x << std::endl;
+	for ( std::vector<std::string> :: iterator it = cnf_files_names.begin(); it != cnf_files_names.end(); it++ )
+		std::cout << *it << std::endl;
 	
-	vector<solver_info> solver_info_vec;
+	std::vector<solver_info> solver_info_vec;
 	solver_info cur_solver_info;
 	std::vector<unsigned> sat_count_vec;
-	sat_count_vec.resize( cnf_files_names.size() );
-	for ( auto &x : sat_count_vec )
-		x = 0;
+	sat_count_vec.resize( solver_files_names.size() );
+	for ( std::vector<unsigned> :: iterator it = sat_count_vec.begin(); it != sat_count_vec.end(); it++ )
+		*it = 0;
 	
 	bool isTimeStr, isSAT;
 	unsigned solved_problems_count = 0;
@@ -193,9 +193,8 @@ int main( int argc, char **argv )
 					std::cout << "SAT found" << std::endl;
 					std::cout << "current_out_name " << current_out_name << std::endl;
 					std::cout << "sat_count_vec" << std::endl;
-					for ( unsigned t=0; t < sat_count_vec.size(); t++ )
-						std::cout << solver_files_names[t] << " : " << sat_count_vec[t] << " sat from " << 
-						             cnf_files_names.size() << std::endl;
+					std::cout << solver_files_names[i] << " : " << sat_count_vec[i] << " sat from " << 
+						         cnf_files_names.size() << std::endl;
 				}
 				isTimeStr = true;
 				if ( str.find("CPU time") != std::string::npos ) {
@@ -215,6 +214,7 @@ int main( int argc, char **argv )
 				else
 					isTimeStr = false;
 				if ( isTimeStr ) {
+					std::cout << "time str " << str << std::endl;
 					str = str.substr( copy_from, (copy_to-copy_from+1) );
 					sstream << str;
 					sstream >> cur_time;
@@ -255,7 +255,7 @@ int main( int argc, char **argv )
 
 	std::cout << "*** Final statistics ***" << std::endl;
 	std::cout << "Total problems " << cnf_files_names.size() << std::endl;
-	for ( vector<solver_info> :: iterator it = solver_info_vec.begin(); it != solver_info_vec.end(); it++ ) {
+	for ( std::vector<solver_info> :: iterator it = solver_info_vec.begin(); it != solver_info_vec.end(); it++ ) {
 		std::cout << (*it).name << std::endl;
 		std::cout << "  avg_time " << (*it).avg_time << " s" << std::endl;
 		std::cout << "  min_time " << (*it).min_time << " s" << std::endl;
