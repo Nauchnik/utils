@@ -18,6 +18,8 @@ int main()
 	std::vector<unsigned> var_set;
 	std::string str;
 	getline( ifile, str );
+	if ( str.size() != 64 )
+		std::cerr << "str.size() != 64 : " << str.size() << std::endl;
 	unsigned var;
 	std::stringstream sstream;
 	sstream << str;
