@@ -11,8 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{325893E3-132D-43DD-A1EE-997CA8439A7D}</ProjectGuid>
-    <RootNamespace>MakeCollisionsInstancesA51</RootNamespace>
+    <ProjectGuid>{440D1A69-71A5-412A-9AFC-3763E9B9F43A}</ProjectGuid>
+    <RootNamespace>MakeOneliteralClauses</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
