@@ -47,6 +47,7 @@ int main( int argc, char **argv )
 			sstream.str(""); sstream.clear();
 		}
 	}
+	main_cnf_sstream << " "; // add space on the last string for treengeling
 	clause_count = main_str_count;
 	cnf_file.close();
 	cnf_file.clear();
