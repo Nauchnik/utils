@@ -96,8 +96,6 @@ int main( int argc, char **argv )
 		convert_sstream.str(""); convert_sstream.clear();
 	}
 	keystream_file.close();
-
-	std::vector<bool> reg_values;
 	std::ifstream reg_file( reg_file_name.c_str() );
 	if ( !reg_file.is_open() ) {
 		std:: cerr << "!keystream_file.is_open()" << std::endl;
@@ -108,14 +106,34 @@ int main( int argc, char **argv )
 		if ( !val ) continue;
 		reg_values.push_back( (val > 0) ? true : false );
 	}*/ 
+	
+	std::vector<bool> reg_values, tmp_reg_values;
 	while ( getline( reg_file, str ) ) {
 		if ( str.find( "true" ) != std::string::npos )
 			reg_values.push_back( true );
 		else if ( str.find( "false" ) != std::string::npos )
 			reg_values.push_back( false );
+		// reverse reg bits from GoS to Transalg
+		if ( reg_values.size() == 93 ) {
+			tmp_reg_values = reg_values;
+			reg_values.clear();
+			for ( std::vector<bool>::reverse_iterator r_it = tmp_reg_values.rbegin(); r_it != tmp_reg_values.rend(); r_it++ )
+				reg_values.push_back(*r_it);
+		}
+		if ( reg_values.size() == 177 ) {
+			tmp_reg_values = reg_values;
+			reg_values.resize(93);
+			unsigned k=0;
+			for ( std::vector<bool>::reverse_iterator r_it = tmp_reg_values.rbegin(); r_it != tmp_reg_values.rend(); r_it++ ) {
+				reg_values.push_back(*r_it);
+				k++;
+				if ( k == 84 )
+					break;
+			}
+		}
 	}
 	reg_file.close();
-
+	
 	if ( keystream_values.size() != result_keystream_variables.size() ) {
 		std::cerr << "keystream_values.size() != result_keystream_variables.size()" << std::endl;
 		std::cerr << keystream_values.size() << " != " << result_keystream_variables.size() << std::endl;
