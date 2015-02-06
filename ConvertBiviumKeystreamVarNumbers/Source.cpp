@@ -10,7 +10,7 @@
 #endif
 
 const std::string GoS_path = "./GoS";
-const std::string Transalg_path = "./Transalg";
+const std::string result_path = "./ResultFiles";
 
 bool getdir( std::string dir, std::vector<std::string> &files );
 std::vector<bool> get_keystream_values_from_file( std::string keystream_file_name, std::string generator_type );
@@ -40,20 +40,49 @@ int main( int argc, char **argv )
 	
 	int num;
 	std::size_t found1, found2;
-	std::string str_tmp;
+	std::string str, str_num, old_GoS_file_name, new_GoS_file_name;
+	std::ifstream old_GoS_file;
+	std::ofstream new_GoS_file;
+	std::stringstream GoS_cnf_sstream;
+	int pos = 0;
 	for ( auto &file_name : GoS_files ) {
 		found1 = file_name.find( ".cnf" );
 		found2 = file_name.find( ".output" );
 		if ( file_name.find( "bivium" ) != std::string::npos ) {
 			generator_type = "Bivium";
 			if ( found1 != std::string::npos ) {
-				str_tmp = file_name.substr( found1-1, 1 );
-				std::istringstream( str_tmp ) >> num;
+				str_num = file_name.substr( found1-1, 1 );
+				pos = found1-2;
+				while ( file_name[pos] != '-' ) {
+					str_num = file_name[pos] + str_num;
+					pos--;
+				}
+				std::istringstream( str_num ) >> num;
 				keystream_values_vec[num-1] = get_keystream_values_from_file( file_name, generator_type );
+				// save to file with short name
+				old_GoS_file_name = GoS_path + "/" + file_name;
+				old_GoS_file.open( old_GoS_file_name );
+				while ( getline( old_GoS_file, str ) )
+					GoS_cnf_sstream << str << std::endl;
+				old_GoS_file.close(); 
+				old_GoS_file.clear();
+				convert_sstream << num-1;
+				new_GoS_file_name = result_path + "/GoS_Bivium_test" + convert_sstream.str();
+				new_GoS_file_name += ".cnf";
+				new_GoS_file.open( new_GoS_file_name  );
+				new_GoS_file << GoS_cnf_sstream.str();
+				GoS_cnf_sstream.clear(); GoS_cnf_sstream.str("");
+				new_GoS_file.close(); new_GoS_file.clear();
+				convert_sstream.str(""); convert_sstream.clear();
 			}
 			else if ( found2 != std::string::npos ) {
-				str_tmp = file_name.substr( found2-1, 1 );
-				std::istringstream( str_tmp ) >> num;
+				str_num = file_name.substr( found2-1, 1 );
+				pos = found2-2;
+				while ( file_name[pos] != '-' ) {
+					str_num = file_name[pos] + str_num;
+					pos--;
+				}
+				std::istringstream( str_num ) >> num;
 				reg_values_vec[num-1] = get_reg_values_from_file( file_name, generator_type );
 			}
 		}
@@ -67,7 +96,6 @@ int main( int argc, char **argv )
 		return 1;
 	}
 	std::stringstream template_clauses_sstream, template_header_comments_sstream;
-	std::string str;
 	
 	bool isClausesStrings = false;
 	bool isFirstClauseString = true;
@@ -117,18 +145,28 @@ int main( int argc, char **argv )
 		std::cerr << keystream_values_vec[0].size() << " != " << result_keystream_variables.size() << std::endl;
 	}
 	
-	std::string out_file_name;
-	std::ofstream out_file;
-	std::string str_num;
+	std::string out_file_name, info_file_name;
+	std::ofstream out_file, info_file;
 	int k;
 	for ( unsigned i=0; i < keystream_values_vec.size(); i++ ) {
 		convert_sstream << i;
 		convert_sstream >> str_num;
 		convert_sstream.str(""); convert_sstream.clear();
 		if ( generator_type == "Bivium" ) {
-			out_file_name = Transalg_path + "/Transalg_Bivium_test" + str_num;
+			out_file_name = result_path + "/Transalg_Bivium_test" + str_num;
 			out_file_name += ".cnf";
+			info_file_name = result_path + "/Bivium_test" + str_num;
+			info_file_name += ".info";
 		}
+
+		info_file.open( info_file_name.c_str() );
+		info_file << "Input: ";
+		for ( auto &x : reg_values_vec[i] )
+			info_file << x ? "1" : "0";
+		info_file << std::endl;
+		info_file << "Output: ";
+		for ( auto &x : keystream_values_vec[i] )
+			info_file << x ? "1" : "0";
 		
 		out_file.open( out_file_name.c_str() );
 		out_file << "p cnf " << var_count << " " << clauses_count << std::endl;
@@ -147,6 +185,7 @@ int main( int argc, char **argv )
 		}
 		out_file << template_clauses_sstream.str();
 		out_file.close(); out_file.clear();
+		info_file.close(); info_file.clear();
 	}
 	
 	return 0;
