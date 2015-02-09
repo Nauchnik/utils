@@ -12,6 +12,8 @@
 
 const std::string GoS_path = "./GoS";
 const std::string result_path = "./ResultFiles";
+std::string generator_type;
+int instances_count = 0;
 
 struct cnf_data
 {
@@ -23,7 +25,7 @@ struct cnf_data
 };
 
 bool getdir( std::string dir, std::vector<std::string> &files );
-std::vector<bool> get_keystream_values_from_file( std::string keystream_file_name, std::string generator_type );
+std::vector<bool> get_keystream_values_from_file( std::string keystream_file_name );
 std::vector<bool> get_reg_values_from_file( std::string reg_file_name, std::string generator_type );
 void get_cnf_data( cnf_data &cnf );
 
@@ -31,8 +33,8 @@ int main( int argc, char **argv )
 {
 #ifdef _DEBUG
 	argc = 3;
-	argv[1] = "Bivium_template_new.cnf";
-	argv[2] = "32";
+	argv[1] = "grain_160_template_new.cnf";
+	argv[2] = "80";
 #endif
 	std::string transalg_template_file_name;
 	std::stringstream convert_sstream;
@@ -41,6 +43,45 @@ int main( int argc, char **argv )
 		return 1;
 	}
 
+	unsigned transalg_reg_variable_first = 0, transalg_reg_variable_last = 0; 
+	unsigned transalg_keystream_variable_first = 0, transalg_keystream_variable_last = 0; 
+	unsigned GoS_reg1_variable_first = 0, GoS_reg1_variable_last = 0;
+	unsigned GoS_reg2_variable_first = 0, GoS_reg2_variable_last = 0;
+
+	cnf_data transalg_template_cnf;
+	transalg_template_cnf.file_name = argv[1];
+	if ( transalg_template_cnf.file_name.find( "bivium" ) != std::string::npos ) {
+		generator_type = "bivium";
+		transalg_reg_variable_first = 1;
+		transalg_reg_variable_last = 177;
+		transalg_keystream_variable_first = 443;
+		transalg_keystream_variable_last = 642;
+		GoS_reg1_variable_first = 1;
+		GoS_reg1_variable_last = 93;
+		GoS_reg2_variable_first = 294;
+		GoS_reg2_variable_last = 377;
+	}
+	else if ( transalg_template_cnf.file_name.find( "trivium" ) != std::string::npos ){
+		generator_type = "trivium";
+		//
+	}
+	else if ( transalg_template_cnf.file_name.find( "grain" ) != std::string::npos ) {
+		generator_type = "grain";
+		transalg_reg_variable_first = 1;
+		transalg_reg_variable_last = 160;
+		transalg_keystream_variable_first = 1314;
+		transalg_keystream_variable_last = 1473;
+		GoS_reg1_variable_first = 1;
+		GoS_reg1_variable_last = 80;
+		GoS_reg2_variable_first = 401;
+		GoS_reg2_variable_last = 480;
+	}
+	
+	std::cout << "generator_type " << generator_type << std::endl;
+
+	// get date from CNF: vars count, clauses count, clauses and comments
+	get_cnf_data( transalg_template_cnf );
+
 	unsigned known_bits = atoi( argv[2] );
 	std::vector<cnf_data> GoS_cnf_vec;
 	
@@ -48,9 +89,8 @@ int main( int argc, char **argv )
 	std::vector<std::string> GoS_files;
 	getdir( GoS_path, GoS_files );
 	std::vector< std::vector<bool> > reg_values_vec, keystream_values_vec;
-	std::string generator_type;
 	std::cout << "GoS_files.size() " << GoS_files.size() << std::endl;
-	reg_values_vec.resize( GoS_files.size() / 2 );
+	reg_values_vec.resize( GoS_files.size() );
 	keystream_values_vec.resize( reg_values_vec.size() );
 	original_GoS_cnf_files_vec.resize( reg_values_vec.size() );
 	std::cout << "reg_values_vec.size() " << reg_values_vec.size() << std::endl;
@@ -61,65 +101,75 @@ int main( int argc, char **argv )
 	std::ofstream new_GoS_file;
 	std::string str_num;
 	int pos = 0;
+	instances_count = 0;
+	std::cout << "instances:" << std::endl;
 	for ( std::vector<std::string>::iterator file_it = GoS_files.begin(); file_it != GoS_files.end(); file_it++ ) {
+		if ( (*file_it).find( generator_type ) == std::string::npos )
+			continue;
+			
 		found1 = (*file_it).find( ".cnf" );
 		found2 = (*file_it).find( ".output" );
-		if ( (*file_it).find( "bivium" ) != std::string::npos ) {
-			generator_type = "Bivium";
-			if ( found1 != std::string::npos ) {
-				str_num = (*file_it).substr( found1-1, 1 );
-				pos = found1-2;
-				while ( (*file_it)[pos] != '-' ) {
-					str_num = (*file_it)[pos] + str_num;
-					pos--;
-				}
-				std::istringstream( str_num ) >> num;
-				keystream_values_vec[num-1] = get_keystream_values_from_file( (*file_it), generator_type );
-				// save to file with short name
-				original_GoS_file_name = GoS_path + "/" + (*file_it);
-				original_GoS_cnf_files_vec[num-1] = original_GoS_file_name;
+		if ( found1 != std::string::npos ) {
+			std::cout << *file_it << std::endl;
+			instances_count++;
+			str_num = (*file_it).substr( found1-1, 1 );
+			pos = found1-2;
+			while ( (*file_it)[pos] != '-' ) {
+				str_num = (*file_it)[pos] + str_num;
+				pos--;
 			}
-			else if ( found2 != std::string::npos ) {
-				str_num = (*file_it).substr( found2-1, 1 );
-				pos = found2-2;
-				while ( (*file_it)[pos] != '-' ) {
-					str_num = (*file_it)[pos] + str_num;
-					pos--;
-				}
-				std::istringstream( str_num ) >> num;
-				reg_values_vec[num-1] = get_reg_values_from_file( (*file_it), generator_type );
+			std::istringstream( str_num ) >> num;
+			keystream_values_vec[num-1] = get_keystream_values_from_file( *file_it );
+			// save to file with short name
+			original_GoS_file_name = GoS_path + "/" + (*file_it);
+			original_GoS_cnf_files_vec[num-1] = original_GoS_file_name;
+		}
+		else if ( found2 != std::string::npos ) {
+			str_num = (*file_it).substr( found2-1, 1 );
+			pos = found2-2;
+			while ( (*file_it)[pos] != '-' ) {
+				str_num = (*file_it)[pos] + str_num;
+				pos--;
 			}
+			std::istringstream( str_num ) >> num;
+			reg_values_vec[num-1] = get_reg_values_from_file( (*file_it), generator_type );
 		}
 	}
+	std::cout << "instances_count " << instances_count << std::endl;
 	
-	cnf_data transalg_template_cnf;
-	transalg_template_cnf.file_name = argv[1];
+	reg_values_vec.resize( instances_count );
+	keystream_values_vec.resize( instances_count );
+	original_GoS_cnf_files_vec.resize( instances_count );
 
-	// get date from CNF: vars count, clauses count, clauses and comments
-	get_cnf_data( transalg_template_cnf );
-	
-	int variables_count = 0;
-	std::vector<int> transalg_keystream_variables;
-	//unsigned keystream_variable_first = 578, keystream_variable_last = 777;
-	unsigned keystream_variable_first = 443, keystream_variable_last = 642;
-	for ( unsigned i=keystream_variable_first; i <= keystream_variable_last; i++ )
-		transalg_keystream_variables.push_back(i);
-	
 	std::vector<int> transalg_reg_variables;
-	unsigned reg_variable_first1 = 1, reg_variable_last1 = 177; 
-	for ( unsigned i=reg_variable_first1; i <= reg_variable_last1; i++ )
+	for ( unsigned i=transalg_reg_variable_first; i <= transalg_reg_variable_last; i++ )
 		transalg_reg_variables.push_back(i);
 
+	std::cout << "transalg_reg_variables " << std::endl;
+	for ( unsigned i=0; i < transalg_reg_variables.size(); i++ )
+		std:: cout << transalg_reg_variables[i] << " ";
+	std::cout << std::endl;
+
+	std::vector<int> transalg_keystream_variables;
+	for ( unsigned i=transalg_keystream_variable_first; i <= transalg_keystream_variable_last; i++ )
+		transalg_keystream_variables.push_back(i);
+
+	std::cout << "transalg_keystream_variables " << std::endl;
+	for ( unsigned i=0; i < transalg_keystream_variables.size(); i++ )
+		std:: cout << transalg_keystream_variables[i] << " ";
+	std::cout << std::endl;
+	
 	std::vector<int> GoS_reg_variables;
-	reg_variable_first1 = 1;
-	reg_variable_last1 = 93;
-	unsigned reg_variable_first2 = 294;
-	unsigned reg_variable_last2 = 377;
-	for ( unsigned i=reg_variable_first1; i <= reg_variable_last1; i++ )
+	for ( unsigned i=GoS_reg1_variable_first; i <= GoS_reg1_variable_last; i++ )
 		GoS_reg_variables.push_back(i);
-	for ( unsigned i=reg_variable_first2; i <= reg_variable_last2; i++ )
+	for ( unsigned i=GoS_reg2_variable_first; i <= GoS_reg2_variable_last; i++ )
 		GoS_reg_variables.push_back(i);
 
+	std::cout << "GoS_reg_variables " << std::endl;
+	for ( unsigned i=0; i < GoS_reg_variables.size(); i++ )
+		std:: cout << GoS_reg_variables[i] << " ";
+	std::cout << std::endl;
+	
 	unsigned cnf_instance_clauses_count = transalg_template_cnf.clauses_count; 
 	cnf_instance_clauses_count += transalg_keystream_variables.size();
 	cnf_instance_clauses_count += known_bits;
@@ -136,15 +186,15 @@ int main( int argc, char **argv )
 	unsigned k;
 	for ( unsigned i=0; i < keystream_values_vec.size(); i++ ) {
 		str_num_sstream << i;
-		if ( generator_type == "Bivium" ) {
-			transalg_out_file_name = result_path + "/Transalg_Bivium_test" + str_num_sstream.str();
-			transalg_out_file_name += "_last"; 
-			transalg_out_file_name += known_bit_sstream.str();
-			transalg_out_file_name += "known";
-			transalg_out_file_name += ".cnf";
-			info_file_name = result_path + "/Bivium_test" + str_num_sstream.str();
-			info_file_name += ".info";
-		}
+		
+		transalg_out_file_name = result_path + "/" + generator_type + "_Transalg_test" + str_num_sstream.str();
+		transalg_out_file_name += "_last";
+		transalg_out_file_name += known_bit_sstream.str();
+		transalg_out_file_name += "known";
+		transalg_out_file_name += ".cnf";
+		info_file_name = result_path + "/" + generator_type + "_test" + str_num_sstream.str();
+		info_file_name += ".info";
+		
 		str_num_sstream.str(""); str_num_sstream.clear();
 		
 		info_file.open( info_file_name.c_str() );
@@ -183,7 +233,7 @@ int main( int argc, char **argv )
 		cur_GoS_cnf.file_name = original_GoS_cnf_files_vec[i];
 		get_cnf_data( cur_GoS_cnf );
 		convert_sstream << i;
-		new_GoS_file_name = result_path + "/GoS_Bivium_test" + convert_sstream.str();
+		new_GoS_file_name = result_path + "/" + generator_type + "_GoS_test" + convert_sstream.str();
 		convert_sstream.str(""); convert_sstream.clear();
 		new_GoS_file_name += "_last"; 
 		new_GoS_file_name += known_bit_sstream.str();
@@ -194,7 +244,7 @@ int main( int argc, char **argv )
 		new_GoS_file << cur_GoS_cnf.header_comments_sstream.str();
 		k = 0;
 		for ( std::vector<bool>::reverse_iterator vb_r_it = reg_values_vec[i].rbegin(); vb_r_it != reg_values_vec[i].rend(); vb_r_it++ ) {
-			convert_sstream << (*vb_r_it ? "" : "-") << GoS_reg_variables[93+k] << " 0";
+			convert_sstream << (*vb_r_it ? "" : "-") << GoS_reg_variables[GoS_reg1_variable_last+k] << " 0";
 			new_GoS_file << convert_sstream.str() << std::endl;
 			convert_sstream.str(""); convert_sstream.clear();
 			k++;
@@ -208,7 +258,7 @@ int main( int argc, char **argv )
 	return 0;
 }
 
-std::vector<bool> get_keystream_values_from_file( std::string keystream_file_name, std::string generator_type )
+std::vector<bool> get_keystream_values_from_file( std::string keystream_file_name )
 {
 	keystream_file_name = GoS_path + "/" + keystream_file_name;
 	std::ifstream keystream_file( keystream_file_name.c_str() );
@@ -247,12 +297,16 @@ std::vector<bool> get_reg_values_from_file( std::string reg_file_name, std::stri
 	}
 	std::vector<bool> reg_values, tmp_reg_values;
 	std::string str;
-	unsigned reg1_len, reg2_len;
-	if ( generator_type == "Bivium" ) {
+	unsigned reg1_len = 0, reg2_len = 0;
+	if ( generator_type == "bivium" ) {
 		reg1_len = 93;
 		reg2_len = 84;
 	}
-
+	else if ( generator_type == "grain" ) {
+		reg1_len = 80;
+		reg2_len = 80;
+	}
+	
 	while ( getline( reg_file, str ) ) {
 		if ( str.find( "true" ) != std::string::npos )
 			reg_values.push_back( true );
