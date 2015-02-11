@@ -3,6 +3,7 @@
 #include <sstream>
 #include <vector>
 #include <stdlib.h>
+#include <algorithm>
 
 #ifdef _WIN32
 #include "../../pdsat/src_common/win_headers/dirent.h"
@@ -33,8 +34,8 @@ int main( int argc, char **argv )
 {
 #ifdef _DEBUG
 	argc = 3;
-	argv[1] = "grain_160_template_new.cnf";
-	argv[2] = "80";
+	argv[1] = "trivium_300_template_new.cnf";
+	argv[2] = "288";
 #endif
 	std::string transalg_template_file_name;
 	std::stringstream convert_sstream;
@@ -47,7 +48,7 @@ int main( int argc, char **argv )
 	unsigned transalg_keystream_variable_first = 0, transalg_keystream_variable_last = 0; 
 	unsigned GoS_reg1_variable_first = 0, GoS_reg1_variable_last = 0;
 	unsigned GoS_reg2_variable_first = 0, GoS_reg2_variable_last = 0;
-	unsigned reg1_len = 0, reg2_len = 0, reg3_len = 0;
+	unsigned GoS_reg3_variable_first = 0, GoS_reg3_variable_last = 0;
 	
 	cnf_data transalg_template_cnf;
 	transalg_template_cnf.file_name = argv[1];
@@ -61,12 +62,19 @@ int main( int argc, char **argv )
 		GoS_reg1_variable_last = 93;
 		GoS_reg2_variable_first = 294;
 		GoS_reg2_variable_last = 377;
-		reg1_len = 93;
-		reg2_len = 84;
 	}
 	else if ( transalg_template_cnf.file_name.find( "trivium" ) != std::string::npos ){
 		generator_type = "trivium";
-		//
+		transalg_reg_variable_first = 1;
+		transalg_reg_variable_last = 288;
+		transalg_keystream_variable_first = 988;
+		transalg_keystream_variable_last = 1287;
+		GoS_reg1_variable_first = 1;
+		GoS_reg1_variable_last = 93;
+		GoS_reg2_variable_first = 394;
+		GoS_reg2_variable_last = 477;
+		GoS_reg3_variable_first = 778;
+		GoS_reg3_variable_last = 888;
 	}
 	else if ( transalg_template_cnf.file_name.find( "grain" ) != std::string::npos ) {
 		generator_type = "grain";
@@ -78,14 +86,18 @@ int main( int argc, char **argv )
 		GoS_reg1_variable_last = 80;
 		GoS_reg2_variable_first = 401;
 		GoS_reg2_variable_last = 480;
-		reg1_len = 80;
-		reg2_len = 80;
 	}
 	
 	std::cout << "generator_type " << generator_type << std::endl;
 
-	// get date from CNF: vars count, clauses count, clauses and comments
-	get_cnf_data( transalg_template_cnf );
+	std::vector<int> transalg_reg_variables;
+	for ( unsigned i=transalg_reg_variable_first; i <= transalg_reg_variable_last; i++ )
+		transalg_reg_variables.push_back(i);
+	
+	std::cout << "transalg_reg_variables " << std::endl;
+	for ( unsigned i=0; i < transalg_reg_variables.size(); i++ )
+		std:: cout << transalg_reg_variables[i] << " ";
+	std::cout << std::endl;
 
 	unsigned known_bits = atoi( argv[2] );
 	std::vector<cnf_data> GoS_cnf_vec;
@@ -114,11 +126,17 @@ int main( int argc, char **argv )
 		GoS_reg_variables.push_back(i);
 	for ( unsigned i=GoS_reg2_variable_last; i >= GoS_reg2_variable_first; i-- )
 		GoS_reg_variables.push_back(i);
-
+	if ( generator_type == "trivium" )
+		for ( unsigned i=GoS_reg3_variable_last; i >= GoS_reg3_variable_first; i-- )
+			GoS_reg_variables.push_back(i);
+	
 	std::cout << "GoS_reg_variables " << std::endl;
 	for ( unsigned i=0; i < GoS_reg_variables.size(); i++ )
 		std:: cout << GoS_reg_variables[i] << " ";
 	std::cout << std::endl;
+
+	// get date from CNF: vars count, clauses count, clauses and comments
+	get_cnf_data( transalg_template_cnf );
 
 	int num;
 	std::size_t found1, found2;
@@ -165,15 +183,6 @@ int main( int argc, char **argv )
 	reg_values_vec.resize( instances_count );
 	keystream_values_vec.resize( instances_count );
 	original_GoS_cnf_files_vec.resize( instances_count );
-
-	std::vector<int> transalg_reg_variables;
-	for ( unsigned i=transalg_reg_variable_first; i <= transalg_reg_variable_last; i++ )
-		transalg_reg_variables.push_back(i);
-
-	std::cout << "transalg_reg_variables " << std::endl;
-	for ( unsigned i=0; i < transalg_reg_variables.size(); i++ )
-		std:: cout << transalg_reg_variables[i] << " ";
-	std::cout << std::endl;
 	
 	unsigned cnf_instance_clauses_count = transalg_template_cnf.clauses_count; 
 	cnf_instance_clauses_count += transalg_keystream_variables.size();
@@ -188,15 +197,7 @@ int main( int argc, char **argv )
 	std::stringstream str_num_sstream, known_bit_sstream;
 	std::ofstream transalg_out_file, info_file;
 	known_bit_sstream << known_bits;
-	unsigned known_bits_reg1 = 0, known_bits_reg2 = 0;
-	if ( ( ( generator_type == "grain" ) || ( generator_type == "bivium" ) )
-         && ( known_bits > reg2_len ) ) {
-		known_bits_reg1 = known_bits - reg2_len;
-		known_bits_reg2 = reg2_len;
-	}
-	std::cout << "known_bits_reg1 " << known_bits_reg1 << std::endl;
-	std::cout << "known_bits_reg2 " << known_bits_reg2 << std::endl;
-
+	
 	unsigned k;
 	for ( unsigned i=0; i < keystream_values_vec.size(); i++ ) {
 		str_num_sstream << i;
@@ -305,7 +306,7 @@ std::vector<bool> get_reg_values_from_file( std::string reg_file_name, std::stri
 	}
 	std::vector<bool> reg_values, tmp_reg_values;
 	std::string str;
-	unsigned reg1_len = 0, reg2_len = 0;
+	unsigned reg1_len = 0, reg2_len = 0, reg3_len = -1000;
 	if ( generator_type == "bivium" ) {
 		reg1_len = 93;
 		reg2_len = 84;
@@ -313,6 +314,11 @@ std::vector<bool> get_reg_values_from_file( std::string reg_file_name, std::stri
 	else if ( generator_type == "grain" ) {
 		reg1_len = 80;
 		reg2_len = 80;
+	}
+	else if ( generator_type == "trivium" ) {
+		reg1_len = 93;
+		reg2_len = 84;
+		reg3_len = 111;
 	}
 	
 	while ( getline( reg_file, str ) ) {
@@ -335,6 +341,17 @@ std::vector<bool> get_reg_values_from_file( std::string reg_file_name, std::stri
 				reg_values.push_back(*r_it);
 				k++;
 				if ( k == reg2_len  )
+					break;
+			}
+		}
+		if ( reg_values.size() == reg1_len + reg2_len + reg3_len ) {
+			tmp_reg_values = reg_values;
+			reg_values.resize(reg1_len + reg2_len);
+			unsigned k=0;
+			for ( std::vector<bool>::reverse_iterator r_it = tmp_reg_values.rbegin(); r_it != tmp_reg_values.rend(); r_it++ ) {
+				reg_values.push_back(*r_it);
+				k++;
+				if ( k == reg3_len  )
 					break;
 			}
 		}
@@ -375,6 +392,7 @@ void get_cnf_data( cnf_data &cnf )
 	int val;
 	std::string str;
 	while ( getline( cnf_file, str ) ) {
+		str.erase( std::remove(str.begin(), str.end(), '\r'), str.end() );
 		if ( str[0] == 'p' )
 			continue;
 		if ( ( str[0] == 'c' ) && ( !isClausesStrings ) )
