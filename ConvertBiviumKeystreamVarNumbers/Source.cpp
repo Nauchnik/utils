@@ -47,7 +47,8 @@ int main( int argc, char **argv )
 	unsigned transalg_keystream_variable_first = 0, transalg_keystream_variable_last = 0; 
 	unsigned GoS_reg1_variable_first = 0, GoS_reg1_variable_last = 0;
 	unsigned GoS_reg2_variable_first = 0, GoS_reg2_variable_last = 0;
-
+	unsigned reg1_len = 0, reg2_len = 0, reg3_len = 0;
+	
 	cnf_data transalg_template_cnf;
 	transalg_template_cnf.file_name = argv[1];
 	if ( transalg_template_cnf.file_name.find( "bivium" ) != std::string::npos ) {
@@ -60,6 +61,8 @@ int main( int argc, char **argv )
 		GoS_reg1_variable_last = 93;
 		GoS_reg2_variable_first = 294;
 		GoS_reg2_variable_last = 377;
+		reg1_len = 93;
+		reg2_len = 84;
 	}
 	else if ( transalg_template_cnf.file_name.find( "trivium" ) != std::string::npos ){
 		generator_type = "trivium";
@@ -69,12 +72,14 @@ int main( int argc, char **argv )
 		generator_type = "grain";
 		transalg_reg_variable_first = 1;
 		transalg_reg_variable_last = 160;
-		transalg_keystream_variable_first = 1314;
-		transalg_keystream_variable_last = 1473;
+		transalg_keystream_variable_first = 1786;
+		transalg_keystream_variable_last = 1945;
 		GoS_reg1_variable_first = 1;
 		GoS_reg1_variable_last = 80;
 		GoS_reg2_variable_first = 401;
 		GoS_reg2_variable_last = 480;
+		reg1_len = 80;
+		reg2_len = 80;
 	}
 	
 	std::cout << "generator_type " << generator_type << std::endl;
@@ -95,6 +100,26 @@ int main( int argc, char **argv )
 	original_GoS_cnf_files_vec.resize( reg_values_vec.size() );
 	std::cout << "reg_values_vec.size() " << reg_values_vec.size() << std::endl;
 	
+	std::vector<int> transalg_keystream_variables;
+	for ( unsigned i=transalg_keystream_variable_first; i <= transalg_keystream_variable_last; i++ )
+		transalg_keystream_variables.push_back(i);
+
+	std::cout << "transalg_keystream_variables " << std::endl;
+	for ( unsigned i=0; i < transalg_keystream_variables.size(); i++ )
+		std:: cout << transalg_keystream_variables[i] << " ";
+	std::cout << std::endl;
+	
+	std::vector<int> GoS_reg_variables;
+	for ( unsigned i=GoS_reg1_variable_last; i >= GoS_reg1_variable_first; i-- )
+		GoS_reg_variables.push_back(i);
+	for ( unsigned i=GoS_reg2_variable_last; i >= GoS_reg2_variable_first; i-- )
+		GoS_reg_variables.push_back(i);
+
+	std::cout << "GoS_reg_variables " << std::endl;
+	for ( unsigned i=0; i < GoS_reg_variables.size(); i++ )
+		std:: cout << GoS_reg_variables[i] << " ";
+	std::cout << std::endl;
+
 	int num;
 	std::size_t found1, found2;
 	std::string str, original_GoS_file_name;
@@ -149,26 +174,6 @@ int main( int argc, char **argv )
 	for ( unsigned i=0; i < transalg_reg_variables.size(); i++ )
 		std:: cout << transalg_reg_variables[i] << " ";
 	std::cout << std::endl;
-
-	std::vector<int> transalg_keystream_variables;
-	for ( unsigned i=transalg_keystream_variable_first; i <= transalg_keystream_variable_last; i++ )
-		transalg_keystream_variables.push_back(i);
-
-	std::cout << "transalg_keystream_variables " << std::endl;
-	for ( unsigned i=0; i < transalg_keystream_variables.size(); i++ )
-		std:: cout << transalg_keystream_variables[i] << " ";
-	std::cout << std::endl;
-	
-	std::vector<int> GoS_reg_variables;
-	for ( unsigned i=GoS_reg1_variable_first; i <= GoS_reg1_variable_last; i++ )
-		GoS_reg_variables.push_back(i);
-	for ( unsigned i=GoS_reg2_variable_first; i <= GoS_reg2_variable_last; i++ )
-		GoS_reg_variables.push_back(i);
-
-	std::cout << "GoS_reg_variables " << std::endl;
-	for ( unsigned i=0; i < GoS_reg_variables.size(); i++ )
-		std:: cout << GoS_reg_variables[i] << " ";
-	std::cout << std::endl;
 	
 	unsigned cnf_instance_clauses_count = transalg_template_cnf.clauses_count; 
 	cnf_instance_clauses_count += transalg_keystream_variables.size();
@@ -183,6 +188,15 @@ int main( int argc, char **argv )
 	std::stringstream str_num_sstream, known_bit_sstream;
 	std::ofstream transalg_out_file, info_file;
 	known_bit_sstream << known_bits;
+	unsigned known_bits_reg1 = 0, known_bits_reg2 = 0;
+	if ( ( ( generator_type == "grain" ) || ( generator_type == "bivium" ) )
+         && ( known_bits > reg2_len ) ) {
+		known_bits_reg1 = known_bits - reg2_len;
+		known_bits_reg2 = reg2_len;
+	}
+	std::cout << "known_bits_reg1 " << known_bits_reg1 << std::endl;
+	std::cout << "known_bits_reg2 " << known_bits_reg2 << std::endl;
+
 	unsigned k;
 	for ( unsigned i=0; i < keystream_values_vec.size(); i++ ) {
 		str_num_sstream << i;
@@ -209,14 +223,10 @@ int main( int argc, char **argv )
 		transalg_out_file.open( transalg_out_file_name.c_str() );
 		transalg_out_file << "p cnf " << transalg_template_cnf.vars_count << " " << cnf_instance_clauses_count << std::endl;
 		transalg_out_file << transalg_template_cnf.header_comments_sstream.str();
-		k = 0;
-		for ( std::vector<bool>::iterator vb_it = reg_values_vec[i].begin(); vb_it != reg_values_vec[i].end(); vb_it++ ) {
-			if ( k >= transalg_reg_variables.size() - known_bits ) { // write only literals for known bits
-				convert_sstream << (*vb_it ? "" : "-") << transalg_reg_variables[k] << " 0";
-				transalg_out_file << convert_sstream.str() << std::endl;
-				convert_sstream.str(""); convert_sstream.clear();
-			}
-			k++;
+		for ( unsigned t1 = 0; t1 < known_bits; t1++ ) {
+			convert_sstream << (reg_values_vec[i][t1] ? "" : "-") << transalg_reg_variables[t1] << " 0";
+			transalg_out_file << convert_sstream.str() << std::endl;
+			convert_sstream.str(""); convert_sstream.clear();
 		}
 		k = 0;
 		for ( std::vector<bool>::iterator vb_it = keystream_values_vec[i].begin(); vb_it != keystream_values_vec[i].end(); vb_it++ ) {
@@ -242,15 +252,13 @@ int main( int argc, char **argv )
 		new_GoS_file.open( new_GoS_file_name.c_str() );
 		new_GoS_file << "p cnf " << cur_GoS_cnf.vars_count << " " << cur_GoS_cnf.clauses_count + known_bits << std::endl;
 		new_GoS_file << cur_GoS_cnf.header_comments_sstream.str();
-		k = 0;
-		for ( std::vector<bool>::reverse_iterator vb_r_it = reg_values_vec[i].rbegin(); vb_r_it != reg_values_vec[i].rend(); vb_r_it++ ) {
-			convert_sstream << (*vb_r_it ? "" : "-") << GoS_reg_variables[GoS_reg1_variable_last+k] << " 0";
+		
+		for ( unsigned t1 = 0; t1 < known_bits; t1++ ) {
+			convert_sstream << (reg_values_vec[i][t1] ? "" : "-") << GoS_reg_variables[t1] << " 0";
 			new_GoS_file << convert_sstream.str() << std::endl;
 			convert_sstream.str(""); convert_sstream.clear();
-			k++;
-			if ( k == known_bits )
-				break;
 		}
+		
 		new_GoS_file << cur_GoS_cnf.clauses_sstream.str();
 		new_GoS_file.close(); new_GoS_file.clear();
 	}
