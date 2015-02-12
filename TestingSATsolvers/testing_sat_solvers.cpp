@@ -160,10 +160,10 @@ int main( int argc, char **argv )
 	bool isTimeStr, isSAT;
 	unsigned solved_problems_count = 0;
 	double sum_time, min_time, max_time;
-	std::vector< std::vector<double> > solver_cnf_times;
+	std::vector< std::vector<std::string> > solver_cnf_times_str;
 	std::string solver_time_str;
 	std::stringstream convert_sstream;
-	solver_cnf_times.resize( solver_files_names.size() );
+	solver_cnf_times_str.resize( solver_files_names.size() );
 	for ( unsigned i=0; i < solver_files_names.size(); i++ ) {
 		sum_time = 0;
 		solved_problems_count = 0;
@@ -251,8 +251,13 @@ int main( int argc, char **argv )
 			}
 			solved_problems_count++;
 			std::cout << "solved_problems_count " << solved_problems_count << std::endl;
+
+			solver_time_str = cnf_files_names[j];
+			convert_sstream << " " << cur_time;
+			solver_time_str += convert_sstream.str();
+			convert_sstream.str(""); convert_sstream.clear();
+			solver_cnf_times_str[i].push_back( solver_time_str );
 		}
-		solver_cnf_times[i].push_back( cur_time );
 		
 		if ( isSAT ) {
 			avg_time = sum_time / (double)solved_problems_count;
@@ -265,8 +270,8 @@ int main( int argc, char **argv )
 
 		std::string solver_out_file_name = "out_" + solver_files_names[i] + "_total";
 		std::ofstream solver_out_file( solver_out_file_name.c_str() );
-		for ( unsigned t = 0; t < solver_cnf_times[i].size(); t++ )
-			solver_out_file << solver_cnf_times[i][t] << std::endl;
+		for ( unsigned t = 0; t < solver_cnf_times_str[i].size(); t++ )
+			solver_out_file << solver_cnf_times_str[i][t] << std::endl;
 		solver_out_file.close(); solver_out_file.clear();
 		
 		cur_solver_info.name = solver_files_names[i];
