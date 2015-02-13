@@ -34,8 +34,8 @@ int main( int argc, char **argv )
 {
 #ifdef _DEBUG
 	argc = 3;
-	argv[1] = "trivium_300_template_new.cnf";
-	argv[2] = "288";
+	argv[1] = "grain_160_template_new.cnf";
+	argv[2] = "160";
 #endif
 	std::string transalg_template_file_name;
 	std::stringstream convert_sstream;
@@ -122,10 +122,18 @@ int main( int argc, char **argv )
 	std::cout << std::endl;
 	
 	std::vector<int> GoS_reg_variables;
-	for ( unsigned i=GoS_reg1_variable_last; i >= GoS_reg1_variable_first; i-- )
-		GoS_reg_variables.push_back(i);
-	for ( unsigned i=GoS_reg2_variable_last; i >= GoS_reg2_variable_first; i-- )
-		GoS_reg_variables.push_back(i);
+	if ( ( generator_type == "bivium" ) || ( generator_type == "trivium" ) ) {
+		for ( unsigned i=GoS_reg1_variable_last; i >= GoS_reg1_variable_first; i-- )
+			GoS_reg_variables.push_back(i);
+		for ( unsigned i=GoS_reg2_variable_last; i >= GoS_reg2_variable_first; i-- )
+			GoS_reg_variables.push_back(i);
+	}
+	else if ( generator_type == "grain" ) {
+		for ( unsigned i=GoS_reg1_variable_first; i <= GoS_reg1_variable_last; i++ )
+			GoS_reg_variables.push_back(i);
+		for ( unsigned i=GoS_reg2_variable_first; i <= GoS_reg2_variable_last; i++ )
+			GoS_reg_variables.push_back(i);
+	}
 	if ( generator_type == "trivium" )
 		for ( unsigned i=GoS_reg3_variable_last; i >= GoS_reg3_variable_first; i-- )
 			GoS_reg_variables.push_back(i);
@@ -134,9 +142,6 @@ int main( int argc, char **argv )
 	for ( unsigned i=0; i < GoS_reg_variables.size(); i++ )
 		std:: cout << GoS_reg_variables[i] << " ";
 	std::cout << std::endl;
-
-	// get date from CNF: vars count, clauses count, clauses and comments
-	get_cnf_data( transalg_template_cnf );
 
 	int num;
 	std::size_t found1, found2;
@@ -179,6 +184,9 @@ int main( int argc, char **argv )
 		}
 	}
 	std::cout << "instances_count " << instances_count << std::endl;
+
+	// get date from CNF: vars count, clauses count, clauses and comments
+	get_cnf_data( transalg_template_cnf );
 	
 	reg_values_vec.resize( instances_count );
 	keystream_values_vec.resize( instances_count );
@@ -327,13 +335,13 @@ std::vector<bool> get_reg_values_from_file( std::string reg_file_name, std::stri
 		else if ( str.find( "false" ) != std::string::npos )
 			reg_values.push_back( false );
 		// reverse reg bits from GoS to Transalg
-		if ( reg_values.size() == reg1_len  ) {
+		if ( ( ( generator_type == "bivium" ) || ( generator_type == "trivium" ) ) && ( reg_values.size() == reg1_len ) ) {
 			tmp_reg_values = reg_values;
 			reg_values.clear();
 			for ( std::vector<bool>::reverse_iterator r_it = tmp_reg_values.rbegin(); r_it != tmp_reg_values.rend(); r_it++ )
 				reg_values.push_back(*r_it);
 		}
-		if ( reg_values.size() == reg1_len + reg2_len  ) {
+		if ( ( ( generator_type == "bivium" ) || ( generator_type == "trivium" ) ) && ( reg_values.size() == reg1_len + reg2_len ) ) {
 			tmp_reg_values = reg_values;
 			reg_values.resize(reg1_len);
 			unsigned k=0;
@@ -344,7 +352,7 @@ std::vector<bool> get_reg_values_from_file( std::string reg_file_name, std::stri
 					break;
 			}
 		}
-		if ( reg_values.size() == reg1_len + reg2_len + reg3_len ) {
+		if ( ( ( generator_type == "bivium" ) || ( generator_type == "trivium" ) ) && ( reg_values.size() == reg1_len + reg2_len + reg3_len ) ) {
 			tmp_reg_values = reg_values;
 			reg_values.resize(reg1_len + reg2_len);
 			unsigned k=0;
