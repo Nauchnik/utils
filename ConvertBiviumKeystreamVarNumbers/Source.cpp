@@ -34,8 +34,8 @@ int main( int argc, char **argv )
 {
 #ifdef _DEBUG
 	argc = 3;
-	argv[1] = "grain_160_template_new.cnf";
-	argv[2] = "160";
+	argv[1] = "bivium_200_template_new.cnf";
+	argv[2] = "177";
 #endif
 	std::string transalg_template_file_name;
 	std::stringstream convert_sstream;
@@ -154,7 +154,7 @@ int main( int argc, char **argv )
 	for ( std::vector<std::string>::iterator file_it = GoS_files.begin(); file_it != GoS_files.end(); file_it++ ) {
 		if ( (*file_it).find( generator_type ) == std::string::npos )
 			continue;
-			
+		
 		found1 = (*file_it).find( ".cnf" );
 		found2 = (*file_it).find( ".output" );
 		if ( found1 != std::string::npos ) {
@@ -232,7 +232,7 @@ int main( int argc, char **argv )
 		transalg_out_file.open( transalg_out_file_name.c_str() );
 		transalg_out_file << "p cnf " << transalg_template_cnf.vars_count << " " << cnf_instance_clauses_count << std::endl;
 		transalg_out_file << transalg_template_cnf.header_comments_sstream.str();
-		for ( unsigned t1 = 0; t1 < known_bits; t1++ ) {
+		for ( int t1 = transalg_reg_variables.size()-1; t1 >= (int)transalg_reg_variables.size() - (int)known_bits; t1-- ) {
 			convert_sstream << (reg_values_vec[i][t1] ? "" : "-") << transalg_reg_variables[t1] << " 0";
 			transalg_out_file << convert_sstream.str() << std::endl;
 			convert_sstream.str(""); convert_sstream.clear();
@@ -244,6 +244,7 @@ int main( int argc, char **argv )
 			convert_sstream.str(""); convert_sstream.clear();
 		}
 		transalg_out_file << transalg_template_cnf.clauses_sstream.str();
+		transalg_out_file << " "; // for treengeling
 		transalg_out_file.close(); transalg_out_file.clear();
 		info_file.close(); info_file.clear();
 		
@@ -262,13 +263,14 @@ int main( int argc, char **argv )
 		new_GoS_file << "p cnf " << cur_GoS_cnf.vars_count << " " << cur_GoS_cnf.clauses_count + known_bits << std::endl;
 		new_GoS_file << cur_GoS_cnf.header_comments_sstream.str();
 		
-		for ( unsigned t1 = 0; t1 < known_bits; t1++ ) {
+		for ( int t1 = GoS_reg_variables.size()-1; t1 >= (int)GoS_reg_variables.size() - (int)known_bits; t1-- ) {
 			convert_sstream << (reg_values_vec[i][t1] ? "" : "-") << GoS_reg_variables[t1] << " 0";
 			new_GoS_file << convert_sstream.str() << std::endl;
 			convert_sstream.str(""); convert_sstream.clear();
 		}
 		
 		new_GoS_file << cur_GoS_cnf.clauses_sstream.str();
+		new_GoS_file << " "; // for treengeling
 		new_GoS_file.close(); new_GoS_file.clear();
 	}
 	
@@ -406,13 +408,14 @@ void get_cnf_data( cnf_data &cnf )
 		if ( ( str[0] == 'c' ) && ( !isClausesStrings ) )
 			cnf.header_comments_sstream << str << std::endl;
 		else {
+			isClausesStrings = true;
+			if ( str[0] == 'c' )
+				continue;
 			if ( !isFirstClauseString )
 				cnf.clauses_sstream << std::endl;
-			cnf.clauses_sstream << str;
-			isClausesStrings = true;
 			isFirstClauseString = false;
-			if ( str[0] != 'c' )
-				cnf.clauses_count++;
+			cnf.clauses_sstream << str;
+			cnf.clauses_count++;
 			str_sstream << str;
 			while ( str_sstream >> val )
 				if ( abs(val) > (int)cnf.vars_count )
