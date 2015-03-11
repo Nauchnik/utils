@@ -8,7 +8,7 @@ int main()
 {
 	std::string fname;
 #ifdef _DEBUG
-	fname = "input_md5.txt";
+	fname = "input_md4.txt";
 #endif
 	std::ifstream ifile( fname );
 	if ( !ifile.is_open() ) {
@@ -39,13 +39,13 @@ int main()
 	}
 	getline( ifile, str ); // read values of variables
 	ifile.close();
-	if ( str.size() < var_set[var_set.size() - 1] ) {
+	/*if ( str.size() < var_set[var_set.size() - 1] ) {
 		std::cerr << "str.size() < var_set[var_set.size() - 1] : " << str.size() << " < " << var_set[var_set.size() - 1] << std::endl;
 		return 1;
-	}
+	}*/
 	std::ofstream ofile( "out" );
-	for ( auto &x : var_set ) // write corresponding oneliteral clauses
-		ofile << (str[x-1] == '1' ? "" : "-") << x << " 0" << std::endl;
+	for ( unsigned i=0; i < var_set.size(); i++ ) // write corresponding oneliteral clauses
+		ofile << (str[i] == '1' ? "" : "-") << var_set[i] << " 0" << std::endl;
 	ofile.close();
 	return 0;
 }
