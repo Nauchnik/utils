@@ -8,7 +8,7 @@ int main()
 {
 	std::string fname;
 #ifdef _DEBUG
-	fname = "input_md4.txt";
+	fname = "input.txt";
 #endif
 	std::ifstream ifile( fname );
 	if ( !ifile.is_open() ) {
