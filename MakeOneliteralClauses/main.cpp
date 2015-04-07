@@ -37,15 +37,45 @@ int main()
 		while ( sstream >> var )
 			var_set.push_back(var);
 	}
-	getline( ifile, str ); // read values of variables
+	std::vector<std::string> var_values_vec;
+	std::stringstream sstream;
+	std::string tmp_str;
+	bool isMatchString;
+	while ( getline( ifile, str ) ) { // read values of variables
+		sstream << str;
+		while ( sstream >> tmp_str ) {
+			if ( tmp_str.size() < 5 )
+				continue;
+			isMatchString = true;
+			for ( auto &x : tmp_str )
+				if ( ( x != '1' ) && ( x != '0' ) ) {
+					isMatchString = false;
+					break;
+				}
+			if ( isMatchString )
+				break;
+		}
+		var_values_vec.push_back( tmp_str );
+		sstream.clear(); sstream.str("");
+	}
+
 	ifile.close();
 	/*if ( str.size() < var_set[var_set.size() - 1] ) {
 		std::cerr << "str.size() < var_set[var_set.size() - 1] : " << str.size() << " < " << var_set[var_set.size() - 1] << std::endl;
 		return 1;
 	}*/
-	std::ofstream ofile( "out" );
-	for ( unsigned i=0; i < var_set.size(); i++ ) // write corresponding oneliteral clauses
-		ofile << (str[i] == '1' ? "" : "-") << var_set[i] << " 0" << std::endl;
-	ofile.close();
+	std::ofstream ofile;
+	std::string ofile_name = "out";
+	unsigned k = 0;
+	for ( auto &x : var_values_vec ) {
+		sstream << ofile_name << "_" << k;
+		ofile.open( sstream.str().c_str() );
+		for ( unsigned i=0; i < var_set.size(); i++ ) // write corresponding oneliteral clauses
+			ofile << ( x[i] == '1' ? "" : "-") << var_set[i] << " 0" << std::endl;
+		ofile.close();
+		sstream.clear();
+		sstream.str("");
+		k++;
+	}
 	return 0;
 }
