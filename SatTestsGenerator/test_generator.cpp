@@ -136,8 +136,7 @@ void makeSample :: init()
 	cout << "decomp_set.size() " << decomp_set.size() << endl; 
 
 	mpi_b.isMakeSatSampleAnyWay = true;
-	mpi_b.input_cnf_name = new char[cut_cnf_file_name.size() + 1];
-	strcpy( mpi_b.input_cnf_name, cut_cnf_file_name.c_str() );
+	mpi_b.input_cnf_name = cut_cnf_file_name;
 	mpi_b.ReadIntCNF();
 	cout << "mpi_b.var_count " << mpi_b.var_count << endl;
 	cout << "mpi_b.clause_count "  << mpi_b.clause_count  << endl;
@@ -154,7 +153,6 @@ void makeSample :: init()
 	
 	head_cnf_sstream << "p cnf " << mpi_b.var_count << " " << new_clause_count << endl;
 	
-	delete[] mpi_b.input_cnf_name;
 	decomp_set_file.close();
 	cnf_file.close();
 }

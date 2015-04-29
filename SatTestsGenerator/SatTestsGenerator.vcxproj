@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -19,12 +19,14 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -41,7 +43,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>D:\Programming;D:\Programming\pdsat\src_common;D:\Programming\pdsat\src_mpi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Programming;D:\Programming\pdsat\src_common;D:\Programming\pdsat\src_mpi;D:\Programming\pdsat\src_common\minisat;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -65,7 +67,6 @@
     <ClCompile Include="..\..\pdsat\src_common\minisat22_wrapper.cpp" />
     <ClCompile Include="..\..\pdsat\src_common\minisat\core\Solver.cc" />
     <ClCompile Include="..\..\pdsat\src_common\minisat\utils\Options.cc" />
-    <ClCompile Include="..\..\pdsat\src_common\minisat\utils\SolverStateAccessor.cpp" />
     <ClCompile Include="..\..\pdsat\src_common\minisat\utils\System.cc" />
     <ClCompile Include="..\..\pdsat\src_mpi\mpi_base.cpp" />
     <ClCompile Include="test_generator.cpp" />
@@ -79,7 +80,6 @@
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\MinisatLogger.h" />
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\Options.h" />
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\ParseUtils.h" />
-    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\SolverStateAccessor.h" />
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\System.h" />
     <ClInclude Include="..\..\pdsat\src_mpi\mpi_base.h" />
   </ItemGroup>

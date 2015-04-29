@@ -7,9 +7,6 @@
     <ClCompile Include="..\..\pdsat\src_common\minisat\utils\Options.cc">
       <Filter>minisat</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pdsat\src_common\minisat\utils\SolverStateAccessor.cpp">
-      <Filter>minisat</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\pdsat\src_common\minisat\utils\System.cc">
       <Filter>minisat</Filter>
     </ClCompile>
@@ -40,9 +37,6 @@
       <Filter>minisat</Filter>
     </ClInclude>
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\ParseUtils.h">
-      <Filter>minisat</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\SolverStateAccessor.h">
       <Filter>minisat</Filter>
     </ClInclude>
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\System.h">
