@@ -4,11 +4,16 @@
 #include <vector>
 #include <algorithm>
 
-int main()
+int main( int argc, char*argv[] )
 {
 	// touch every files with names from file with errors 
-
-	std::ifstream error_file("errors");
+	if (argc < 2) {
+		std::cerr << "Usage: prog errors_file_name";
+		return 1;
+	}
+	
+	std::string error_file_name = argv[1];
+	std::ifstream error_file(error_file_name.c_str());
 	if (!error_file.is_open()) {
 		std::cerr << "can't open file with name errors";
 		return 1;
