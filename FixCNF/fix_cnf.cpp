@@ -11,7 +11,7 @@ int main( int argc, char **argv )
 	argv[1] = "cnf";
 #endif
 	if ( argc < 2 ) {
-		std::cerr << "Usage: cnffile" << std::endl;
+		std::cerr << "Usage: CNF file" << std::endl;
 		return 1;
 	}
 	std::string cnf_name = argv[1];
@@ -51,10 +51,9 @@ int main( int argc, char **argv )
 	clause_count = main_str_count;
 	cnf_file.close();
 	cnf_file.clear();
-
-	std::string cnf_name_fixed = cnf_name + "_fixed";
-
-	cnf_file.open( cnf_name_fixed.c_str(), std::ios_base::out );
+	
+	// delete old data from old file and write updated data to it
+	cnf_file.open( cnf_name.c_str(), std::ios_base::out );
 	cnf_file << comment_cnf_sstream.str();
 	cnf_file << "p cnf " << var_count << " " << clause_count << std::endl;
 	cnf_file << main_cnf_sstream.rdbuf();
