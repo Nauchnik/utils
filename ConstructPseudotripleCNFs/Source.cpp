@@ -83,20 +83,32 @@ void constructPseudotripleCNFs(std::string pseudotriple_template_cnf_name, unsig
 	std::ofstream cur_pseudotriple_file;
 	unsigned pair_index = 0;
 	std::string system_str;
+	unsigned dls_index = 0, row_index = 0, column_index = 0;
 
 	if (isPairsUsing) {
 		for (auto &x : odls_pair_vec) { // for every pair of dls make cnf for searching pseudotriple
-			for (unsigned i = 0; i < x.dls_1.size(); i++)
-				for (unsigned j = 0; j < x.dls_1[i].size(); j++)
-					dls_pair_clauses_sstream << 100 * i + 10 * j + (x.dls_1[i][j] - 48) + 1 << " 0\n"; // char to int
-			for (unsigned i = 0; i < x.dls_2.size(); i++)
-				for (unsigned j = 0; j < x.dls_2[i].size(); j++) {
-					dls_pair_clauses_sstream << 1 * 1000 + 100 * i + 10 * j + (x.dls_2[i][j] - 48) + 1 << " 0";
-					if ((i == x.dls_2.size() - 1) && (j == x.dls_2[i].size() - 1))
-						dls_pair_clauses_sstream << " "; // for treengling
-					else
-						dls_pair_clauses_sstream << "\n";
-				}
+			// write 1st known DLS in the form of oneliteral clauses (1 clause for each DLS cell)
+			dls_index = 0;
+			for (row_index = 0; row_index < x.dls_1.size(); row_index++)
+				for (column_index = 0; column_index < x.dls_1[row_index].size(); column_index++)
+					dls_pair_clauses_sstream << 1000 * dls_index + 100 * row_index + 10 * column_index + (x.dls_1[row_index][column_index] - 48) + 1 << " 0\n";
+			// write 2nd known DLS in the form of oneliteral clauses (1 clause for each DLS cell)
+			dls_index = 1;
+			for (row_index = 0; row_index < x.dls_2.size(); row_index++)
+				for (column_index = 0; column_index < x.dls_2[row_index].size(); column_index++)
+					dls_pair_clauses_sstream << 1000 * dls_index + 100 * row_index + 10 * column_index + (x.dls_2[row_index][column_index] - 48) + 1 << " 0\n";
+			
+			// write "0 1 2 3 4 5 6 7 8 9" as first row of the 3rd DLS
+			dls_index = 2;
+			row_index = 0;
+			for (column_index = 0; column_index < 10; column_index++) {
+				dls_pair_clauses_sstream << 1000 * dls_index + 100 * row_index + 10 * column_index + column_index + 1 << " 0";
+				if ( column_index < 10)
+					dls_pair_clauses_sstream << "\n";
+				else
+					dls_pair_clauses_sstream << " "; // for treengling
+			}
+			
 			for (unsigned i = characteristics_from; i <= characteristics_to; i++) {
 				cur_pseudotriple_file_name = "dls-pseudotriple_";
 				tmp_sstream.clear(); tmp_sstream.str("");
@@ -143,7 +155,7 @@ void constructPseudotripleCNFs(std::string pseudotriple_template_cnf_name, unsig
 			system(system_str.c_str());
 		}
 	}
-
+    
 	/*
 	// check solution
 	stringstream sstream;
@@ -184,7 +196,6 @@ void constructPseudotripleCNFs(std::string pseudotriple_template_cnf_name, unsig
 	std::cout << "pseudotriple.unique_orthogonal_cells.size() " << pseudotriple.unique_orthogonal_cells.size() << std::endl;
 	for ( auto &x : pseudotriple.unique_orthogonal_cells )
 	std::cout << x << " ";
-
 
 	// check Brown pseudotriple
 	std::cout << std::endl;
