@@ -20,78 +20,9 @@ struct solver_info
 	double max_time;
 };
 
-std::string get_cpu_lim_str( std::string solvers_dir, std::string solver_name, 
-					    std::string maxtime_seconds_str, std::string nof_threads_str )
-{
-	std::string result_str;
-	if ( ( solver_name.find( "minisat//minisat" ) != std::string::npos ) || 
-	     ( solver_name.find( "minisat_simp//minisat_simp" ) != std::string::npos ) )
-	{
-		//std::cout << "minisat_simp detected" << std::endl;
-		result_str =  "-cpu-lim=";
-	}
-	// glucose can't stop in time
-	/*if ( solver_name.find( "glucose" ) != std::string::npos ) {
-		std::cout << "glucose detected" << std::endl;
-		result_str = "-cpu-lim=";
-	}*/
-	else if ( solver_name.find( "sinn" ) != std::string::npos ) {
-		//std::cout << "sinn detected" << std::endl;
-		result_str = "-cpu-lim=" +  maxtime_seconds_str;
-	}
-	else if ( solver_name.find( "minisat_bit" ) != std::string::npos ) {
-		//std::cout << "minisat_bit detected" << std::endl;
-		result_str = "-cpu-lim=";
-	}
-	else if ( solver_name.find( "zenn" ) != std::string::npos ) {
-		//std::cout << "zenn detected" << std::endl;
-		result_str = "-cpu-lim=";
-	}
-	else if ( solver_name.find( "glueminisat" ) != std::string::npos ) {
-		//std::cout << "glueminisat detected" << std::endl;
-		result_str = "-cpu-lim=";
-	}
-	else if ( solver_name.find( "minigolf" ) != std::string::npos ) {
-		//std::cout << "minigolf detected" << std::endl;
-		result_str = "-cpu-lim=";
-	}
-	/*else if ( solver_name.find( "plingeling" ) != std::string::npos ) {
-		//std::cout << "pingeling detected" << std::endl;
-		result_str = "-nof_threads ";
-		result_str += nof_threads_str;
-		result_str += " -t ";
-	}
-	else if ( solver_name.find( "trengeling" ) != std::string::npos ) {
-		//std::cout << "treengeling detected" << std::endl;
-		//result_str = "-t " + "11" + nof_threads_str;
-	}*/
-	else if ( ( solver_name.find( "lingeling" ) != std::string::npos ) && 
-		      ( solver_name.find( "plingeling" ) == std::string::npos ) ) {
-		//std::cout << "lingeling detected" << std::endl;
-		result_str = "-t ";
-	}
-
-	if ( result_str == "" ) {
-		std::cout << "unknown solver detected. using timelimit" << std::endl;
-		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" + solvers_dir + "/" + solver_name;
-	}
-	else
-		result_str = "./" + solvers_dir + "/" + solver_name + " " + result_str + maxtime_seconds_str;
-
-	if ( solver_name.find( "dimetheus" ) != std::string::npos )
-		result_str += " -formula";
-	
-	return result_str;
-}
-
-std::string get_params_str( std::string solver_name )
-{
-	std::string result_str;
-	if ( solver_name.find( "CSCC" ) != std::string::npos ) {
-		result_str = " 1";
-	}
-	return result_str;
-}
+std::string get_cpu_lim_str(std::string solvers_dir, std::string solver_name,
+	std::string maxtime_seconds_str, std::string nof_threads_str);
+std::string get_params_str(std::string solver_name);
 
 int main( int argc, char **argv )
 {
@@ -128,12 +59,19 @@ int main( int argc, char **argv )
 	} else
 		maxtime_seconds_str = argv[3];
 
+	sstream << maxtime_seconds_str;
+	double maxtime_seconds;
+	sstream >> maxtime_seconds;
+	sstream.str("");
+	sstream.clear();
+	
 	std::string solvers_dir, cnfs_dir;
 	solvers_dir = argv[1];
 	cnfs_dir = argv[2];
 	std::cout << "solvers_dir "     << solvers_dir         << std::endl;
 	std::cout << "cnfs_dir "        << cnfs_dir            << std::endl;
 	std::cout << "maxtime_seconds " << maxtime_seconds_str << std::endl;
+
 	
 	std::vector<std::string> solver_files_names = std::vector<std::string>();
 	std::vector<std::string> cnf_files_names = std::vector<std::string>();
@@ -158,8 +96,8 @@ int main( int argc, char **argv )
 		*it = 0;
 	
 	bool isTimeStr, isSAT;
-	unsigned solved_problems_count = 0;
-	double sum_time, min_time, max_time;
+	unsigned solved_problems_count;
+	double sum_time = 0, min_time = 0, max_time = 0;
 	std::vector< std::vector<std::string> > solver_cnf_times_str;
 	std::string solver_time_str;
 	std::stringstream convert_sstream;
@@ -241,16 +179,21 @@ int main( int argc, char **argv )
 			if ( cur_time <= 0.0 ) 
 				cur_time = clock_solving_time;
 			std::cout << "cur_time " << cur_time << std::endl;
-			sum_time += cur_time;
-			if ( j == 0 ) {
-				min_time = cur_time;
-				max_time = cur_time;
-			} else {
-				min_time = ( cur_time < min_time ) ? cur_time : min_time;
-				max_time = ( cur_time > max_time ) ? cur_time : max_time;
+			
+			// deal only with finished calculations
+			if (cur_time < maxtime_seconds) {
+				sum_time += cur_time;
+				if (min_time == 0)
+					min_time = cur_time;
+				else
+					min_time = (cur_time < min_time) ? cur_time : min_time;
+				if (max_time == 0)
+					max_time = cur_time;
+				else
+					max_time = (cur_time > max_time) ? cur_time : max_time;
+				solved_problems_count++;
+				std::cout << "solved_problems_count " << solved_problems_count << std::endl;
 			}
-			solved_problems_count++;
-			std::cout << "solved_problems_count " << solved_problems_count << std::endl;
 
 			solver_time_str = cnf_files_names[j];
 			convert_sstream << " " << cur_time;
@@ -259,15 +202,14 @@ int main( int argc, char **argv )
 			solver_cnf_times_str[i].push_back( solver_time_str );
 		}
 		
-		if ( isSAT ) {
+		if ( solved_problems_count )
 			avg_time = sum_time / (double)solved_problems_count;
-			std::cout << "cur_avg_time " << avg_time << std::endl;
-			std::cout << "cur_min_time " << min_time << std::endl;
-			std::cout << "cur_max_time " << max_time << std::endl;
-		}
-		else
-			min_time = max_time = 0.0;
 
+		std::cout << "cur_avg_time " << avg_time << std::endl;
+		std::cout << "cur_min_time " << min_time << std::endl;
+		std::cout << "cur_max_time " << max_time << std::endl;
+		std::cout << "solved_problems_count " << solved_problems_count << std::endl;
+		
 		std::string solver_out_file_name = "out_" + solver_files_names[i] + "_total";
 		std::ofstream solver_out_file( solver_out_file_name.c_str() );
 		for ( unsigned t = 0; t < solver_cnf_times_str[i].size(); t++ )
@@ -290,4 +232,77 @@ int main( int argc, char **argv )
 		std::cout << "  max_time " << (*it).max_time << " s" << std::endl;
 	}
 	return 0;
+}
+
+std::string get_cpu_lim_str(std::string solvers_dir, std::string solver_name,
+	std::string maxtime_seconds_str, std::string nof_threads_str)
+{
+	std::string result_str;
+	if ((solver_name.find("minisat//minisat") != std::string::npos) ||
+		(solver_name.find("minisat_simp//minisat_simp") != std::string::npos))
+	{
+		//std::cout << "minisat_simp detected" << std::endl;
+		result_str = "-cpu-lim=";
+	}
+	// glucose can't stop in time
+	/*if ( solver_name.find( "glucose" ) != std::string::npos ) {
+	std::cout << "glucose detected" << std::endl;
+	result_str = "-cpu-lim=";
+	}*/
+	else if (solver_name.find("sinn") != std::string::npos) {
+		//std::cout << "sinn detected" << std::endl;
+		result_str = "-cpu-lim=" + maxtime_seconds_str;
+	}
+	else if (solver_name.find("minisat_bit") != std::string::npos) {
+		//std::cout << "minisat_bit detected" << std::endl;
+		result_str = "-cpu-lim=";
+	}
+	else if (solver_name.find("zenn") != std::string::npos) {
+		//std::cout << "zenn detected" << std::endl;
+		result_str = "-cpu-lim=";
+	}
+	else if (solver_name.find("glueminisat") != std::string::npos) {
+		//std::cout << "glueminisat detected" << std::endl;
+		result_str = "-cpu-lim=";
+	}
+	else if (solver_name.find("minigolf") != std::string::npos) {
+		//std::cout << "minigolf detected" << std::endl;
+		result_str = "-cpu-lim=";
+	}
+	/*else if ( solver_name.find( "plingeling" ) != std::string::npos ) {
+	//std::cout << "pingeling detected" << std::endl;
+	result_str = "-nof_threads ";
+	result_str += nof_threads_str;
+	result_str += " -t ";
+	}
+	else if ( solver_name.find( "trengeling" ) != std::string::npos ) {
+	//std::cout << "treengeling detected" << std::endl;
+	//result_str = "-t " + "11" + nof_threads_str;
+	}*/
+	else if ((solver_name.find("lingeling") != std::string::npos) &&
+		(solver_name.find("plingeling") == std::string::npos)) {
+		//std::cout << "lingeling detected" << std::endl;
+		result_str = "-t ";
+	}
+
+	if (result_str == "") {
+		std::cout << "unknown solver detected. using timelimit" << std::endl;
+		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" + solvers_dir + "/" + solver_name;
+	}
+	else
+		result_str = "./" + solvers_dir + "/" + solver_name + " " + result_str + maxtime_seconds_str;
+
+	if (solver_name.find("dimetheus") != std::string::npos)
+		result_str += " -formula";
+
+	return result_str;
+}
+
+std::string get_params_str(std::string solver_name)
+{
+	std::string result_str;
+	if (solver_name.find("CSCC") != std::string::npos) {
+		result_str = " 1";
+	}
+	return result_str;
 }
