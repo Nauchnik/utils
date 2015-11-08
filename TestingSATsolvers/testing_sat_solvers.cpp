@@ -20,9 +20,9 @@ struct solver_info
 	double max_time;
 };
 
-std::string get_cpu_lim_str(std::string solvers_dir, std::string solver_name,
+std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string solver_name,
 	std::string maxtime_seconds_str, std::string nof_threads_str);
-std::string get_params_str(std::string solver_name);
+std::string get_post_cnf_solver_params_str(std::string solver_name);
 
 int main( int argc, char **argv )
 {
@@ -72,7 +72,6 @@ int main( int argc, char **argv )
 	std::cout << "cnfs_dir "        << cnfs_dir            << std::endl;
 	std::cout << "maxtime_seconds " << maxtime_seconds_str << std::endl;
 
-	
 	std::vector<std::string> solver_files_names = std::vector<std::string>();
 	std::vector<std::string> cnf_files_names = std::vector<std::string>();
 	
@@ -107,8 +106,8 @@ int main( int argc, char **argv )
 		solved_problems_count = 0;
 		for ( unsigned j=0; j < cnf_files_names.size(); j++ ) {
 			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
-			system_str = get_cpu_lim_str( solvers_dir, solver_files_names[i], maxtime_seconds_str, nof_threads_str ) + 
-				         " ./" + cnfs_dir + "/" + cnf_files_names[j] + get_params_str( solver_files_names[i] );
+			system_str = get_pre_cnf_solver_params_str(solvers_dir, solver_files_names[i], maxtime_seconds_str, nof_threads_str) +
+				         " ./" + cnfs_dir + "/" + cnf_files_names[j] + get_post_cnf_solver_params_str( solver_files_names[i] );
 			std::cout << system_str << std::endl;
 					    // + " &> ./" + current_out_name;
 			//std::cout << system_str << std::endl;
@@ -234,7 +233,7 @@ int main( int argc, char **argv )
 	return 0;
 }
 
-std::string get_cpu_lim_str(std::string solvers_dir, std::string solver_name,
+std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string solver_name,
 	std::string maxtime_seconds_str, std::string nof_threads_str)
 {
 	std::string result_str;
@@ -284,7 +283,7 @@ std::string get_cpu_lim_str(std::string solvers_dir, std::string solver_name,
 		//std::cout << "lingeling detected" << std::endl;
 		result_str = "-t ";
 	}
-
+	
 	if (result_str == "") {
 		std::cout << "unknown solver detected. using timelimit" << std::endl;
 		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" + solvers_dir + "/" + solver_name;
@@ -294,11 +293,13 @@ std::string get_cpu_lim_str(std::string solvers_dir, std::string solver_name,
 
 	if (solver_name.find("dimetheus") != std::string::npos)
 		result_str += " -formula";
+	else if (solver_name.find("cvc4") != std::string::npos)
+		result_str += " --smtlib-strict";
 
 	return result_str;
 }
 
-std::string get_params_str(std::string solver_name)
+std::string get_post_cnf_solver_params_str(std::string solver_name)
 {
 	std::string result_str;
 	if (solver_name.find("CSCC") != std::string::npos) {
