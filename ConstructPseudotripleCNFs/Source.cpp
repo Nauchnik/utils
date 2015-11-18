@@ -16,8 +16,8 @@ int main(int argc, char **argv)
 	argv[1] = "pseudotriple_dls_10_template.cnf";
 	argv[2] = "-no_pairs";
 #endif
-
-	if (argc > 5) {
+	
+	if ( (argc < 4 ) || (argc > 5) ) {
 		std::cerr << "Usage : pseudotriple_template_cnf_name characteristics_from characteristics_to [-no_pairs]";
 		return 1;
 	}

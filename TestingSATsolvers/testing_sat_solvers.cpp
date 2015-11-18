@@ -295,7 +295,9 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 		result_str += " -formula";
 	else if (solver_name.find("cvc4") != std::string::npos)
 		result_str += " --smtlib-strict";
-
+	else if (solver_name.find("z3") != std::string::npos)
+		result_str += " -smt";
+    
 	return result_str;
 }
 
