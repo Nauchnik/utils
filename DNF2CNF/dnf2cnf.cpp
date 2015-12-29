@@ -65,7 +65,7 @@ int main( int argc, char **argv )
 	sstream.str("");
 	sstream.clear();
 
-	// read valus of decomposition variables
+	// read values of decomposition variables
 	std::vector<std::vector<bool>> values_vec;
 	std::string values_file_name = argv[3];
 	std::ifstream values_file( values_file_name.c_str() );
@@ -127,6 +127,7 @@ int main( int argc, char **argv )
 	unsigned new_cnf_clauses = 0;
 	std::stringstream from_dnf_sstream;
 	// write long clause with all new variables in positive phase
+	// because we need at least one such assumptions
 	for ( auto &x : new_cnf_variables_vec )
 		from_dnf_sstream << x << " ";
 	from_dnf_sstream << "0" << std::endl;
@@ -138,6 +139,9 @@ int main( int argc, char **argv )
 		assumptions_var_set.push_back( first_out_varible + i );
 	
 	// write clauses A == B -> (A or not(B)) and ( not(A) or B ) where A is a new variable
+	// if here B, for example, is ( x1 or (notx2) ) then A == (x1 or not(x2) ) =>
+	// (A or not(x1) or x2) and (not(A) or x1) and (not(A) or not(x2))
+	// the last two clauses were made with the help of distributive rule
 	for ( unsigned i=0; i < values_vec.size(); i++ ) {
 		// clause with positive phase of new variable
 		from_dnf_sstream << new_cnf_variables_vec[i] << " ";
@@ -145,7 +149,6 @@ int main( int argc, char **argv )
 			if ( values_vec[i][j] ) // negative phase cause De Morgana rule
 				from_dnf_sstream << "-";
 			from_dnf_sstream << assumptions_var_set[j] << " ";
-			
 		}
 		from_dnf_sstream << "0" << std::endl;
 		new_cnf_clauses++;
