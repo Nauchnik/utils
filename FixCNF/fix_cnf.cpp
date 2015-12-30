@@ -8,7 +8,7 @@ int main( int argc, char **argv )
 {
 #ifdef _DEBUG
 	argc = 2;
-	argv[1] = "cnf";
+	argv[1] = "PODLS_known_DLS_0_1.cnf";
 #endif
 	if ( argc < 2 ) {
 		std::cerr << "Usage: CNF file" << std::endl;
