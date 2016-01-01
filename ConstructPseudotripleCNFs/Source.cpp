@@ -7,43 +7,56 @@
 #include <algorithm>
 #include "../../DiagonalLatinSquaresGenerator/odls_sequential.h"
 
-void constructPseudotripleCNFs(std::string pseudotriple_template_cnf_name, unsigned characteristics_from, unsigned characteristics_to, bool isPairsUsing);
+void constructPseudotripleCNFs(std::string pseudotriple_template_cnf_name, 
+	                           unsigned characteristics_from, unsigned characteristics_to, 
+							   bool isPairsUsing, std::string known_podls_file_name);
+bool checkPlingelingSolution();
 
 int main(int argc, char **argv)
 {
 #ifdef _DEBUG
 	argc = 2;
 	argv[1] = "pseudotriple_dls_10_template.cnf";
-	argv[2] = "-no_pairs";
+	argv[2] = "ODLS_10_pairs.txt";
+	argv[3] = "-no_pairs";
 #endif
-	
-	if ( (argc < 4 ) || (argc > 5) ) {
-		std::cerr << "Usage : pseudotriple_template_cnf_name characteristics_from characteristics_to [-no_pairs]";
+
+	checkPlingelingSolution();
+
+	if ( (argc < 5 ) || (argc > 6) ) {
+		std::cerr << "Usage : pseudotriple_template_cnf_name known_podls_file_name characteristics_from characteristics_to [-no_pairs]";
 		return 1;
 	}
 
 	std::string pseudotriple_template_cnf_name = argv[1];
-	unsigned characteristics_from = atoi(argv[2]);
-	unsigned characteristics_to = atoi(argv[3]);
+	std::string known_podls_file_name = argv[2];
+	unsigned characteristics_from = atoi(argv[3]);
+	unsigned characteristics_to = atoi(argv[4]);
 	std::string no_pairs_str;
 	bool isPairsUsing = true;
 	if (argc > 4) {
-		no_pairs_str = argv[4];
+		no_pairs_str = argv[5];
 		if (no_pairs_str == "-no_pairs")
 			isPairsUsing = false;
 	}
 	
 	std::cout << "pseudotriple_template_cnf_name " << pseudotriple_template_cnf_name << std::endl;
+	std::cout << "known_podls_file_name " << known_podls_file_name << std::endl;
 	std::cout << "characteristics_from " << characteristics_from << std::endl;
 	std::cout << "characteristics_to " << characteristics_to << std::endl;
 	std::cout << "isPairsUsing " << isPairsUsing << std::endl;
 	
-	constructPseudotripleCNFs(pseudotriple_template_cnf_name, characteristics_from, characteristics_to, isPairsUsing );
+	constructPseudotripleCNFs(pseudotriple_template_cnf_name, characteristics_from, 
+		characteristics_to, isPairsUsing, known_podls_file_name);
 	
 	return 0;
 }
 
-void constructPseudotripleCNFs(std::string pseudotriple_template_cnf_name, unsigned characteristics_from, unsigned characteristics_to, bool isPairsUsing)
+void constructPseudotripleCNFs(std::string pseudotriple_template_cnf_name, 
+							   unsigned characteristics_from, 
+							   unsigned characteristics_to, 
+							   bool isPairsUsing,
+							   std::string known_podls_file_name)
 {
 	// creating SAT encodings mode, instead of pure DLS generating mode
 	std::stringstream dls_pair_clauses_sstream, template_clauses_sstream, cells_restr_clause_sstream, tmp_sstream;
@@ -78,7 +91,7 @@ void constructPseudotripleCNFs(std::string pseudotriple_template_cnf_name, unsig
 
 	odls_sequential odls_seq;
 	std::vector<odls_pair> odls_pair_vec;
-	odls_seq.readOdlsPairs(odls_pair_vec);
+	odls_seq.readOdlsPairs(known_podls_file_name, odls_pair_vec);
 	std::string cur_pseudotriple_file_name;
 	std::ofstream cur_pseudotriple_file;
 	unsigned pair_index = 0;
@@ -155,53 +168,65 @@ void constructPseudotripleCNFs(std::string pseudotriple_template_cnf_name, unsig
 			system(system_str.c_str());
 		}
 	}
-    
-	/*
+}
+
+bool checkPlingelingSolution()
+{
 	// check solution
-	stringstream sstream;
-	ReadOdlsPairs( odls_pair_vec );
-	std::string solutionfile_name = "out_treengeling_dls-pseudotriple_73cells_pair1.cnf";
+	std::stringstream sstream;
+	//ReadOdlsPairs( odls_pair_vec );
+	std::string solutionfile_name = "out_plingeling_PODLS_known_DLS_35.cnf";
 	std::ifstream solutionfile( solutionfile_name.c_str(), std::ios_base::in );
 	std::string str;
 	dls new_dls;
 	std::string dls_row;
 	int val;
+
 	if ( !solutionfile.is_open() ) {
-	std::cerr << "solutionfile " << solutionfile_name << " not open" << std::endl;
-	return 0;
+		std::cerr << "solutionfile " << solutionfile_name << " not open" << std::endl;
+		return false;
 	}
 
 	while ( std::getline( solutionfile, str ) ) {
-	if ( ( str[0] == 'v' ) && ( str[1] == ' ' ) ) {
-	sstream << str.substr(2);
-	while ( sstream >> val ) {
-	if ( ( val >= 2001 ) && ( val <= 3000 ) ) {
-	val = val % 10 ? (val % 10)-1 : 9;
-	dls_row.push_back( '0' + val );
-	}
-	if ( dls_row.size() == 10 ) {
-	new_dls.push_back( dls_row );
-	std::cout << dls_row << std::endl;
-	dls_row = "";
-	}
-	}
-	sstream.clear(); sstream.str("");
-	}
+		if ( ( str[0] == 'v' ) && ( str[1] == ' ' ) ) {
+			sstream << str.substr(2);
+			while ( sstream >> val ) {
+				//if ( ( val >= 2001 ) && ( val <= 3000 ) ) { // for 3rd DLS
+				if ((val >= 1001) && (val <= 2000)) {
+					val = val % 10 ? (val % 10)-1 : 9;
+					dls_row.push_back( '0' + val );
+				}
+				if ( dls_row.size() == 10 ) {
+					new_dls.push_back( dls_row );
+					std::cout << dls_row << std::endl;
+					dls_row = "";
+				}
+			}
+			sstream.clear(); sstream.str("");
+		}
 	}
 	std::cout << std::endl;
-
+	for ( auto &x :new_dls){
+		for ( unsigned i=0;i<x.size(); i++ )
+			std::cout << x[i] << " ";
+		std::cout << std::endl;
+	}
+	
 	solutionfile.close();
+	
+	odls_sequential odls_seq;
 	odls_pseudotriple pseudotriple;
-	MakePseudotriple( odls_pair_vec[1], new_dls, pseudotriple );
+	odls_seq.makePseudotriple( odls_pair_vec[1], new_dls, pseudotriple );
 	std::cout << "pseudotriple.unique_orthogonal_cells.size() " << pseudotriple.unique_orthogonal_cells.size() << std::endl;
 	for ( auto &x : pseudotriple.unique_orthogonal_cells )
 	std::cout << x << " ";
 
 	// check Brown pseudotriple
 	std::cout << std::endl;
-	MakePseudotriple( odls_pair_vec[17], odls_pair_vec[18].dls_1, pseudotriple );
+	odls_seq.makePseudotriple( odls_pair_vec[17], odls_pair_vec[18].dls_1, pseudotriple );
 	std::cout << "Brown pseudotriple.unique_orthogonal_cells.size() " << pseudotriple.unique_orthogonal_cells.size() << std::endl;
 	for ( auto &x : pseudotriple.unique_orthogonal_cells )
 	std::cout << x << " ";
-	*/
+	
+	return true;
 }
