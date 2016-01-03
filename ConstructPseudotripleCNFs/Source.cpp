@@ -234,6 +234,19 @@ bool checkPlingelingSolution( std::vector<odls_pair> odls_pair_vec )
 	std::cout << "new pseudotriple 2 pseudotriple.unique_orthogonal_cells.size() " << pseudotriple.unique_orthogonal_cells.size() << std::endl;
 	for (auto &x : pseudotriple.unique_orthogonal_cells)
 		std::cout << x << " ";
-	
+	// 3 new pseudotriples based of 4th DLS orthogonal with Brawn DLS
+	odls_seq.makePseudotriple(odls_pair_vec[17], odls_pair_vec[42].dls_2, pseudotriple);
+	std::cout << "new pseudotriple 3 pseudotriple.unique_orthogonal_cells.size() " << pseudotriple.unique_orthogonal_cells.size() << std::endl;
+	for (auto &x : pseudotriple.unique_orthogonal_cells)
+		std::cout << x << " ";
+	odls_seq.makePseudotriple(odls_pair_vec[18], odls_pair_vec[42].dls_2, pseudotriple);
+	std::cout << "new pseudotriple 4 pseudotriple.unique_orthogonal_cells.size() " << pseudotriple.unique_orthogonal_cells.size() << std::endl;
+	for (auto &x : pseudotriple.unique_orthogonal_cells)
+		std::cout << x << " ";
+	odls_seq.makePseudotriple(odls_pair_vec[41], odls_pair_vec[42].dls_2, pseudotriple);
+	std::cout << "new pseudotriple 5 pseudotriple.unique_orthogonal_cells.size() " << pseudotriple.unique_orthogonal_cells.size() << std::endl;
+	for (auto &x : pseudotriple.unique_orthogonal_cells)
+		std::cout << x << " ";
+
 	return true;
 }
