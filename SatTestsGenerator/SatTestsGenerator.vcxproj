@@ -70,6 +70,7 @@
     <ClCompile Include="..\..\pdsat\src_common\minisat\utils\Options.cc" />
     <ClCompile Include="..\..\pdsat\src_common\minisat\utils\System.cc" />
     <ClCompile Include="..\..\pdsat\src_mpi\mpi_base.cpp" />
+    <ClCompile Include="makeSample.cpp" />
     <ClCompile Include="test_generator.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -83,6 +84,7 @@
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\ParseUtils.h" />
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\System.h" />
     <ClInclude Include="..\..\pdsat\src_mpi\mpi_base.h" />
+    <ClInclude Include="makeSample.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />

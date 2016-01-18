@@ -14,6 +14,7 @@
     <ClCompile Include="..\..\pdsat\src_common\addit_func.cpp" />
     <ClCompile Include="..\..\pdsat\src_common\minisat22_wrapper.cpp" />
     <ClCompile Include="test_generator.cpp" />
+    <ClCompile Include="makeSample.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="minisat">
@@ -45,6 +46,7 @@
     <ClInclude Include="..\..\pdsat\src_mpi\mpi_base.h" />
     <ClInclude Include="..\..\pdsat\src_common\addit_func.h" />
     <ClInclude Include="..\..\pdsat\src_common\minisat22_wrapper.h" />
+    <ClInclude Include="makeSample.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
