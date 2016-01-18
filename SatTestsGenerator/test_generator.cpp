@@ -142,10 +142,11 @@ void makeSample :: init()
 	cout << "mpi_b.clause_count "  << mpi_b.clause_count  << endl;
 	
 	unsigned new_clause_count;
+	std::vector< std::vector<bool> > plain_text_vec_vec;
 
 	if ( isSatSample ) {
 		mpi_b.cnf_in_set_count = tests_count;
-		mpi_b.MakeSatSample( state_vec_vec, stream_vec_vec );
+		mpi_b.MakeSatSample( state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
 		new_clause_count = mpi_b.clause_count + decomp_set.size() + stream_vec_vec[0].size();
 	}
 	else
