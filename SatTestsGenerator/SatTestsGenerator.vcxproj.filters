@@ -10,15 +10,31 @@
     <ClCompile Include="..\..\pdsat\src_common\minisat\utils\System.cc">
       <Filter>minisat</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pdsat\src_mpi\mpi_base.cpp" />
-    <ClCompile Include="..\..\pdsat\src_common\addit_func.cpp" />
-    <ClCompile Include="..\..\pdsat\src_common\minisat22_wrapper.cpp" />
-    <ClCompile Include="test_generator.cpp" />
-    <ClCompile Include="makeSample.cpp" />
+    <ClCompile Include="..\..\pdsat\src_common\addit_func.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="makeSample.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pdsat\src_common\minisat22_wrapper.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pdsat\src_mpi\mpi_base.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="test_generator.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="minisat">
       <UniqueIdentifier>{cc9f1d05-937b-4fc0-9cc7-0ec92dd2ae0d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers">
+      <UniqueIdentifier>{5ffb9604-f4e1-455d-8f73-afad37c33d26}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources">
+      <UniqueIdentifier>{60397d9b-2e96-4611-9ad3-ba588e011df4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -43,10 +59,18 @@
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\System.h">
       <Filter>minisat</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\pdsat\src_mpi\mpi_base.h" />
-    <ClInclude Include="..\..\pdsat\src_common\addit_func.h" />
-    <ClInclude Include="..\..\pdsat\src_common\minisat22_wrapper.h" />
-    <ClInclude Include="makeSample.h" />
+    <ClInclude Include="..\..\pdsat\src_common\addit_func.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\pdsat\src_common\minisat22_wrapper.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\pdsat\src_mpi\mpi_base.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="makeSample.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />

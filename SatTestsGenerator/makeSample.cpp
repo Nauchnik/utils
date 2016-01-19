@@ -14,11 +14,6 @@ bool makeSample::ifSatSample() { return isSatSample; }
 
 void makeSample::readInput(int argc, char **argv)
 {
-	if (argc < 4) {
-		std::cerr << "Usage: cnf_file decomp_set_file tests_count [-sat]";
-		exit(1);
-	}
-
 	cnf_file_name = argv[1];
 	std::cout << "cnf_file_name " << cnf_file_name << std::endl;
 	cut_cnf_file_name = cnf_file_name;
@@ -47,16 +42,6 @@ void makeSample::init()
 	if (!cnf_file.is_open()) {
 		std::cerr << "Error. !cnf_file.is_open()" << std::endl;
 		exit(1);
-	}
-
-	bool isDecompSet = false;
-	if (decomp_set_file_name != "no") {
-		decomp_set_file.open(decomp_set_file_name.c_str());
-		isDecompSet = true;
-		if (!decomp_set_file.is_open()) {
-			std::cerr << "Error. !cnf_file.is_open()" << std::endl;
-			exit(1);
-		}
 	}
 	
 	if (tests_count <= 0) {
@@ -87,12 +72,38 @@ void makeSample::init()
 	}
 	std::cout << "main_str_count " << main_str_count << std::endl;
 
+	bool isDecompSet = false;
+	if (decomp_set_file_name != "no") {
+		decomp_set_file.open(decomp_set_file_name.c_str());
+		isDecompSet = true;
+		if (!decomp_set_file.is_open()) {
+			std::cerr << "Error. !cnf_file.is_open()" << std::endl;
+			exit(1);
+		}
+	}
+
 	if (isDecompSet) {
 		unsigned val;
 		std::cout << "reading decomp_set ";
-		while (decomp_set_file >> val) {
-			std::cout << val << " ";
-			decomp_set.push_back(val);
+		getline(decomp_set_file, str);
+		decomp_set_file.close();
+		decomp_set_file.clear();
+		val = str.find('-');
+		if ( val != std::string::npos ) {
+			std::string val_from_str, val_to_str;
+			val_from_str = str.substr( 0, val );
+			val_to_str = str.substr(val + 1, str.size() - val_from_str.size());
+			unsigned from = strtoint(val_from_str), to = strtoint(val_to_str);
+			for (unsigned i = from; i <= to; i++ )
+				decomp_set.push_back(i);
+		}
+		else {
+			decomp_set_file.open(decomp_set_file_name.c_str());
+			while (decomp_set_file >> val) {
+				std::cout << val << " ";
+				decomp_set.push_back(val);
+			}
+			decomp_set_file.close();
 		}
 	}
 	std::cout << std::endl;
@@ -117,7 +128,6 @@ void makeSample::init()
 
 	head_cnf_sstream << "p cnf " << mpi_b.var_count << " " << new_clause_count << std::endl;
 
-	decomp_set_file.close();
 	cnf_file.close();
 }
 
