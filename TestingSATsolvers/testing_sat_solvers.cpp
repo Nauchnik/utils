@@ -297,6 +297,8 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 		result_str += " --smtlib-strict";
 	else if (solver_name.find("z3") != std::string::npos)
 		result_str += " -smt";
+	else if (solver_name.find("Spear") != std::string::npos)
+		result_str += " --dimacs";
     
 	return result_str;
 }
