@@ -177,13 +177,13 @@ bool checkPlingelingSolution( std::vector<odls_pair> odls_pair_vec )
 	// check solution
 	std::stringstream sstream;
 	//ReadOdlsPairs( odls_pair_vec );
-	std::string solutionfile_name = "out_plingeling_PODLS_known_DLS_35.cnf";
+	std::string solutionfile_name = "out_treengeling_dls-pseudotriple_73cells_pair35.cnf";
 	std::ifstream solutionfile( solutionfile_name.c_str(), std::ios_base::in );
 	std::string str;
 	dls new_dls;
 	std::string dls_row;
 	int val;
-
+	
 	if ( !solutionfile.is_open() ) {
 		std::cerr << "solutionfile " << solutionfile_name << " not open" << std::endl;
 		return false;
@@ -193,8 +193,9 @@ bool checkPlingelingSolution( std::vector<odls_pair> odls_pair_vec )
 		if ( ( str[0] == 'v' ) && ( str[1] == ' ' ) ) {
 			sstream << str.substr(2);
 			while ( sstream >> val ) {
-				//if ( ( val >= 2001 ) && ( val <= 3000 ) ) { // for 3rd DLS
-				if ((val >= 1001) && (val <= 2000)) {
+				if ( ( val >= 2001 ) && ( val <= 3000 ) ) { // for 3rd DLS
+				//if ((val >= 1001) && (val <= 2000)) {
+				//if ((val >= 1) && (val <= 1000)) {
 					val = val % 10 ? (val % 10)-1 : 9;
 					dls_row.push_back( '0' + val );
 				}
