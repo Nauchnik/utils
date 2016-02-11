@@ -5,12 +5,10 @@ boost::random::mt19937 gen(static_cast<unsigned int>(std::time(0)));
 using namespace Addit_func;
 
 makeSample::makeSample() :
-	isSatSample(false)
+	launchType(RANDOM_UNSAT_SAMPLE)
 {
 	gen.seed(static_cast<unsigned>(std::time(0)));
 }
-
-bool makeSample::ifSatSample() { return isSatSample; }
 
 void makeSample::readInput(int argc, char **argv)
 {
@@ -31,9 +29,14 @@ void makeSample::readInput(int argc, char **argv)
 	if (argc > 4) {
 		str = argv[4];
 		if (str.find("sat") != std::string::npos)
-			isSatSample = true;
+			launchType = RANDOM_SAT_SAMPLE;
+		else if (str.find("assumptions") != std::string::npos)
+			launchType = ASSUMPTIONS_SAMPLE;
 	}
-	std::cout << "isSatSample " << isSatSample << std::endl;
+	if ( (argc > 5) && ( launchType == ASSUMPTIONS_SAMPLE ) )
+		assumptions_file_name = argv[5];
+
+	std::cout << "launchType " << launchType << std::endl;
 }
 
 void makeSample::init()
@@ -83,13 +86,15 @@ void makeSample::init()
 	}
 
 	if (isDecompSet) {
-		unsigned val;
-		std::cout << "reading decomp_set ";
+		unsigned val = 0;
+		std::cout << "reading decomp_set" << std::endl;
 		getline(decomp_set_file, str);
 		decomp_set_file.close();
 		decomp_set_file.clear();
 		val = str.find('-');
-		if ( val != std::string::npos ) {
+		std::cout << "val " << val << std::endl;
+		if ( val < 1000000 ) {
+			std::cout << "reading interval" << std::endl;
 			std::string val_from_str, val_to_str;
 			val_from_str = str.substr( 0, val );
 			val_to_str = str.substr(val + 1, str.size() - val_from_str.size());
@@ -98,6 +103,7 @@ void makeSample::init()
 				decomp_set.push_back(i);
 		}
 		else {
+			std::cout << "reading separate variables" << std::endl;
 			decomp_set_file.open(decomp_set_file_name.c_str());
 			while (decomp_set_file >> val) {
 				std::cout << val << " ";
@@ -118,7 +124,7 @@ void makeSample::init()
 	unsigned new_clause_count;
 	std::vector< std::vector<bool> > plain_text_vec_vec;
 
-	if (isSatSample) {
+	if ( launchType == RANDOM_SAT_SAMPLE ) {
 		mpi_b.cnf_in_set_count = tests_count;
 		mpi_b.MakeSatSample(state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
 		new_clause_count = mpi_b.clause_count + decomp_set.size() + stream_vec_vec[0].size();
@@ -131,7 +137,7 @@ void makeSample::init()
 	cnf_file.close();
 }
 
-void makeSample::makeUnsatSample()
+void makeSample::makeRandomUnsatSample()
 {
 	std::stringstream current_name_sstream;
 	for (unsigned i = 0; i < test_cnf_files.size(); i++) {
@@ -153,7 +159,7 @@ void makeSample::makeUnsatSample()
 	std::cout << tests_count << " tests were created" << std::endl;
 }
 
-void makeSample::makeSatSample()
+void makeSample::makeRandomSatSample()
 {
 	unsigned cur_var_ind;
 	unsigned cur_stream_index;
@@ -184,4 +190,55 @@ void makeSample::makeSatSample()
 		current_name_sstream.clear(); current_name_sstream.str("");
 		oneliteral_sstream.str(""); oneliteral_sstream.clear();
 	}
+}
+
+void makeSample::makeSampleFromAssumptions()
+{
+	std::ifstream assumptions_file(assumptions_file_name);
+	if (!assumptions_file.is_open()) {
+		std::cerr << "assumptions_file " << assumptions_file_name << " open fails " << std::endl;
+		exit(1);
+	}
+	std::string str;
+	std::vector<std::string> var_values_vec;
+	std::stringstream sstream;
+	std::string tmp_str;
+	bool isMatchString;
+	while (getline(assumptions_file, str)) { // read values of variables
+		sstream << str;
+		while (sstream >> tmp_str) {
+			if (tmp_str.size() < 5)
+				continue;
+			isMatchString = true;
+			for (auto &x : tmp_str)
+				if ((x != '1') && (x != '0')) {
+					isMatchString = false;
+					break;
+				}
+			if (isMatchString)
+				break;
+		}
+		var_values_vec.push_back(tmp_str);
+		sstream.clear(); sstream.str("");
+	}
+
+	assumptions_file.close();
+	tests_count = var_values_vec.size();
+	test_cnf_files.resize(tests_count);
+	std::stringstream current_name_sstream;
+	for (unsigned i = 0; i < test_cnf_files.size(); i++) {
+		current_name_sstream << cnf_name_common_part << "_" << i << ".cnf";
+		test_cnf_files[i] = new std::ofstream(current_name_sstream.str().c_str());
+		(*test_cnf_files[i]) << comment_cnf_sstream.str(); // write comments of cnf file
+		(*test_cnf_files[i]) << head_cnf_sstream.str(); // write head of cnf file
+														// write oneliteral clauses
+		for (unsigned j = 0; j < decomp_set.size(); j++) // write corresponding oneliteral clauses
+			(*test_cnf_files[i]) << (var_values_vec[i][j] == '1' ? "" : "-") << decomp_set[j] << " 0" << std::endl;
+		(*test_cnf_files[i]) << main_cnf_sstream.str(); // write clauses of main cnf
+		(*test_cnf_files[i]).close();
+		delete test_cnf_files[i];
+		current_name_sstream.clear(); current_name_sstream.str("");
+	}
+
+	std::cout << tests_count << " tests were created" << std::endl;
 }

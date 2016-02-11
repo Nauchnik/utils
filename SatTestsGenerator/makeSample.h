@@ -8,25 +8,30 @@
 #include "mpi_base.h"
 #include "addit_func.h"
 
+#define RANDOM_UNSAT_SAMPLE 0
+#define RANDOM_SAT_SAMPLE 1
+#define ASSUMPTIONS_SAMPLE 2
+
 class makeSample
 {
 public:
 	makeSample();
 	void readInput(int argc, char **argv);
 	void init();
-	bool ifSatSample();
-	void makeUnsatSample();
-	void makeSatSample();
+	void makeRandomUnsatSample();
+	void makeRandomSatSample();
+	void makeSampleFromAssumptions();
 	boost::random::mt19937 gen;
+	short int launchType;
 private:
 	unsigned tests_count;
 	std::string cnf_file_name;
 	std::string cut_cnf_file_name;
 	std::string decomp_set_file_name;
+	std::string assumptions_file_name;
 	std::string cnf_name_common_part;
 	std::vector<std::ofstream*> test_cnf_files;
 	std::vector<unsigned> decomp_set;
-	bool isSatSample;
 	std::ifstream cnf_file;
 	std::ifstream decomp_set_file;
 	std::stringstream comment_cnf_sstream;
