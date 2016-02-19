@@ -90,18 +90,17 @@ void constructPseudotripleCNFs(std::string pseudotriple_template_cnf_name,
 	}
 
 	odls_sequential odls_seq;
-	std::vector<odls_pair> odls_pair_vec;
-	odls_seq.readOdlsPairs(known_podls_file_name, odls_pair_vec);
+	odls_seq.readOdlsPairs(known_podls_file_name);
 	std::string cur_pseudotriple_file_name;
 	std::ofstream cur_pseudotriple_file;
 	unsigned pair_index = 0;
 	std::string system_str;
 	unsigned dls_index = 0, row_index = 0, column_index = 0;
 
-	checkPlingelingSolution(odls_pair_vec);
+	checkPlingelingSolution(odls_seq.odls_pair_vec);
 
 	if (isPairsUsing) {
-		for (auto &x : odls_pair_vec) { // for every pair of dls make cnf for searching pseudotriple
+		for (auto &x : odls_seq.odls_pair_vec) { // for every pair of dls make cnf for searching pseudotriple
 			// write 1st known DLS in the form of oneliteral clauses (1 clause for each DLS cell)
 			dls_index = 0;
 			for (row_index = 0; row_index < x.dls_1.size(); row_index++)
@@ -177,11 +176,12 @@ bool checkPlingelingSolution( std::vector<odls_pair> odls_pair_vec )
 	// check solution
 	std::stringstream sstream;
 	//ReadOdlsPairs( odls_pair_vec );
-	std::string solutionfile_name = "out_treengeling_dls-pseudotriple_73cells_pair35.cnf";
+	std::string solutionfile_name = "out_treengeling_dls-pseudotriple_73cells_pair1.cnf";
 	std::ifstream solutionfile( solutionfile_name.c_str(), std::ios_base::in );
 	std::string str;
-	dls new_dls;
-	std::string dls_row;
+	dls new_dls1, new_dls2, new_dls3;
+	odls_pair cur_pair;
+	std::string dls_row1, dls_row2, dls_row3;
 	int val;
 	
 	if ( !solutionfile.is_open() ) {
@@ -193,32 +193,51 @@ bool checkPlingelingSolution( std::vector<odls_pair> odls_pair_vec )
 		if ( ( str[0] == 'v' ) && ( str[1] == ' ' ) ) {
 			sstream << str.substr(2);
 			while ( sstream >> val ) {
-				if ( ( val >= 2001 ) && ( val <= 3000 ) ) { // for 3rd DLS
-				//if ((val >= 1001) && (val <= 2000)) {
-				//if ((val >= 1) && (val <= 1000)) {
-					val = val % 10 ? (val % 10)-1 : 9;
-					dls_row.push_back( '0' + val );
+				if ((val >= 1) && (val <= 1000)) {
+					val = val % 10 ? (val % 10) - 1 : 9;
+					dls_row1.push_back('0' + val);
 				}
-				if ( dls_row.size() == 10 ) {
-					new_dls.push_back( dls_row );
-					std::cout << dls_row << std::endl;
-					dls_row = "";
+				if ((val >= 1001) && (val <= 2000)) {
+					val = val % 10 ? (val % 10) - 1 : 9;
+					dls_row2.push_back('0' + val);
+				}
+				if ( ( val >= 2001 ) && ( val <= 3000 ) ) { // for 3rd DLS
+					val = val % 10 ? (val % 10) - 1 : 9;
+					dls_row3.push_back( '0' + val );
+				}
+				if (dls_row1.size() == 10) {
+					new_dls1.push_back(dls_row1);
+					std::cout << dls_row1 << std::endl;
+					dls_row1 = "";
+				}
+				if (dls_row2.size() == 10) {
+					new_dls2.push_back(dls_row2);
+					std::cout << dls_row2 << std::endl;
+					dls_row2 = "";
+				}
+				if ( dls_row3.size() == 10 ) {
+					new_dls3.push_back( dls_row3 );
+					std::cout << dls_row3 << std::endl;
+					dls_row3 = "";
 				}
 			}
 			sstream.clear(); sstream.str("");
 		}
 	}
+	solutionfile.close();
 	std::cout << std::endl;
-	for ( auto &x :new_dls){
+	for ( auto &x :new_dls3){
 		for ( unsigned i=0;i<x.size(); i++ )
 			std::cout << x[i] << " ";
 		std::cout << std::endl;
 	}
-	
-	solutionfile.close();
-	
-	odls_sequential odls_seq;
+	cur_pair.dls_1 = new_dls1;
+	cur_pair.dls_2 = new_dls2;
 	odls_pseudotriple pseudotriple;
+	odls_sequential odls_seq;
+	odls_seq.makePseudotriple(cur_pair, new_dls3, pseudotriple);
+	for (auto &x : pseudotriple.unique_orthogonal_cells)
+		std::cout << x << " ";
 
 	// check Brown pseudotriple
 	std::cout << std::endl;
@@ -227,11 +246,11 @@ bool checkPlingelingSolution( std::vector<odls_pair> odls_pair_vec )
 	for (auto &x : pseudotriple.unique_orthogonal_cells)
 		std::cout << x << " ";
 	// 1st new pseudotriple
-	odls_seq.makePseudotriple( odls_pair_vec[17], new_dls, pseudotriple );
+	odls_seq.makePseudotriple( odls_pair_vec[17], new_dls3, pseudotriple );
 	std::cout << "new pseudotriple 1 pseudotriple.unique_orthogonal_cells.size() " << pseudotriple.unique_orthogonal_cells.size() << std::endl;
 	for ( auto &x : pseudotriple.unique_orthogonal_cells )
 		std::cout << x << " ";
-	odls_seq.makePseudotriple(odls_pair_vec[18], new_dls, pseudotriple);
+	odls_seq.makePseudotriple(odls_pair_vec[18], new_dls3, pseudotriple);
 	std::cout << "new pseudotriple 2 pseudotriple.unique_orthogonal_cells.size() " << pseudotriple.unique_orthogonal_cells.size() << std::endl;
 	for (auto &x : pseudotriple.unique_orthogonal_cells)
 		std::cout << x << " ";
