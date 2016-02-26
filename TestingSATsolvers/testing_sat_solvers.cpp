@@ -23,6 +23,7 @@ struct solver_info
 std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string solver_name,
 	std::string maxtime_seconds_str, std::string nof_threads_str);
 std::string get_post_cnf_solver_params_str(std::string solver_name);
+std::vector<std::string> getDataFromSmacValidation();
 
 int main( int argc, char **argv )
 {
@@ -47,6 +48,8 @@ int main( int argc, char **argv )
 	std::fstream current_out;
 	double cur_time, avg_time = 0;
 	std::string maxtime_seconds_str;
+
+	getDataFromSmacValidation();
 
 	if ( argc < 3 ) {
 		std::cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem]" << std::endl;
@@ -310,4 +313,64 @@ std::string get_post_cnf_solver_params_str(std::string solver_name)
 		result_str = " 1";
 	}
 	return result_str;
+}
+
+std::vector<std::string> getDataFromSmacValidation()
+{
+	std::string smac_validation_file_name = "validationResultsMatrix-tunertime-run0.csv";
+	std::ifstream smac_validation_file(smac_validation_file_name.c_str());
+	std::vector<std::string> unsolved_instances;
+	
+	std::string str;
+	int index_from = -1, index_to = -1;
+	unsigned value_count;
+	std::vector<double> solved_instances_time;
+	std::string cur_value_str, instance_name, obj_str, time_str;
+	double time_value;
+	while (getline(smac_validation_file,str)) {
+		if (str.find("Objective") != std::string::npos)
+			continue;
+		value_count = 0;
+		for (unsigned i = 0; i < str.size(); i++) {
+			if (str[i] == '\"') {
+				if ((i < str.size() - 1) && (index_from == -1))
+					index_from = i + 1;
+				else if (index_to == -1) {
+					index_to = i - 1;
+					cur_value_str = str.substr(index_from, index_to - index_from + 1);
+					switch (value_count) {
+						case 1: instance_name = cur_value_str;
+						case 2: obj_str = cur_value_str;
+						case 3: time_str = cur_value_str;
+					}
+					value_count++;
+					index_from = -1; // reset indexes
+					index_to = -1;
+				}
+			}
+		}
+		if (obj_str == time_str) {
+			std::istringstream(time_str) >> time_value;
+			solved_instances_time.push_back(time_value);
+		}
+		else {
+			for (unsigned j = instance_name.size() - 1; j>0; j-- )
+				if (instance_name[j] == '/') {
+					instance_name = instance_name.substr(j+1, instance_name.size()-j);
+					break;
+				}	
+			unsolved_instances.push_back(instance_name);
+		}
+	}
+	smac_validation_file.close();
+	
+	double min = 1e50, max = 0, med = -1, sum = 0;
+	for ( auto &x : solved_instances_time ) {
+		if (x < min) min = x;
+		if (x > max) max = x;
+		sum += x;
+	}
+	if (solved_instances_time.size() > 0)
+	med = sum / solved_instances_time.size();
+	return unsolved_instances;
 }
