@@ -19,6 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+    <None Include="Makefile_conseq" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{C29085B4-93F7-40CE-B953-FB10D5BF06F5}</ProjectGuid>
