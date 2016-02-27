@@ -15,9 +15,9 @@
 #include <algorithm>
 #include "addit_func.h"
 
-std::string basic_launch_dir = "/home/ozaikin/2016-02_Ulyantsev/80vars_MPI_multithread_solver/";
+std::string basic_launch_dir = "/home/ozaikin/2016-02_Ulyantsev/80vars_MPI_multithread_solver_2/";
 std::string basic_cnf_dir_name = "/home/ozaikin/cssc14_environment/instances/Sat_Data/k_num_6_first80vars_1000sec/";
-const unsigned CORES_PER_NODE = 1; // 32 for multithread solver, 1 for sequential solver
+const unsigned CORES_PER_NODE = 32; // 32 for multithread solver, 1 for sequential solver
 const int SAT = 1;
 const int UNSAT = 2;
 const int UNKNOWN = 1;
@@ -529,15 +529,17 @@ std::vector<std::string> getDataFromSmacValidation()
 
 int callMultithreadSolver(int rank, std::string cnf_instance_name)
 {
-	std::string solver_name = "lingeling";
+	std::string solver_name = "plingeling";
 	std::string solver_params;
-	/*if (rank == 1)
-		solver_params = "-t 31"; // 1 core for the control process
-	else
-		solver_params = "-t 32";*/
+	if (solver_name == "plingeling") {
+		if (rank == 1)
+			solver_params = "-t 31"; // 1 core for the control process
+		else
+			solver_params = "-t 32";
+	}
 	std::string instance_name = basic_cnf_dir_name + cnf_instance_name;
 	std::string solver_result_name = "out_" + solver_name + "_" + cnf_instance_name;
-	std::string system_str = "./" + solver_name + " " +
+	std::string system_str = "./" + solver_name + " " + solver_params + " " +
 		instance_name + " &> " + solver_result_name;
 	//system_str = "./" + program_name;
 	if ( rank == 1 )
