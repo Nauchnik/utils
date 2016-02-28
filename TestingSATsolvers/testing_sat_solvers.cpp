@@ -15,12 +15,12 @@
 #include <algorithm>
 #include "addit_func.h"
 
-std::string basic_launch_dir = "/home/ozaikin/2016-02_Ulyantsev/80vars_MPI_multithread_solver_2/";
+std::string basic_launch_dir = "/home/ozaikin/2016-02_Ulyantsev/80vars_MPI_multithread_solver_5/";
 std::string basic_cnf_dir_name = "/home/ozaikin/cssc14_environment/instances/Sat_Data/k_num_6_first80vars_1000sec/";
-const unsigned CORES_PER_NODE = 32; // 32 for multithread solver, 1 for sequential solver
+const unsigned CORES_PER_NODE = 1; // 32 for multithread solver, 1 for sequential solver
 const int SAT = 1;
 const int UNSAT = 2;
-const int UNKNOWN = 1;
+const int UNKNOWN = 3;
 
 using namespace Addit_func;
 
@@ -37,7 +37,7 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string solver_name,
 	std::string maxtime_seconds_str, std::string nof_threads_str);
 std::string get_post_cnf_solver_params_str(std::string solver_name);
-std::vector<std::string> getDataFromSmacValidation();
+void getDataFromSmacValidation(std::vector<std::string> &unsolved_instances, std::vector<std::string> &solved_instances);
 bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir, double maxtime_seconds);
 bool computingProcess(int rank);
 int callMultithreadSolver(int rank, std::string cnf_instance_name);
@@ -280,9 +280,13 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 #ifdef _MPI
 	double control_process_solving_time = MPI_Wtime();
 	unsigned interrupted = 0;
-
+	
 	// make list of tasks from SMAC output
-	std::vector<std::string> unsolved_instances_names = getDataFromSmacValidation();
+	std::vector<std::string> unsolved_instances_names, solved_instances;
+	getDataFromSmacValidation(unsolved_instances_names, solved_instances);
+	//unsolved_instances_names = solved_instances; // hack to solve already solved
+	//for ( auto &x : solved_instances ) unsolved_instances_names.push_back(x); // hack to solve all instances
+	//sort(unsolved_instances_names.begin(), unsolved_instances_names.end()); // hack to solve all instances
 	std::cout << "unsolved_instances_names.size() " << unsolved_instances_names.size() << std::endl;
 	unsigned tasks = unsolved_instances_names.size();
 	std::cout << "tasks_number " << tasks << std::endl;
@@ -404,8 +408,30 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	std::cout << "End of the control process" << std::endl;
 	control_process_solving_time = MPI_Wtime() - control_process_solving_time;
 	std::cout << "control_process_solving_time " << control_process_solving_time << std::endl;
-	std::cout << "interrupted " << interrupted << " from " << tasks << std::endl;
 	
+	double min = 1e50, max = 0, med = -1, sum = 0;
+	for (auto &x : process_solving_time_vec) {
+		sum += x;
+		min = x < min ? x : min;
+		max = x > max ? x : max;
+	}
+	med = sum / process_solving_time_vec.size();
+	std::cout << "min time " << min << std::endl;
+	std::cout << "max time " << max << std::endl;
+	std::cout << "med time " << med << std::endl;
+	unsigned sat_count = 0, unsat_count = 0, unknown_count = 0;
+	for (auto &x : result_vec) {
+		if (x == SAT)
+			sat_count++;
+		else if (x == UNSAT)
+			unsat_count++;
+		else if (x == UNKNOWN)
+			unknown_count++;
+	}
+	std::cout << "sat_count " << sat_count << std::endl;
+	std::cout << "unsat_count " << unsat_count << std::endl;
+	std::cout << "unknown_count " << unknown_count << std::endl;
+	MPI_Finalize();
 #endif
 	return true;
 }
@@ -442,7 +468,7 @@ bool computingProcess(int rank)
 		if (rank == 1)
 			std::cout << "Received process_task_index " << process_task_index << std::endl;
 		if (process_task_index == stop_message)
-			return true;
+			break;
 		MPI_Recv(&cur_cnf_instance_name_char_arr_len, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		if (rank == 1)
 			std::cout << "cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr_len << std::endl;
@@ -463,15 +489,15 @@ bool computingProcess(int rank)
 		MPI_Send(&process_solving_time, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 		MPI_Send(&result,               1, MPI_INT,    0, 0, MPI_COMM_WORLD);
 	}
+	MPI_Finalize();
 #endif
 	return true;
 }
 
-std::vector<std::string> getDataFromSmacValidation()
+void getDataFromSmacValidation(	std::vector<std::string> &unsolved_instances, std::vector<std::string> &solved_instances)
 {
 	std::string smac_validation_file_name = "validationResultsMatrix-tunertime-run0.csv";
 	std::ifstream smac_validation_file(smac_validation_file_name.c_str());
-	std::vector<std::string> unsolved_instances;
 
 	std::string str;
 	int index_from = -1, index_to = -1;
@@ -501,18 +527,18 @@ std::vector<std::string> getDataFromSmacValidation()
 				}
 			}
 		}
+		for (unsigned j = instance_name.size() - 1; j>0; j--)
+			if (instance_name[j] == '/') {
+				instance_name = instance_name.substr(j + 1, instance_name.size() - j);
+				break;
+			}
 		if (obj_str == time_str) {
 			std::istringstream(time_str) >> time_value;
 			solved_instances_time.push_back(time_value);
+			solved_instances.push_back(instance_name);
 		}
-		else {
-			for (unsigned j = instance_name.size() - 1; j>0; j--)
-				if (instance_name[j] == '/') {
-					instance_name = instance_name.substr(j + 1, instance_name.size() - j);
-					break;
-				}
+		else 
 			unsolved_instances.push_back(instance_name);
-		}
 	}
 	smac_validation_file.close();
 
@@ -524,12 +550,11 @@ std::vector<std::string> getDataFromSmacValidation()
 	}
 	if (solved_instances_time.size() > 0)
 		med = sum / solved_instances_time.size();
-	return unsolved_instances;
 }
 
 int callMultithreadSolver(int rank, std::string cnf_instance_name)
 {
-	std::string solver_name = "plingeling";
+	std::string solver_name = "lingeling";
 	std::string solver_params;
 	if (solver_name == "plingeling") {
 		if (rank == 1)
