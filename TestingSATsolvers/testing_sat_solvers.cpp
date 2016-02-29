@@ -356,7 +356,7 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 		x = UNKNOWN;
 	std::ofstream ofile;
 	int result;
-	double stop_message = -1;
+	int stop_message = -1;
 
 	while (solved_tasks < tasks) {
 		MPI_Recv(&process_task_index, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
@@ -461,14 +461,16 @@ bool computingProcess(int rank)
 		sleep(604800);
 	}
 	int result;
-	double stop_message = -1;
-
+	int stop_message = -1;
+	
 	for (;;) {
 		MPI_Recv(&process_task_index, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		if (rank == 1)
 			std::cout << "Received process_task_index " << process_task_index << std::endl;
-		if (process_task_index == stop_message)
+		if (process_task_index == stop_message) {
+			std::cout << "Received stop message on computing process " << rank << std::endl;
 			break;
+		}
 		MPI_Recv(&cur_cnf_instance_name_char_arr_len, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		if (rank == 1)
 			std::cout << "cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr_len << std::endl;
