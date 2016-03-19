@@ -84,7 +84,7 @@ void makeSample::init()
 			exit(1);
 		}
 	}
-
+	int from, to;
 	if (isDecompSet) {
 		unsigned val = 0;
 		std::cout << "reading decomp_set" << std::endl;
@@ -98,8 +98,9 @@ void makeSample::init()
 			std::string val_from_str, val_to_str;
 			val_from_str = str.substr( 0, val );
 			val_to_str = str.substr(val + 1, str.size() - val_from_str.size());
-			unsigned from = strtoint(val_from_str), to = strtoint(val_to_str);
-			for (unsigned i = from; i <= to; i++ )
+			std::istringstream(val_from_str) >> from;
+			std::istringstream(val_to_str) >> to;
+			for (int i = from; i <= to; i++ )
 				decomp_set.push_back(i);
 		}
 		else {

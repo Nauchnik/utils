@@ -13,14 +13,14 @@ int main( int argc, char **argv )
 {
 #ifdef _DEBUG
 	argc = 6;
-	argv[1] = "./bivium_template.cnf";
+	argv[1] = "./a5_1_128_test_frame_50.cnf";
 	//argv[2] = "decomp_set.txt";
 	argv[2] = "known_point";
 	//argv[2] = "no"; // no decomp set - for generating the nonweakened instances
 	argv[3] = "2";
 	//argv[4] = "-sat";
 	argv[4] = "-assumptions";
-	argv[5] = "assumptions.txt";
+	argv[5] = "assumptions";
 #endif
 
 	if (argc < 4) {
