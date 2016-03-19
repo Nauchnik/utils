@@ -39,6 +39,8 @@ int main( int argc, char **argv )
 	int lit;
 	int pos;
 	while ( getline(cnf_file, str) ) {
+		if (str == "")
+			continue;
 		str.erase( std::remove(str.begin(), str.end(), '\r'), str.end() );
 		pos = str.find(" 0 ");
 		if ( pos != std::string::npos )
