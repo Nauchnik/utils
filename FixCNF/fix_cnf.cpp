@@ -8,6 +8,8 @@
 const unsigned CLAUSES_BLOCK_SIZE = 100000;
 const unsigned MAX_BLOCKS_NUMBER = 1000;
 
+bool isClause(std::string str);
+
 int main( int argc, char **argv )
 {
 #ifdef _DEBUG
@@ -50,22 +52,27 @@ int main( int argc, char **argv )
 			comment_str_count++;
 		}
 		else if (str[0] != 'p') {
-			if ( (cur_clauses_number != 0) || ( block_index != 0 ) )
-				*(main_cnf_sstream_vec[block_index]) << std::endl;
-			*(main_cnf_sstream_vec[block_index]) << str;
-			cur_clauses_number++;
-			// add full current block to vector
-			if (cur_clauses_number == CLAUSES_BLOCK_SIZE) {
-				cur_clauses_number = 0;
-				block_index++;
+			if (isClause(str)) {
+				if ((cur_clauses_number != 0) || (block_index != 0))
+					*(main_cnf_sstream_vec[block_index]) << std::endl;
+				*(main_cnf_sstream_vec[block_index]) << str;
+				cur_clauses_number++;
+				// add full current block to vector
+				if (cur_clauses_number == CLAUSES_BLOCK_SIZE) {
+					cur_clauses_number = 0;
+					block_index++;
+				}
+				sstream << str;
+				while (sstream >> lit) {
+					if (abs(lit) > (int)var_count)
+						var_count = abs(lit);
+				}
+				sstream.str(""); sstream.clear();
 			}
-
-			sstream << str;
-			while ( sstream >> lit ) {
-				if ( abs( lit ) > (int)var_count )
-					var_count = abs( lit );
+			else {
+				comment_cnf_sstream << "c " << str << std::endl;
+				comment_str_count++;
 			}
-			sstream.str(""); sstream.clear();
 		}
 	}
 	*(main_cnf_sstream_vec[block_index]) << " "; // add space on the last string for treengeling
@@ -87,4 +94,15 @@ int main( int argc, char **argv )
 	cnf_file.close();
 
 	return 0;
+}
+
+bool isClause(std::string str)
+{
+	for (unsigned i = 0; i < str.size(); i++) {
+		if (((str[i] < '0') || (str[i] > '9'))
+			&& (str[i] != ' ')
+			&& (str[i] != '-'))
+			return false;
+	}
+	return true;
 }
