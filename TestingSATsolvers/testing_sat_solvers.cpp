@@ -49,10 +49,11 @@ int main( int argc, char **argv )
 	argc = 3;
 	argv[1] = "solvers";
 	argv[2] = "cnfs";
+	argv[3] = "-mpi";
 #endif
-
+	
 	if ( argc < 3 ) {
-		std::cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem]" << std::endl;
+		std::cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem] [-mpi]" << std::endl;
 		return 1;
 	}
 
@@ -70,22 +71,35 @@ int main( int argc, char **argv )
 	solvers_dir = argv[1];
 	cnfs_dir = argv[2];
 
-#ifndef _MPI
-	std::cout << "solvers_dir " << solvers_dir << std::endl;
-	std::cout << "cnfs_dir " << cnfs_dir << std::endl;
-	std::cout << "maxtime_seconds " << maxtime_seconds_str << std::endl;
-	conseqProcessing(solvers_dir, cnfs_dir, maxtime_seconds, maxtime_seconds_str);
-#else
-	int rank, corecount;
-	MPI_Init(&argc, &argv);
-	MPI_Comm_size(MPI_COMM_WORLD, &corecount);
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	bool isMPI = false;
+	std::string str;
+	if (argc == 4) {
+		str = argv[3];
+		if (str == "-mpi")
+			isMPI = true;
+	}
+	
+	if (isMPI) {
+		std::cout << "MPI mode " << std::endl;
+#ifdef _MPI
+		int rank, corecount;
+		MPI_Init(&argc, &argv);
+		MPI_Comm_size(MPI_COMM_WORLD, &corecount);
+		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-	if (rank == 0)
+		if (rank == 0)
 		controlProcess(corecount, solvers_dir, cnfs_dir, maxtime_seconds);
-	else
+		else
 		computingProcess(rank);
 #endif
+	}
+	else {
+		std::cout << "Conseq mode " << std::endl;
+		std::cout << "solvers_dir " << solvers_dir << std::endl;
+		std::cout << "cnfs_dir " << cnfs_dir << std::endl;
+		std::cout << "maxtime_seconds " << maxtime_seconds_str << std::endl;
+		conseqProcessing(solvers_dir, cnfs_dir, maxtime_seconds, maxtime_seconds_str);
+	}
 	
 	return 0;
 }
