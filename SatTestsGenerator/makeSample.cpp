@@ -22,6 +22,14 @@ void makeSample::readInput(int argc, char **argv)
 	decomp_set_file_name = argv[2];
 	std::cout << "decomp_set_file_name " << decomp_set_file_name << std::endl;
 
+	if ( decomp_set_file_name == "input_output_assumptions" ) {
+		launchType = INPUT_OUTPUT_ASSUMPTIONS_SAMPLE;
+		std::cout << "launchType " << launchType << std::endl;
+		input_output_folder_name = argv[3];
+		std::cout << "input_output_folder_name " << input_output_folder_name << std::endl;
+		return;
+	}
+	
 	tests_count = atoi(argv[3]);
 	std::cout << "tests_count " << tests_count << std::endl;
 
@@ -242,4 +250,9 @@ void makeSample::makeSampleFromAssumptions()
 	}
 
 	std::cout << tests_count << " tests were created" << std::endl;
+}
+
+void makeSample::makeSampleFromInputOutputAssumptions()
+{
+
 }

@@ -13,18 +13,19 @@ int main( int argc, char **argv )
 {
 #ifdef _DEBUG
 	argc = 6;
-	argv[1] = "./a5_1_128_test_frame_50.cnf";
-	//argv[2] = "decomp_set.txt";
-	argv[2] = "known_point";
+	argv[1] = "./A51_TA64.cnf";
+	argv[2] = "-input_output_assumptions";
+	argv[3] = "A5_1_test_31_known";
+	//argv[2] = "known_point";
 	//argv[2] = "no"; // no decomp set - for generating the nonweakened instances
-	argv[3] = "2";
+	//argv[3] = "2";
 	//argv[4] = "-sat";
-	argv[4] = "-assumptions";
-	argv[5] = "assumptions";
+	//argv[4] = "-assumptions";
+	//argv[5] = "assumptions";
 #endif
 
 	if (argc < 4) {
-		std::cerr << "Usage: cnf_file decomp_set_file|no tests_count [-sat | -assumptions] [file_assuptions]";
+		std::cerr << "Usage: cnf_file {decomp_set_file | no | -input_output_assumptions} {tests_count | input_output_folder_name} [-sat | -assumptions ] [file_assumptions]";
 		exit(1);
 	}
 	
@@ -37,6 +38,8 @@ int main( int argc, char **argv )
 		make_s.makeRandomSatSample();
 	else if (make_s.launchType == ASSUMPTIONS_SAMPLE)
 		make_s.makeSampleFromAssumptions();
+	else if ( make_s.launchType == INPUT_OUTPUT_ASSUMPTIONS_SAMPLE )
+		make_s.makeSampleFromInputOutputAssumptions();
 	
 	//system("pause");
 	return 0;

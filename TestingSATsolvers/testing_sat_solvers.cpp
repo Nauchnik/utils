@@ -179,11 +179,8 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 				if (str.find("SATISFIABLE") != std::string::npos) {
 					isSAT = true;
 					sat_count_vec[i]++;
-					std::cout << "SAT found" << std::endl;
-					std::cout << "current_out_name " << current_out_name << std::endl;
-					std::cout << "sat_count_vec" << std::endl;
-					std::cout << solver_files_names[i] << " : " << sat_count_vec[i] << " sat from " <<
-						cnf_files_names.size() << std::endl;
+					//std::cout << "SAT found" << std::endl;
+					//std::cout << "current_out_name " << current_out_name << std::endl;
 				}
 				isTimeStr = true;
 				if (str.find("CPU time") != std::string::npos) {
@@ -268,6 +265,9 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 		cur_solver_info.min_time = min_time;
 		cur_solver_info.max_time = max_time;
 		solver_info_vec.push_back(cur_solver_info);
+
+		std::cout << solver_files_names[i] << " : " << sat_count_vec[i] << " sat from " <<
+			cnf_files_names.size() << std::endl;
 	}
 
 	std::cout << "*** Final statistics ***" << std::endl;

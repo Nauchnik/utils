@@ -11,6 +11,7 @@
 #define RANDOM_UNSAT_SAMPLE 0
 #define RANDOM_SAT_SAMPLE 1
 #define ASSUMPTIONS_SAMPLE 2
+#define INPUT_OUTPUT_ASSUMPTIONS_SAMPLE 3
 
 class makeSample
 {
@@ -21,6 +22,7 @@ public:
 	void makeRandomUnsatSample();
 	void makeRandomSatSample();
 	void makeSampleFromAssumptions();
+	void makeSampleFromInputOutputAssumptions();
 	boost::random::mt19937 gen;
 	short int launchType;
 private:
@@ -38,6 +40,7 @@ private:
 	std::stringstream head_cnf_sstream;
 	std::stringstream main_cnf_sstream;
 	std::vector<std::vector<bool>> state_vec_vec, stream_vec_vec;
+	std::string input_output_folder_name;
 	MPI_Base mpi_b;
 };
 
