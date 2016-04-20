@@ -5,7 +5,8 @@ boost::random::mt19937 gen(static_cast<unsigned int>(std::time(0)));
 using namespace Addit_func;
 
 makeSample::makeSample() :
-	launchType(RANDOM_UNSAT_SAMPLE)
+	launchType(RANDOM_UNSAT_SAMPLE),
+	tests_count(0)
 {
 	gen.seed(static_cast<unsigned>(std::time(0)));
 }
@@ -22,15 +23,17 @@ void makeSample::readInput(int argc, char **argv)
 	decomp_set_file_name = argv[2];
 	std::cout << "decomp_set_file_name " << decomp_set_file_name << std::endl;
 
-	if ( decomp_set_file_name == "input_output_assumptions" ) {
+	std::string third_param_str = argv[3];
+	
+	if ( third_param_str == "-input_output_assumptions" ) {
 		launchType = INPUT_OUTPUT_ASSUMPTIONS_SAMPLE;
 		std::cout << "launchType " << launchType << std::endl;
-		input_output_folder_name = argv[3];
+		input_output_folder_name = argv[4];
 		std::cout << "input_output_folder_name " << input_output_folder_name << std::endl;
 		return;
 	}
 	
-	tests_count = atoi(argv[3]);
+	tests_count = atoi(third_param_str.c_str());
 	std::cout << "tests_count " << tests_count << std::endl;
 
 	std::string str;
@@ -55,10 +58,10 @@ void makeSample::init()
 		exit(1);
 	}
 	
-	if (tests_count <= 0) {
+	/*if (tests_count <= 0) {
 		std::cerr << "Error. tests_count <= 0" << std::endl;
 		exit(1);
-	}
+	}*/
 
 	test_cnf_files.resize(tests_count);
 
@@ -133,14 +136,17 @@ void makeSample::init()
 	unsigned new_clause_count;
 	std::vector< std::vector<bool> > plain_text_vec_vec;
 
+	mpi_b.MakeSatSample(state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
+	if ( ( launchType == RANDOM_SAT_SAMPLE ) || (launchType == INPUT_OUTPUT_ASSUMPTIONS_SAMPLE))
+		new_clause_count = mpi_b.clause_count + decomp_set.size() + stream_vec_vec[0].size();
+	else
+		new_clause_count = mpi_b.clause_count + decomp_set.size();
+	
 	if ( launchType == RANDOM_SAT_SAMPLE ) {
 		mpi_b.cnf_in_set_count = tests_count;
 		mpi_b.MakeSatSample(state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
-		new_clause_count = mpi_b.clause_count + decomp_set.size() + stream_vec_vec[0].size();
 	}
-	else
-		new_clause_count = mpi_b.clause_count + decomp_set.size();
-
+	
 	head_cnf_sstream << "p cnf " << mpi_b.var_count << " " << new_clause_count << std::endl;
 
 	cnf_file.close();
@@ -254,5 +260,25 @@ void makeSample::makeSampleFromAssumptions()
 
 void makeSample::makeSampleFromInputOutputAssumptions()
 {
+	std::vector<std::string> input_output_files_names = std::vector<std::string>();
 
+	Addit_func::getdir(input_output_folder_name, input_output_files_names);
+	
+	std::cout << "input_output_files_names.size() " << input_output_files_names.size() << std::endl;
+	
+	std::string cur_file_name;
+	std::fstream cur_file;
+	std::string str, start_str;
+	unsigned pos;
+	for ( auto &x : input_output_files_names ) {
+		cur_file_name = "./" + input_output_folder_name + x;
+		cur_file.open(cur_file_name.c_str());
+		getline(cur_file, str);
+		start_str = "Input: ";
+		str = str.substr(start_str.size(), str.size() - start_str.size());
+		start_str = "Output: ";
+		str = str.substr(start_str.size(), str.size() - start_str.size());
+		cur_file.clear();
+		cur_file.close();
+	}
 }

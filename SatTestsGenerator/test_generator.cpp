@@ -14,8 +14,9 @@ int main( int argc, char **argv )
 #ifdef _DEBUG
 	argc = 6;
 	argv[1] = "./A51_TA64.cnf";
-	argv[2] = "-input_output_assumptions";
-	argv[3] = "A5_1_test_31_known";
+	argv[2] = "known_point";
+	argv[3] = "-input_output_assumptions";
+	argv[4] = "A5_1_test_31_known";
 	//argv[2] = "known_point";
 	//argv[2] = "no"; // no decomp set - for generating the nonweakened instances
 	//argv[3] = "2";
@@ -25,7 +26,9 @@ int main( int argc, char **argv )
 #endif
 
 	if (argc < 4) {
-		std::cerr << "Usage: cnf_file {decomp_set_file | no | -input_output_assumptions} {tests_count | input_output_folder_name} [-sat | -assumptions ] [file_assumptions]";
+		std::cerr << "Usage: "
+		<< "Variant 1: cnf_file {decomp_set_file | no} tests_count [-sat | -assumptions ] [file_assumptions]"
+		<< "Variant 2: cnf_file decomp_set_file -input_output_assumptions input_output_folder_name";
 		exit(1);
 	}
 	
