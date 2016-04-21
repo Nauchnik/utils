@@ -146,7 +146,7 @@ void makeSample::init()
 		mpi_b.cnf_in_set_count = tests_count;
 		mpi_b.MakeSatSample(state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
 	}
-	
+
 	head_cnf_sstream << "p cnf " << mpi_b.var_count << " " << new_clause_count << std::endl;
 
 	cnf_file.close();
@@ -268,17 +268,56 @@ void makeSample::makeSampleFromInputOutputAssumptions()
 	
 	std::string cur_file_name;
 	std::fstream cur_file;
-	std::string str, start_str;
-	unsigned pos;
+	std::string input_variables_values_str, output_variables_values_str, start_str;
+	unsigned cur_var_ind;
+	unsigned cur_stream_index;
+	std::stringstream oneliteral_sstream;
+	std::string cnf_folder_name = input_output_folder_name + "_cnfs";
+
 	for ( auto &x : input_output_files_names ) {
-		cur_file_name = "./" + input_output_folder_name + x;
-		cur_file.open(cur_file_name.c_str());
-		getline(cur_file, str);
+		cur_file_name = "./" + input_output_folder_name + "/" + x;
+		if (cur_file_name.find(".cnf") != std::string::npos)
+			continue;
+		cur_file.open(cur_file_name.c_str(), std::ios_base::in);
+		if (!cur_file.is_open()) {
+			std::cerr << "couldn't open " << cur_file_name << std::endl;
+			exit(1);
+		}
+		getline(cur_file, input_variables_values_str);
 		start_str = "Input: ";
-		str = str.substr(start_str.size(), str.size() - start_str.size());
+		input_variables_values_str = input_variables_values_str.substr(start_str.size(), input_variables_values_str.size() - start_str.size());
+		getline(cur_file, output_variables_values_str);
 		start_str = "Output: ";
-		str = str.substr(start_str.size(), str.size() - start_str.size());
+		output_variables_values_str = output_variables_values_str.substr(start_str.size(), output_variables_values_str.size() - start_str.size());
+		if ( (mpi_b.keystream_len>0) && (mpi_b.keystream_len < output_variables_values_str.size()) )
+			output_variables_values_str.resize(mpi_b.keystream_len);
 		cur_file.clear();
 		cur_file.close();
+		// make CNF file with additional clauses
+		cur_file_name = "./" + cnf_folder_name + "/" + x + ".cnf";
+		cur_file.open(cur_file_name.c_str(), std::ios_base::out);
+		if (!cur_file.is_open()) {
+			std::cerr << "couldn't open " << cur_file_name << std::endl;
+			exit(1);
+		}
+		for (std::vector<unsigned>::iterator it = decomp_set.begin(); it != decomp_set.end(); it++) {
+			cur_var_ind = (*it) - 1;
+			if (input_variables_values_str[cur_var_ind] == '0')
+				oneliteral_sstream << "-";
+			oneliteral_sstream << cur_var_ind + 1 << " 0" << std::endl;
+		}
+		for (cur_stream_index = 0; cur_stream_index < mpi_b.keystream_len; cur_stream_index++) {
+			if (output_variables_values_str[cur_stream_index] == '0')
+				oneliteral_sstream << "-";
+			cur_var_ind = (mpi_b.var_count - mpi_b.keystream_len) + cur_stream_index;
+			oneliteral_sstream << cur_var_ind + 1 << " 0" << std::endl;
+		}
+		cur_file << comment_cnf_sstream.str(); // write comments of cnf file
+		cur_file << head_cnf_sstream.str();    // write head of cnf file
+		cur_file << oneliteral_sstream.str();  // write oneliteral clauses
+		cur_file << main_cnf_sstream.str();    // write clauses of main cnf
+		cur_file.clear();
+		cur_file.close();
+		oneliteral_sstream.str(""); oneliteral_sstream.clear();
 	}
 }
