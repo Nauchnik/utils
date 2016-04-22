@@ -25,6 +25,7 @@ public:
 	void makeSampleFromInputOutputAssumptions();
 	boost::random::mt19937 gen;
 	short int launchType;
+	std::vector<unsigned> output_set;
 private:
 	unsigned tests_count;
 	std::string cnf_file_name;

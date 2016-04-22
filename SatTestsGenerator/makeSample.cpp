@@ -149,6 +149,15 @@ void makeSample::init()
 
 	head_cnf_sstream << "p cnf " << mpi_b.var_count << " " << new_clause_count << std::endl;
 
+	for (unsigned i = 0; i < mpi_b.keystream_len; i++)
+		output_set.push_back(mpi_b.var_count - mpi_b.keystream_len + i + 1);
+	
+	// TODO: comment
+	output_set = { 9982, 1660, 6962, 11843, 617, 10159, 7491, 11680, 2020, 11172, 8326, 5863, 3086, 12084, 8710,
+		5578, 2631, 3936, 9143, 5543, 2589, 11754, 9032, 6575, 3510, 7180, 8926, 6138, 3207, 409, 9819, 6869, 3215, 171,
+		5401, 2638, 11631, 1188, 10383, 7572, 4869, 2251, 11257, 2907, 4769, 1792, 10949, 8362, 5715, 2595, 10984, 8136,
+		5319, 2689, 12017, 8962, 5351, 2394, 11562, 9013, 6370, 3295, 11977, 8739 };
+
 	cnf_file.close();
 }
 
@@ -306,8 +315,10 @@ void makeSample::makeSampleFromInputOutputAssumptions()
 				oneliteral_sstream << "-";
 			oneliteral_sstream << cur_var_ind + 1 << " 0" << std::endl;
 		}
-		for (cur_stream_index = 0; cur_stream_index < mpi_b.keystream_len; cur_stream_index++) {
-			if (output_variables_values_str[cur_stream_index] == '0')
+		//for (cur_stream_index = 0; cur_stream_index < mpi_b.keystream_len; cur_stream_index++) {
+		for (std::vector<unsigned>::iterator it = output_set.begin(); it != output_set.end(); it++) {
+			cur_var_ind = (*it) - 1;
+			if (output_variables_values_str[cur_var_ind] == '0')
 				oneliteral_sstream << "-";
 			cur_var_ind = (mpi_b.var_count - mpi_b.keystream_len) + cur_stream_index;
 			oneliteral_sstream << cur_var_ind + 1 << " 0" << std::endl;

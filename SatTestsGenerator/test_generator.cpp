@@ -35,6 +35,7 @@ int main( int argc, char **argv )
 	makeSample make_s;
 	make_s.readInput( argc, argv );
 	make_s.init();
+	// for URSA A5/1 keystream 64
 	if ( make_s.launchType == RANDOM_UNSAT_SAMPLE )
 		make_s.makeRandomUnsatSample();
 	else if (make_s.launchType == RANDOM_SAT_SAMPLE)
