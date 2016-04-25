@@ -13,7 +13,7 @@ int main( int argc, char **argv )
 {
 #ifdef _DEBUG
 	argc = 6;
-	argv[1] = "./A51_TA64.cnf";
+	argv[1] = "./URSA64_template.cnf";
 	argv[2] = "known_point";
 	argv[3] = "-input_output_assumptions";
 	argv[4] = "A5_1_test_31_known";

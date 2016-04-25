@@ -25,7 +25,6 @@ public:
 	void makeSampleFromInputOutputAssumptions();
 	boost::random::mt19937 gen;
 	short int launchType;
-	std::vector<unsigned> output_set;
 private:
 	unsigned tests_count;
 	std::string cnf_file_name;
@@ -35,6 +34,9 @@ private:
 	std::string cnf_name_common_part;
 	std::vector<std::ofstream*> test_cnf_files;
 	std::vector<unsigned> decomp_set;
+	std::vector<unsigned> decomp_set_indexes;
+	std::vector<unsigned> input_variables;
+	std::vector<unsigned> output_variables;
 	std::ifstream cnf_file;
 	std::ifstream decomp_set_file;
 	std::stringstream comment_cnf_sstream;

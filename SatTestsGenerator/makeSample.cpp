@@ -133,30 +133,47 @@ void makeSample::init()
 	std::cout << "mpi_b.var_count " << mpi_b.var_count << std::endl;
 	std::cout << "mpi_b.clause_count " << mpi_b.clause_count << std::endl;
 
-	unsigned new_clause_count;
 	std::vector< std::vector<bool> > plain_text_vec_vec;
 
-	mpi_b.MakeSatSample(state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
-	if ( ( launchType == RANDOM_SAT_SAMPLE ) || (launchType == INPUT_OUTPUT_ASSUMPTIONS_SAMPLE))
-		new_clause_count = mpi_b.clause_count + decomp_set.size() + stream_vec_vec[0].size();
-	else
-		new_clause_count = mpi_b.clause_count + decomp_set.size();
+	if (cnf_file_name.find("URSA") == std::string::npos)
+		mpi_b.MakeSatSample(state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
 	
 	if ( launchType == RANDOM_SAT_SAMPLE ) {
 		mpi_b.cnf_in_set_count = tests_count;
 		mpi_b.MakeSatSample(state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
 	}
 
-	head_cnf_sstream << "p cnf " << mpi_b.var_count << " " << new_clause_count << std::endl;
+	if (cnf_file_name.find("URSA") != std::string::npos) {
+		// URSA mode
+		input_variables = { 4, 7, 12, 14, 16, 17, 19, 20, 22, 24, 28, 32, 34, 35, 36, 37, 39, 41, 43, 45, 47, 48, 49, 51, 52, 53, 54, 55,
+			57, 58, 59, 61, 63, 65, 67, 68, 70, 71, 72, 74, 77, 78, 80, 81, 82, 86, 87, 89, 90, 92, 94, 96, 98, 99, 100, 102, 103, 106, 108,
+			111, 113, 116, 119, 120 };
+		output_variables = { 9982, 1660, 6962, 11843, 617, 10159, 7491, 11680, 2020, 11172, 8326, 5863, 3086, 12084, 8710,
+			5578, 2631, 3936, 9143, 5543, 2589, 11754, 9032, 6575, 3510, 7180, 8926, 6138, 3207, 409, 9819, 6869, 3215, 171,
+			5401, 2638, 11631, 1188, 10383, 7572, 4869, 2251, 11257, 2907, 4769, 1792, 10949, 8362, 5715, 2595, 10984, 8136,
+			5319, 2689, 12017, 8962, 5351, 2394, 11562, 9013, 6370, 3295, 11977, 8739 };
+	}
+	else {
+		for (unsigned i = 0; i < mpi_b.keystream_len; i++)
+			output_variables.push_back(mpi_b.var_count - mpi_b.keystream_len + i + 1);
+		for (unsigned i = 0; i < mpi_b.core_len; i++)
+			input_variables.push_back(i + 1);
+	}
 
-	for (unsigned i = 0; i < mpi_b.keystream_len; i++)
-		output_set.push_back(mpi_b.var_count - mpi_b.keystream_len + i + 1);
-	
-	// TODO: comment
-	output_set = { 9982, 1660, 6962, 11843, 617, 10159, 7491, 11680, 2020, 11172, 8326, 5863, 3086, 12084, 8710,
-		5578, 2631, 3936, 9143, 5543, 2589, 11754, 9032, 6575, 3510, 7180, 8926, 6138, 3207, 409, 9819, 6869, 3215, 171,
-		5401, 2638, 11631, 1188, 10383, 7572, 4869, 2251, 11257, 2907, 4769, 1792, 10949, 8362, 5715, 2595, 10984, 8136,
-		5319, 2689, 12017, 8962, 5351, 2394, 11562, 9013, 6370, 3295, 11977, 8739 };
+	std::vector<unsigned>::iterator it;
+	for (unsigned i = 0; i < decomp_set.size(); i++) {
+		it = find(input_variables.begin(), input_variables.end(), decomp_set[i]);
+		if (it != input_variables.end())
+			decomp_set_indexes.push_back(it - input_variables.begin());
+	}
+
+	unsigned new_clause_count;
+	if ((launchType == RANDOM_SAT_SAMPLE) || (launchType == INPUT_OUTPUT_ASSUMPTIONS_SAMPLE))
+		new_clause_count = mpi_b.clause_count + decomp_set.size() + output_variables.size();
+	else
+		new_clause_count = mpi_b.clause_count + decomp_set.size();
+
+	head_cnf_sstream << "p cnf " << mpi_b.var_count << " " << new_clause_count << std::endl;
 
 	cnf_file.close();
 }
@@ -278,8 +295,6 @@ void makeSample::makeSampleFromInputOutputAssumptions()
 	std::string cur_file_name;
 	std::fstream cur_file;
 	std::string input_variables_values_str, output_variables_values_str, start_str;
-	unsigned cur_var_ind;
-	unsigned cur_stream_index;
 	std::stringstream oneliteral_sstream;
 	std::string cnf_folder_name = input_output_folder_name + "_cnfs";
 
@@ -309,19 +324,16 @@ void makeSample::makeSampleFromInputOutputAssumptions()
 			std::cerr << "couldn't open " << cur_file_name << std::endl;
 			exit(1);
 		}
-		for (std::vector<unsigned>::iterator it = decomp_set.begin(); it != decomp_set.end(); it++) {
-			cur_var_ind = (*it) - 1;
-			if (input_variables_values_str[cur_var_ind] == '0')
+		for (unsigned i = 0; i < decomp_set_indexes.size(); i++) {
+			if (input_variables_values_str[decomp_set_indexes[i]] == '0')
 				oneliteral_sstream << "-";
-			oneliteral_sstream << cur_var_ind + 1 << " 0" << std::endl;
+			oneliteral_sstream << decomp_set[i] << " 0" << std::endl;
 		}
 		//for (cur_stream_index = 0; cur_stream_index < mpi_b.keystream_len; cur_stream_index++) {
-		for (std::vector<unsigned>::iterator it = output_set.begin(); it != output_set.end(); it++) {
-			cur_var_ind = (*it) - 1;
-			if (output_variables_values_str[cur_var_ind] == '0')
+		for (unsigned i = 0; i < output_variables.size(); i++) {
+			if (output_variables_values_str[i] == '0')
 				oneliteral_sstream << "-";
-			cur_var_ind = (mpi_b.var_count - mpi_b.keystream_len) + cur_stream_index;
-			oneliteral_sstream << cur_var_ind + 1 << " 0" << std::endl;
+			oneliteral_sstream << output_variables[i] << " 0" << std::endl;
 		}
 		cur_file << comment_cnf_sstream.str(); // write comments of cnf file
 		cur_file << head_cnf_sstream.str();    // write head of cnf file
