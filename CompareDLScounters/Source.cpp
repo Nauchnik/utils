@@ -21,6 +21,12 @@ int main( int argc, char* argv[])
 	argv[2] = "dls9_count_data_Stepa";
 #endif
 
+	std::stringstream sstream1;
+	sstream1 << "123 555";
+	std::string str1, str2, str3;
+	double dval = -1;
+	sstream1 >> str1 >> str2 >> dval;
+
 	if (argc != 3) {
 		std::cerr << "Usage : program file_data_eduard file_data_stepa";
 		return 1;
