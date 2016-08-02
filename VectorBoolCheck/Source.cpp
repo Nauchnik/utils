@@ -101,7 +101,7 @@ int main( int argc, char *argv[] )
 			weight = 0;
 			for (auto &x : bool_values_vec[i])
 				if (x == true ) weight++;
-			std::cout << weight << " " << std::endl;
+			std::cout << weight << " : ";
 			for (auto &x : bool_values_vec[i])
 				std::cout << x;
 			std::cout << std::endl;
