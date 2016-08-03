@@ -36,14 +36,48 @@ int main( int argc, char* argv[])
 	std::string file2_name = argv[2];
 	std::vector<wu> wu_vec_1 = readDataFromFile(file1_name);
 	std::vector<wu> wu_vec_2 = readDataFromFile(file2_name);
+
+	/*std::string str;
+	std::ifstream ifile("Zerowu.txt");
+	std::vector<int> check_id_vec;
+	unsigned val;
+	while (getline(ifile, str)) {
+		std::istringstream(str.c_str()) >> val;
+		check_id_vec.push_back(val);
+	}
+	ifile.close();
+	unsigned match_count = 0, unmatch_count = 0;
+	unsigned processed_wu_vec_2 = 0;
+	std::vector<int>::iterator it;
+	for ( auto &x : wu_vec_2 ) {
+		if (x.processing_time < 0)
+			continue;
+		std::istringstream(x.first_cells_known_values) >> val;
+		it = find(check_id_vec.begin(), check_id_vec.end(), val);
+		if (it != check_id_vec.end()) {
+			if (x.dls_number == 0)
+				match_count++;
+			else {
+				unmatch_count++;
+				std::cout << "unmatch wu_vec2 " << x.first_cells_known_values << std::endl;
+			}
+		}
+		
+		processed_wu_vec_2++;
+		if (processed_wu_vec_2 % 1000 == 0)
+			std::cout << "processed_wu_vec_2 " << processed_wu_vec_2 << std::endl;
+	}
+	std::cout << "match_count " << match_count << " from " << check_id_vec.size() << std::endl;
+	std::cout << "unmatch_count " << unmatch_count << " from " << check_id_vec.size() << std::endl;*/
 	
 	bool is_calculated_results_correct = true;
 	unsigned calculated_results_both_files = 0;
 	double comparison_koef_sum = 0;
 	double cur_comparison_koef;
-	double calculated_sum1_time = 0, calculated_sum2_time;
+	double calculated_sum1_time = 0, calculated_sum2_time = 0;
 	for (unsigned i = 0; i < wu_vec_1.size(); i++) {
-		if ((wu_vec_1[i].dls_number >= 0) && (wu_vec_2[i].dls_number >= 0)) {
+		if ((wu_vec_1[i].dls_number >= 0) && (wu_vec_2[i].dls_number >= 0) && 
+			(wu_vec_1[i].processing_time > 0) && (wu_vec_2[i].processing_time > 0)) {
 			calculated_sum1_time += wu_vec_1[i].processing_time;
 			calculated_sum2_time += wu_vec_2[i].processing_time;
 			calculated_results_both_files++;
@@ -57,7 +91,7 @@ int main( int argc, char* argv[])
 			if (wu_vec_1[i].dls_number != wu_vec_2[i].dls_number)
 				is_calculated_results_correct = false;
 			comparison_koef_sum += cur_comparison_koef;
-			std::cout << "cur_comparison_koef " << cur_comparison_koef << std::endl;
+			//std::cout << "cur_comparison_koef " << cur_comparison_koef << std::endl;
 		}
 	}
 	
@@ -86,6 +120,7 @@ std::vector<wu> readDataFromFile(std::string cur_state_file_name)
 	int first_non_started_wu_index = -1;
 	while (getline(cur_state_file, str)) {
 		sstream << str;
+		cur_wu.processing_time = -1;
 		sstream >> cur_wu.first_cells_known_values >> cur_wu.dls_number >> cur_wu.processing_time;
 		sstream.str(""); sstream.clear();
 		wu_vec.push_back(cur_wu);

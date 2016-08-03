@@ -89,9 +89,14 @@ int main( int argc, char *argv[] )
 	S->verbosity = 0;
 	S->isPredict = false;
 	S->max_nof_restarts = 2;
+	
+	// add values of the output variables
+	/*int out_first_var = 8630, out_last_var = 8757;
+	for (int i = out_first_var; i <= out_last_var; i++)
+		S->addClause(~mkLit(i-1));*/
 
 	lbool ret;
-	unsigned interrupted = 0;
+	unsigned interrupted = 0, unsat = 0, sat = 0;
 	std::cout << "interrupted values :" << std::endl;
 	unsigned weight = 0;
 	for (int i = 0; i < dummy_vec.size(); i++) {
@@ -100,17 +105,23 @@ int main( int argc, char *argv[] )
 			interrupted++;
 			weight = 0;
 			for (auto &x : bool_values_vec[i])
-				if (x == true ) weight++;
+				if (x == true) weight++;
 			std::cout << weight << " : ";
 			for (auto &x : bool_values_vec[i])
 				std::cout << x;
 			std::cout << std::endl;
 		}
+		else if (ret == l_False)
+			unsat++;
+		else if (ret == l_True)
+			sat++;
 		//if (i % 1000 == 0)
 		//	std::cout << "processed " << i << " values from " << dummy_vec.size() << std::endl;
 	}
 	
 	std::cout << "interrupted " << interrupted << " from " << dummy_vec.size() << std::endl;
+	std::cout << "unsat " << unsat << " from " << dummy_vec.size() << std::endl;
+	std::cout << "sat " << sat << " from " << dummy_vec.size() << std::endl;
 	
 	delete S;
 	
