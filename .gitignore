@@ -45,6 +45,7 @@ out_0
 # new
 *.uset
 *.sdf
+*.db
 
 # Build results
 
