@@ -46,6 +46,7 @@ out_0
 *.uset
 *.sdf
 *.db
+*.opendb
 
 # Build results
 
