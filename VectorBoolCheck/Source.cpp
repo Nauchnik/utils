@@ -106,20 +106,25 @@ int main( int argc, char *argv[] )
 	unsigned weight = 0;
 	for (int i = 0; i < dummy_vec.size(); i++) {
 		ret = S->solveLimited(dummy_vec[i]);
-		if (ret == l_Undef) {
+		if (ret == l_Undef)
 			interrupted++;
-			weight = 0;
-			for (auto &x : bool_values_vec[i])
-				if (x == true) weight++;
-			std::cout << i << " : " << weight << " : ";
-			for (auto &x : bool_values_vec[i])
-				std::cout << x;
-			std::cout << std::endl;
-		}
 		else if (ret == l_False)
 			unsat++;
 		else if (ret == l_True)
 			sat++;
+		weight = 0;
+		for (auto &x : bool_values_vec[i])
+			if (x == true) weight++;
+		std::cout << i << " : " << weight << " ";
+		if (ret == l_Undef)
+			std::cout << "UNDEF ";
+		else if (ret == l_False)
+			std::cout << "UNSAT ";
+		else if (ret == l_True)
+			std::cout << "SAT ";
+		for (auto &x : bool_values_vec[i])
+			std::cout << x;
+		std::cout << std::endl;
 		//if (i % 1000 == 0)
 		//	std::cout << "processed " << i << " values from " << dummy_vec.size() << std::endl;
 	}
