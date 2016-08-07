@@ -46,6 +46,8 @@ out_0
 *.uset
 *.sdf
 *.db
+*.VC
+*.VC.db
 *.opendb
 
 # Build results
