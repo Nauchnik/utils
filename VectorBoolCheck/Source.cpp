@@ -16,6 +16,11 @@ int main( int argc, char *argv[] )
 	argv[1] = "vectors";
 	argv[2] = "MD4_round_48.cnf";
 #endif
+
+	if ( argc != 3 ) {
+		std::cerr << "Usage : vectrors CNF";
+		return 1;
+	}
 	
 	vectors_file_name = argv[1];
 	std::ifstream ifile(vectors_file_name.c_str());
@@ -88,7 +93,7 @@ int main( int argc, char *argv[] )
 	S->addProblem(cnf);
 	S->verbosity = 0;
 	S->isPredict = false;
-	S->max_nof_restarts = 2;
+	S->max_nof_restarts = 1;
 	
 	// add values of the output variables
 	/*int out_first_var = 8630, out_last_var = 8757;
@@ -106,7 +111,7 @@ int main( int argc, char *argv[] )
 			weight = 0;
 			for (auto &x : bool_values_vec[i])
 				if (x == true) weight++;
-			std::cout << weight << " : ";
+			std::cout << i << " : " << weight << " : ";
 			for (auto &x : bool_values_vec[i])
 				std::cout << x;
 			std::cout << std::endl;
