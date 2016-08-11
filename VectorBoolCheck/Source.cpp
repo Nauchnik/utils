@@ -88,22 +88,31 @@ int main( int argc, char *argv[] )
 	in.open(input_cnf_name); // read every new batch because CNF can be changed
 	Problem cnf;
 	m22_wrapper.parse_DIMACS_to_problem(in, cnf);
-	in.close();
+	in.close(); in.clear();
 	S = new Solver();
 	S->addProblem(cnf);
 	S->verbosity = 0;
 	S->isPredict = false;
 	S->max_nof_restarts = 1;
+
+	in.open(input_cnf_name);
+	std::stringstream cnf_sstream;
+	while (getline(in, str))
+		cnf_sstream << str << std::endl;
+	in.close();
+	std::string cnf_addit_cond_name;
+	std::ofstream cnf_addit_cond;
 	
 	// add values of the output variables
 	/*int out_first_var = 8630, out_last_var = 8757;
 	for (int i = out_first_var; i <= out_last_var; i++)
 		S->addClause(~mkLit(i-1));*/
-
+	
+	unsigned add_cnf_count = 0;
 	lbool ret;
 	unsigned interrupted = 0, unsat = 0, sat = 0;
 	std::cout << "interrupted values :" << std::endl;
-	unsigned weight = 0;
+	unsigned weight;
 	for (int i = 0; i < dummy_vec.size(); i++) {
 		ret = S->solveLimited(dummy_vec[i]);
 		if (ret == l_Undef)
@@ -116,8 +125,23 @@ int main( int argc, char *argv[] )
 		for (auto &x : bool_values_vec[i])
 			if (x == true) weight++;
 		std::cout << i << " : " << weight << " ";
-		if (ret == l_Undef)
+		if (ret == l_Undef) {
 			std::cout << "UNDEF ";
+			if (weight == 14) {
+				add_cnf_count++;
+				sstream << input_cnf_name << "_add_" << add_cnf_count;
+				cnf_addit_cond_name = sstream.str();
+				cnf_addit_cond.open(cnf_addit_cond_name.c_str());
+				cnf_addit_cond << cnf_sstream.str();
+				sstream.str(""); sstream.clear();
+				for (unsigned j = 0; j < bool_values_vec[i].size(); j++)
+					if (bool_values_vec[i][j])
+						for (unsigned j2 = 0; j2 < vectors_vec[j].size(); j2++)
+							cnf_addit_cond << "-" << vectors_vec[j][j2] << " 0" << std::endl;
+				cnf_addit_cond.close();
+				cnf_addit_cond.clear();
+			}
+		}
 		else if (ret == l_False)
 			std::cout << "UNSAT ";
 		else if (ret == l_True)
