@@ -134,31 +134,16 @@ void makeSample::init()
 	std::cout << "mpi_b.clause_count " << mpi_b.clause_count << std::endl;
 
 	std::vector< std::vector<bool> > plain_text_vec_vec;
-
-	if (cnf_file_name.find("URSA") == std::string::npos)
-		mpi_b.MakeSatSample(state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
 	
 	if ( launchType == RANDOM_SAT_SAMPLE ) {
 		mpi_b.cnf_in_set_count = tests_count;
 		mpi_b.MakeSatSample(state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
 	}
-
-	if (cnf_file_name.find("URSA") != std::string::npos) {
-		// URSA mode
-		input_variables = { 4, 7, 12, 14, 16, 17, 19, 20, 22, 24, 28, 32, 34, 35, 36, 37, 39, 41, 43, 45, 47, 48, 49, 51, 52, 53, 54, 55,
-			57, 58, 59, 61, 63, 65, 67, 68, 70, 71, 72, 74, 77, 78, 80, 81, 82, 86, 87, 89, 90, 92, 94, 96, 98, 99, 100, 102, 103, 106, 108,
-			111, 113, 116, 119, 120 };
-		output_variables = { 9982, 1660, 6962, 11843, 617, 10159, 7491, 11680, 2020, 11172, 8326, 5863, 3086, 12084, 8710,
-			5578, 2631, 3936, 9143, 5543, 2589, 11754, 9032, 6575, 3510, 7180, 8926, 6138, 3207, 409, 9819, 6869, 3215, 171,
-			5401, 2638, 11631, 1188, 10383, 7572, 4869, 2251, 11257, 2907, 4769, 1792, 10949, 8362, 5715, 2595, 10984, 8136,
-			5319, 2689, 12017, 8962, 5351, 2394, 11562, 9013, 6370, 3295, 11977, 8739 };
-	}
-	else {
-		for (unsigned i = 0; i < mpi_b.keystream_len; i++)
-			output_variables.push_back(mpi_b.var_count - mpi_b.keystream_len + i + 1);
-		for (unsigned i = 0; i < mpi_b.core_len; i++)
-			input_variables.push_back(i + 1);
-	}
+	
+	for (unsigned i = 0; i < mpi_b.keystream_len; i++)
+		output_variables.push_back(mpi_b.var_count - mpi_b.keystream_len + i + 1);
+	for (unsigned i = 0; i < mpi_b.core_len; i++)
+		input_variables.push_back(i + 1);
 
 	std::vector<unsigned>::iterator it;
 	for (unsigned i = 0; i < decomp_set.size(); i++) {

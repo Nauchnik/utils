@@ -13,10 +13,10 @@ int main( int argc, char **argv )
 {
 #ifdef _DEBUG
 	argc = 6;
-	argv[1] = "./URSA64_template.cnf";
-	argv[2] = "known_point";
-	argv[3] = "-input_output_assumptions";
-	argv[4] = "A5_1_test_31_known";
+	argv[1] = "./MD4_round_40_11IndCond.cnf";
+	argv[2] = "no";
+	argv[3] = "2";
+	argv[4] = "-sat";
 	//argv[2] = "known_point";
 	//argv[2] = "no"; // no decomp set - for generating the nonweakened instances
 	//argv[3] = "2";
@@ -35,6 +35,7 @@ int main( int argc, char **argv )
 	makeSample make_s;
 	make_s.readInput( argc, argv );
 	make_s.init();
+
 	// for URSA A5/1 keystream 64
 	if ( make_s.launchType == RANDOM_UNSAT_SAMPLE )
 		make_s.makeRandomUnsatSample();
