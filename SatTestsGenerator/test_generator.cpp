@@ -13,8 +13,8 @@ int main( int argc, char **argv )
 {
 #ifdef _DEBUG
 	argc = 6;
-	argv[1] = "./MD4_round_40_11IndCond.cnf";
-	argv[2] = "no";
+	argv[1] = "./MD4_round_40.cnf";
+	argv[2] = "known_point";
 	argv[3] = "2";
 	argv[4] = "-sat";
 	//argv[2] = "known_point";
