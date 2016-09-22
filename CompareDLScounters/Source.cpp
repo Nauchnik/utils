@@ -75,9 +75,12 @@ int main( int argc, char* argv[])
 	double comparison_koef_sum = 0;
 	double cur_comparison_koef;
 	double calculated_sum1_time = 0, calculated_sum2_time = 0;
+	unsigned long long total_dls_number_1 = 0, total_dls_number_2 = 0;
 	for (unsigned i = 0; i < wu_vec_1.size(); i++) {
 		if ((wu_vec_1[i].dls_number >= 0) && (wu_vec_2[i].dls_number >= 0) && 
 			(wu_vec_1[i].processing_time > 0) && (wu_vec_2[i].processing_time > 0)) {
+			total_dls_number_1 += wu_vec_1[i].dls_number;
+			total_dls_number_2 += wu_vec_2[i].dls_number;
 			calculated_sum1_time += wu_vec_1[i].processing_time;
 			calculated_sum2_time += wu_vec_2[i].processing_time;
 			calculated_results_both_files++;
@@ -97,12 +100,15 @@ int main( int argc, char* argv[])
 	
 	double comparison_koef_average = comparison_koef_sum / calculated_results_both_files;
 
+	std::cout.precision(10);
 	std::cout << "calculated_results_both_files " << calculated_results_both_files << std::endl;
 	std::cout << "is_calculated_results_correct " << is_calculated_results_correct << std::endl;
 	std::cout << "comparison_koef_average "		  << comparison_koef_average	   << std::endl;
 	std::cout << "calculated_sum1_time "	      << calculated_sum1_time          << std::endl;
 	std::cout << "calculated_sum2_time "          << calculated_sum2_time          << std::endl;
 	std::cout << "sum_koef (calculated_sum1_time / calculated_sum2_time) " << calculated_sum1_time / calculated_sum2_time << std::endl;
+	std::cout << "total_dls_number_1 " << total_dls_number_1 << std::endl;
+	std::cout << "total_dls_number_2 " << total_dls_number_2 << std::endl;
 	
 	return 0;
 }
