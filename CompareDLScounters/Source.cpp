@@ -18,7 +18,7 @@ int main( int argc, char* argv[])
 #ifdef _DEBUG
 	argc = 3;
 	argv[1] = "dls9_count_data_Eduard";
-	argv[2] = "dls9_count_data_Stepa";
+	argv[2] = "dls9_count_data_Eduard";
 #endif
 
 	std::stringstream sstream1;
@@ -74,11 +74,12 @@ int main( int argc, char* argv[])
 	unsigned calculated_results_both_files = 0;
 	double comparison_koef_sum = 0;
 	double cur_comparison_koef;
+	unsigned diff_results_count = 0;
 	double calculated_sum1_time = 0, calculated_sum2_time = 0;
 	unsigned long long total_dls_number_1 = 0, total_dls_number_2 = 0;
 	for (unsigned i = 0; i < wu_vec_1.size(); i++) {
-		if ((wu_vec_1[i].dls_number >= 0) && (wu_vec_2[i].dls_number >= 0) && 
-			(wu_vec_1[i].processing_time > 0) && (wu_vec_2[i].processing_time > 0)) {
+		if ( (wu_vec_1[i].dls_number >= 0) && (wu_vec_2[i].dls_number >= 0) ) { //&& 
+			//(wu_vec_1[i].processing_time > 0) && (wu_vec_2[i].processing_time > 0)) {
 			total_dls_number_1 += wu_vec_1[i].dls_number;
 			total_dls_number_2 += wu_vec_2[i].dls_number;
 			calculated_sum1_time += wu_vec_1[i].processing_time;
@@ -86,9 +87,10 @@ int main( int argc, char* argv[])
 			calculated_results_both_files++;
 			cur_comparison_koef = (double)wu_vec_1[i].processing_time / (double)wu_vec_2[i].processing_time;
 			if ( (cur_comparison_koef < 1) && (wu_vec_1[i].dls_number > 0) ) {
-				std::cout << "cur_comparison_koef < 1 " << cur_comparison_koef << std::endl;
+				//std::cout << "cur_comparison_koef < 1 " << cur_comparison_koef << std::endl;
 				std::cout << "file1 : " << wu_vec_1[i].first_cells_known_values << " " << wu_vec_1[i].dls_number << " " << wu_vec_1[i].processing_time << std::endl;
 				std::cout << "file2 : " << wu_vec_2[i].first_cells_known_values << " " << wu_vec_2[i].dls_number << " " << wu_vec_2[i].processing_time << std::endl;
+				std::cout << "diff_results_count " << ++diff_results_count << std::endl;
 				std::cout << std::endl;
 			}
 			if (wu_vec_1[i].dls_number != wu_vec_2[i].dls_number)
