@@ -12,10 +12,10 @@
 int main( int argc, char **argv )
 {
 #ifdef _DEBUG
-	argc = 6;
-	argv[1] = "./MD4_round_40.cnf";
-	argv[2] = "known_point";
-	argv[3] = "2";
+	argc = 5;
+	argv[1] = "./a5_114bit.cnf";
+	argv[2] = "64vars";
+	argv[3] = "1";
 	argv[4] = "-sat";
 	//argv[2] = "known_point";
 	//argv[2] = "no"; // no decomp set - for generating the nonweakened instances
