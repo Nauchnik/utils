@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <algorithm>
 
 struct wu
 {
@@ -10,6 +11,11 @@ struct wu
 	long long dls_number;
 	double processing_time;
 };
+
+bool ds_compareByFirstCells(const wu &a, const wu &b)
+{
+	return a.first_cells_known_values < b.first_cells_known_values;
+}
 
 std::vector<wu> readDataFromFile( std::string filename );
 
@@ -36,6 +42,9 @@ int main( int argc, char* argv[])
 	std::string file2_name = argv[2];
 	std::vector<wu> wu_vec_1 = readDataFromFile(file1_name);
 	std::vector<wu> wu_vec_2 = readDataFromFile(file2_name);
+
+	std::sort(wu_vec_1.begin(), wu_vec_1.end(), ds_compareByFirstCells);
+	std::sort(wu_vec_2.begin(), wu_vec_2.end(), ds_compareByFirstCells);
 
 	/*std::string str;
 	std::ifstream ifile("Zerowu.txt");
@@ -74,10 +83,15 @@ int main( int argc, char* argv[])
 	unsigned calculated_results_both_files = 0;
 	double comparison_koef_sum = 0;
 	double cur_comparison_koef;
-	unsigned diff_results_count = 0;
+	unsigned diff_results_count = 0, diff_first_cells_count = 0;
 	double calculated_sum1_time = 0, calculated_sum2_time = 0;
 	unsigned long long total_dls_number_1 = 0, total_dls_number_2 = 0;
 	for (unsigned i = 0; i < wu_vec_1.size(); i++) {
+		if (wu_vec_1[i].first_cells_known_values != wu_vec_2[i].first_cells_known_values) {
+			std::cout << "file1 : " << wu_vec_1[i].first_cells_known_values << " " << wu_vec_1[i].dls_number << " " << wu_vec_1[i].processing_time << std::endl;
+			std::cout << "file2 : " << wu_vec_2[i].first_cells_known_values << " " << wu_vec_2[i].dls_number << " " << wu_vec_2[i].processing_time << std::endl;
+			std::cout << "diff_first_cells_count " << ++diff_first_cells_count << std::endl;
+		}
 		if ( (wu_vec_1[i].dls_number >= 0) && (wu_vec_2[i].dls_number >= 0) ) { //&& 
 			//(wu_vec_1[i].processing_time > 0) && (wu_vec_2[i].processing_time > 0)) {
 			total_dls_number_1 += wu_vec_1[i].dls_number;
@@ -85,8 +99,11 @@ int main( int argc, char* argv[])
 			calculated_sum1_time += wu_vec_1[i].processing_time;
 			calculated_sum2_time += wu_vec_2[i].processing_time;
 			calculated_results_both_files++;
-			cur_comparison_koef = (double)wu_vec_1[i].processing_time / (double)wu_vec_2[i].processing_time;
-			if ( (cur_comparison_koef < 1) && (wu_vec_1[i].dls_number > 0) ) {
+			if ((wu_vec_1[i].dls_number > 0) && (wu_vec_2[i].dls_number > 0))
+				cur_comparison_koef = (double)wu_vec_1[i].dls_number / (double)wu_vec_2[i].dls_number;
+			if ( (cur_comparison_koef != 1) ||
+				 (wu_vec_1[i].first_cells_known_values != wu_vec_2[i].first_cells_known_values))
+			{
 				//std::cout << "cur_comparison_koef < 1 " << cur_comparison_koef << std::endl;
 				std::cout << "file1 : " << wu_vec_1[i].first_cells_known_values << " " << wu_vec_1[i].dls_number << " " << wu_vec_1[i].processing_time << std::endl;
 				std::cout << "file2 : " << wu_vec_2[i].first_cells_known_values << " " << wu_vec_2[i].dls_number << " " << wu_vec_2[i].processing_time << std::endl;
