@@ -677,7 +677,7 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 	else if ((solver_name.find("lingeling") != std::string::npos) &&
 		(solver_name.find("plingeling") == std::string::npos)) {
 		//std::cout << "lingeling detected" << std::endl;
-		result_str = "-t ";
+		result_str = "-T ";
 	}
 	
 	if (result_str == "") {
