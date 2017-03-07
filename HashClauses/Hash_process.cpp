@@ -189,7 +189,7 @@ void Hash_process :: PrintFinalStat( )
 	double percent_val;
 	ofstream split_stat_file;
 	cout << "\n Start PrintHashStat";
-
+	
 	cout << endl << "repeat_count_arr_len is " << repeat_count_arr_len;
 	for ( i = 1; i < repeat_count_arr_len; i++ )
 		repeat_count_arr[i] += repeat_count_arr[i - 1];
@@ -201,9 +201,9 @@ void Hash_process :: PrintFinalStat( )
 		else
 			current_processed_clauses = clauses_count;
 		percent_val = double( repeat_count_arr[i] ) / double( current_processed_clauses / 100 );
-		cout << endl << endl;
-		cout << endl << " Repeat count " << repeat_count_arr[i] << " from " << current_processed_clauses;
-		cout << endl << " % of repeat is " << percent_val;
+		//cout << endl << endl;
+		//cout << endl << " Repeat count " << repeat_count_arr[i] << " from " << current_processed_clauses;
+		//cout << endl << " % of repeat is " << percent_val;
 		
 		sstream << current_processed_clauses << " " << percent_val << "\n";
 		split_stat_file << sstream.rdbuf( );
