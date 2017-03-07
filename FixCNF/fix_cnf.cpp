@@ -6,7 +6,6 @@
 #include <algorithm>
 
 const unsigned CLAUSES_BLOCK_SIZE = 100000;
-const unsigned MAX_BLOCKS_NUMBER = 1000;
 
 bool isClause(std::string str);
 
