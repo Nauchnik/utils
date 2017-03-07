@@ -1,6 +1,4 @@
-CC = mpiicc
-CPP = mpiicpc
-CFLAGS = -O3 -std=c99 -lz -lm -Wall -D NDEBUG
+CPP = g++
 CPPFLAGS = -O3
 	
 Hash_clauses: Hash_clauses.cpp Hash_process.o

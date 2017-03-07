@@ -1,5 +1,3 @@
-//
-#include <mpi.h>
 #include "Hash_process.h"
 
 #pragma warning( disable : 4996 )
@@ -32,68 +30,71 @@ int main( int argc, char** argv )
 
 	hash_p.stat_file_name = "stat";
 	hash_p.split_stat_file_name = "split_stat";
-
-	//TestSolve( ); // Debug
-
-	int corecount = 0, rank = 0;
-
-	MPI_Init( &argc, &argv );
-	MPI_Comm_size( MPI_COMM_WORLD, &corecount );
-	MPI_Comm_rank( MPI_COMM_WORLD, &rank );
 	
-	if ( rank == 0 ) {
-		start_time = cpuTime( );
+#ifdef _DEBUG
+	TestSolve();
+#endif
+	
+	start_time = cpuTime( );
 
-		if ( !GetInputFlags( argc, argv, IsNoVecMode, GetStartStatMode, SplitInpFileMode ) )
-		{ cout << "\n Error in GetInputFlags"; return 1; }
-
-		sstream << argv[1];
-		input_file_name = sstream.str( );
-
-		cout << "\n input_file_name is "  << input_file_name;
-		cout << "\n NoVecMode is "        << IsNoVecMode;
-		cout << "\n GetStartStatMode is " << GetStartStatMode;
-		cout << "\n SplitInpFileMode is " << SplitInpFileMode;
-
-		hash_p.IsNoVecMode      = IsNoVecMode;
-		hash_p.GetStartStatMode = GetStartStatMode;
-		hash_p.SplitInpFileMode = SplitInpFileMode;
-		hash_p.input_file_name  = input_file_name;
-		hash_p.start_time       = start_time;
-		
-		if  ( !( hash_p.ReadInpFile( ) ) )
-		{ cout << endl << endl << "*** Error in ReadInpFile. exit ***"; return 1; }
-		cout << endl << endl << "*** End of ReadInpFile ***";
-
-		if ( hash_p.GetStartStatMode )
-			hash_p.GetStartStat( );
-
-		if ( !SplitInpFileMode ) { // if only 1 file
-			cout << endl << "Start work with one files";
-			hash_p.MakeHashTabFromFile( input_file_name );
-		}
-		else if ( ( SplitInpFileMode == 1 ) || ( SplitInpFileMode == 3 ) ) { // many subfiles
-			string dir = string(".");
-			vector<string> files = vector<string>();
-			getdir( dir, files );
-			
-			cout << endl << "Start work with subfiles";
-			for ( unsigned int i = 0; i < files.size( ); i++ ) {
-				if ( sscanf( files[i].c_str( ), "zplit_%d", &strLen ) ) {
-					hash_p.MakeHashTabFromFile( files[i] );
-					hash_p.hash_tab.clear( ); // clear hash_tab after every file
-					cout << endl << "*** hash_tab was cleared";
-				}
-			}
-			cout << endl << "End work with subfiles";
-		}
-		
-		cout << endl << "Start of PrintFinalStat";
-		hash_p.PrintFinalStat( ); // print final stat
-		cout << endl << "End of PrintFinalStat";
-
-		return 0;
+	if (argc < 2) {
+		WriteUsage();
+		return 1;
 	}
+
+	if ( !GetInputFlags( argc, argv, IsNoVecMode, GetStartStatMode, SplitInpFileMode ) ) { 
+		cerr << "\n Error in GetInputFlags"; 
+		return 1; 
+	}
+
+	sstream << argv[1];
+	input_file_name = sstream.str( );
+
+	cout << "\n input_file_name is "  << input_file_name;
+	cout << "\n NoVecMode is "        << IsNoVecMode;
+	cout << "\n GetStartStatMode is " << GetStartStatMode;
+	cout << "\n SplitInpFileMode is " << SplitInpFileMode;
+
+	hash_p.IsNoVecMode      = IsNoVecMode;
+	hash_p.GetStartStatMode = GetStartStatMode;
+	hash_p.SplitInpFileMode = SplitInpFileMode;
+	hash_p.input_file_name  = input_file_name;
+	hash_p.start_time       = start_time;
+		
+	if  ( !( hash_p.ReadInpFile( ) ) ) { 
+		cerr << endl << endl << "*** Error in ReadInpFile. exit ***"; 
+		return 1; 
+	}
+	cout << endl << endl << "*** End of ReadInpFile ***";
+
+	if ( hash_p.GetStartStatMode )
+		hash_p.GetStartStat( );
+
+	if ( !SplitInpFileMode ) { // if only 1 file
+		cout << endl << "Start work with one files";
+		hash_p.MakeHashTabFromFile( input_file_name );
+	}
+	else if ( ( SplitInpFileMode == 1 ) || ( SplitInpFileMode == 3 ) ) { // many subfiles
+		string dir = string(".");
+		vector<string> files = vector<string>();
+		getdir( dir, files );
+			
+		cout << endl << "Start work with subfiles";
+		for ( unsigned int i = 0; i < files.size( ); i++ ) {
+			if ( sscanf( files[i].c_str( ), "zplit_%d", &strLen ) ) {
+				hash_p.MakeHashTabFromFile( files[i] );
+				hash_p.hash_tab.clear( ); // clear hash_tab after every file
+				cout << endl << "*** hash_tab was cleared";
+			}
+		}
+		cout << endl << "End work with subfiles";
+	}
+		
+	cout << endl << "Start of PrintFinalStat";
+	hash_p.PrintFinalStat( ); // print final stat
+	cout << endl << "End of PrintFinalStat";
+
+	return 0;
 }
 
 //---------------------------------------------------------
