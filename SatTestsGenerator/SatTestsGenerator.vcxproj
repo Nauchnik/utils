@@ -79,7 +79,6 @@
     <ClInclude Include="..\..\pdsat\src_common\minisat\core\Dimacs.h" />
     <ClInclude Include="..\..\pdsat\src_common\minisat\core\Solver.h" />
     <ClInclude Include="..\..\pdsat\src_common\minisat\core\SolverTypes.h" />
-    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\MinisatLogger.h" />
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\Options.h" />
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\ParseUtils.h" />
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\System.h" />

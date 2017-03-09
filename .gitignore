@@ -227,3 +227,5 @@ pip-log.txt
 *.db
 *.db
 *.db
+SatTestsGenerator/SatTestsGenerator.VC.db
+*.db

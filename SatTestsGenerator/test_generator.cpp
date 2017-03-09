@@ -1,5 +1,6 @@
 // Generator of SAT instances by Oleg Zaikin. 2013
 
+#include "makeSample.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -7,7 +8,6 @@
 #include <vector>
 #include <algorithm>
 #include <ctime>
-#include "makeSample.h"
 
 int main( int argc, char **argv )
 {
@@ -35,8 +35,9 @@ int main( int argc, char **argv )
 	makeSample make_s;
 	make_s.readInput( argc, argv );
 	make_s.init();
-
-	// for URSA A5/1 keystream 64
+	std::cout << "init stage done" << std::endl;
+	std::cout << "make_s.launchType " << make_s.launchType << std::endl;
+	
 	if ( make_s.launchType == RANDOM_UNSAT_SAMPLE )
 		make_s.makeRandomUnsatSample();
 	else if (make_s.launchType == RANDOM_SAT_SAMPLE)

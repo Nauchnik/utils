@@ -47,9 +47,6 @@
     <ClInclude Include="..\..\pdsat\src_common\minisat\core\SolverTypes.h">
       <Filter>minisat</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\pdsat\src_common\minisat\utils\MinisatLogger.h">
-      <Filter>minisat</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\pdsat\src_common\minisat\utils\Options.h">
       <Filter>minisat</Filter>
     </ClInclude>

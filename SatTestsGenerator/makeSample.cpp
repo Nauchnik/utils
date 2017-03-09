@@ -1,6 +1,6 @@
+#include "makeSample.h"
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
-#include "makeSample.h"
 boost::random::mt19937 gen(static_cast<unsigned int>(std::time(0)));
 using namespace Addit_func;
 
@@ -140,8 +140,8 @@ void makeSample::init()
 		mpi_b.MakeSatSample(state_vec_vec, stream_vec_vec, plain_text_vec_vec, 0);
 	}
 	
-	for (unsigned i = 0; i < mpi_b.keystream_len; i++)
-		output_variables.push_back(mpi_b.var_count - mpi_b.keystream_len + i + 1);
+	for (unsigned i = 0; i < mpi_b.output_len; i++)
+		output_variables.push_back(mpi_b.var_count - mpi_b.output_len + i + 1);
 	for (unsigned i = 0; i < mpi_b.core_len; i++)
 		input_variables.push_back(i + 1);
 
@@ -177,6 +177,7 @@ void makeSample::makeRandomUnsatSample()
 				(*test_cnf_files[i]) << "-";
 			(*test_cnf_files[i]) << decomp_set[j] << " 0" << std::endl;
 		}
+
 		(*test_cnf_files[i]) << main_cnf_sstream.str(); // write clauses of main cnf
 		(*test_cnf_files[i]).close();
 		delete test_cnf_files[i];
@@ -187,8 +188,8 @@ void makeSample::makeRandomUnsatSample()
 
 void makeSample::makeRandomSatSample()
 {
+	std::cout << "Start makeRandomSatSample()" << std::endl;
 	unsigned cur_var_ind;
-	unsigned cur_stream_index;
 	std::stringstream oneliteral_sstream, current_name_sstream;
 	for (unsigned i = 0; i < tests_count; i++) {
 		for (std::vector<unsigned>::iterator it = decomp_set.begin(); it != decomp_set.end(); it++) {
@@ -197,9 +198,9 @@ void makeSample::makeRandomSatSample()
 				oneliteral_sstream << "-";
 			oneliteral_sstream << cur_var_ind + 1 << " 0" << std::endl;
 		}
-		cur_stream_index = 0;
+		unsigned cur_stream_index = 0;
 		for (std::vector<bool>::iterator it = stream_vec_vec[i].begin(); it != stream_vec_vec[i].end(); it++) {
-			cur_var_ind = (mpi_b.var_count - mpi_b.keystream_len) + cur_stream_index;
+			cur_var_ind = (mpi_b.var_count - mpi_b.output_len) + cur_stream_index;
 			if (!(*it))
 				oneliteral_sstream << "-";
 			oneliteral_sstream << cur_var_ind + 1 << " 0" << std::endl;
@@ -298,8 +299,8 @@ void makeSample::makeSampleFromInputOutputAssumptions()
 		getline(cur_file, output_variables_values_str);
 		start_str = "Output: ";
 		output_variables_values_str = output_variables_values_str.substr(start_str.size(), output_variables_values_str.size() - start_str.size());
-		if ( (mpi_b.keystream_len>0) && (mpi_b.keystream_len < output_variables_values_str.size()) )
-			output_variables_values_str.resize(mpi_b.keystream_len);
+		if ( (mpi_b.output_len>0) && (mpi_b.output_len < output_variables_values_str.size()) )
+			output_variables_values_str.resize(mpi_b.output_len);
 		cur_file.clear();
 		cur_file.close();
 		// make CNF file with additional clauses

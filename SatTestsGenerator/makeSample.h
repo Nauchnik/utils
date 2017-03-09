@@ -1,12 +1,12 @@
 #ifndef MAKE_SAMPLE_H
 #define MAKE_SAMPLE_H
 
+#include "mpi_base.h"
+#include "addit_func.h"
 #include <string>
 #include <vector>
 #include <fstream>
 #include <sstream>
-#include "mpi_base.h"
-#include "addit_func.h"
 
 #define RANDOM_UNSAT_SAMPLE 0
 #define RANDOM_SAT_SAMPLE 1
