@@ -15,9 +15,8 @@
 #include <algorithm>
 #include "addit_func.h"
 
-std::string basic_launch_dir = "/home/ozaikin/2016-02_Ulyantsev/80vars_MPI_multithread_solver_5/";
 std::string basic_cnf_dir_name = "/home/ozaikin/cssc14_environment/instances/Sat_Data/k_num_6_first80vars_1000sec/";
-const unsigned CORES_PER_NODE = 1; // 32 for multithread solver, 1 for sequential solver
+const unsigned CORES_PER_NODE = 32; // 32 for multithread solver, 1 for sequential solver
 const int SAT = 1;
 const int UNSAT = 2;
 const int UNKNOWN = 3;
@@ -88,9 +87,9 @@ int main( int argc, char **argv )
 		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 		if (rank == 0)
-		controlProcess(corecount, solvers_dir, cnfs_dir, maxtime_seconds);
+			controlProcess(corecount, solvers_dir, cnfs_dir, maxtime_seconds);
 		else
-		computingProcess(rank);
+			computingProcess(rank);
 #endif
 	}
 	else {
@@ -297,11 +296,11 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	
 	// make list of tasks from SMAC output
 	std::vector<std::string> unsolved_instances_names, solved_instances;
-	getDataFromSmacValidation(unsolved_instances_names, solved_instances);
+	//getDataFromSmacValidation(unsolved_instances_names, solved_instances);
 	//unsolved_instances_names = solved_instances; // hack to solve already solved
 	//for ( auto &x : solved_instances ) unsolved_instances_names.push_back(x); // hack to solve all instances
 	//sort(unsolved_instances_names.begin(), unsolved_instances_names.end()); // hack to solve all instances
-	std::cout << "unsolved_instances_names.size() " << unsolved_instances_names.size() << std::endl;
+	//std::cout << "unsolved_instances_names.size() " << unsolved_instances_names.size() << std::endl;
 	unsigned tasks = unsolved_instances_names.size();
 	std::cout << "tasks_number " << tasks << std::endl;
 	int sent_tasks = 0, solved_tasks = 0;
@@ -315,7 +314,7 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 		for (unsigned i = 1; i < corecount; i++)
 			computing_process_vec.push_back(i);
 	}
-		
+	
 	std::cout << "computing_process_vec " << std::endl;
 	for (auto &x : computing_process_vec)
 		std::cout << x << " ";
@@ -568,133 +567,51 @@ void getDataFromSmacValidation(	std::vector<std::string> &unsolved_instances, st
 		med = sum / solved_instances_time.size();
 }
 
-int callMultithreadSolver(int rank, std::string cnf_instance_name)
-{
-	std::string solver_name = "lingeling";
-	std::string solver_params;
-	if (solver_name == "plingeling") {
-		if (rank == 1)
-			solver_params = "-t 31"; // 1 core for the control process
-		else
-			solver_params = "-t 32";
-	}
-	std::string instance_name = basic_cnf_dir_name + cnf_instance_name;
-	std::string solver_result_name = "out_" + solver_name + "_" + cnf_instance_name;
-	std::string system_str = "./" + solver_name + " " + solver_params + " " +
-		instance_name + " &> " + solver_result_name;
-	//system_str = "./" + program_name;
-	if ( rank == 1 )
-		std::cout << "system_str " << system_str << std::endl;
-	/*std::stringstream script_name_sstream; 
-	script_name_sstream << "script_" << rank << ".sh";
-	std::ofstream script_file(script_name_sstream.str().c_str());
-	script_file << "#!/bin/sh" << std::endl;
-	script_file << system_str; // set high CPU priority via low niceness
-	script_file.close();
-	system_str = "chmod +x "; 
-	system_str += "./" + script_name_sstream.str();
-	system(system_str.c_str());
-	system_str = "./" + script_name_sstream.str();*/
-	if (rank == 1)
-		std::cout << "system_str " << system_str << std::endl;
-	system(system_str.c_str());
-	
-	if (rank == 1)
-		std::cout << "after system call" << std::endl;
-	
-	std::ifstream solver_result_file(solver_result_name.c_str());
-	if (!solver_result_file.is_open()) {
-		std::cerr << "error opening solver_result_file " << solver_result_name << std::endl;
-		exit(1);
-	}
-	std::string str;
-	int result = UNKNOWN;
-	while ( getline(solver_result_file, str) ) {
-		if (str == "s UNSATISFIABLE") {
-			result = UNSAT;
-			break;
-		}
-		else if (str == "s SATISFIABLE") {
-			result = SAT;
-			break;
-		}
-		else if (str == "c s UNKNOWN") {
-			result = UNKNOWN;
-			break;
-		}
-	}
-	
-	solver_result_file.close();
-
-	return result;
-}
-
 std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string solver_name,
 	std::string maxtime_seconds_str, std::string nof_threads_str)
 {
+	std::string solver_params_str;
 	std::string result_str;
-	if ((solver_name.find("minisat//minisat") != std::string::npos) ||
-		(solver_name.find("minisat_simp//minisat_simp") != std::string::npos))
+	bool isTimeLimit = false;
+
+	if ((solver_name.find("minisat") != std::string::npos) ||
+		(solver_name.find("rokk") != std::string::npos))
 	{
 		//std::cout << "minisat_simp detected" << std::endl;
-		result_str = "-cpu-lim=";
+		solver_params_str = "-cpu-lim=";
+		isTimeLimit = true;
 	}
-	// glucose can't stop in time
-	/*if ( solver_name.find( "glucose" ) != std::string::npos ) {
-	std::cout << "glucose detected" << std::endl;
-	result_str = "-cpu-lim=";
-	}*/
-	else if (solver_name.find("sinn") != std::string::npos) {
-		//std::cout << "sinn detected" << std::endl;
-		result_str = "-cpu-lim=" + maxtime_seconds_str;
+	else if (solver_name.find("lingeling") != std::string::npos) {
+		solver_params_str = "-T ";
+		isTimeLimit = true;
 	}
-	else if (solver_name.find("minisat_bit") != std::string::npos) {
-		//std::cout << "minisat_bit detected" << std::endl;
-		result_str = "-cpu-lim=";
-	}
-	else if (solver_name.find("zenn") != std::string::npos) {
-		//std::cout << "zenn detected" << std::endl;
-		result_str = "-cpu-lim=";
-	}
-	else if (solver_name.find("glueminisat") != std::string::npos) {
-		//std::cout << "glueminisat detected" << std::endl;
-		result_str = "-cpu-lim=";
-	}
-	else if (solver_name.find("minigolf") != std::string::npos) {
-		//std::cout << "minigolf detected" << std::endl;
-		result_str = "-cpu-lim=";
-	}
-	/*else if ( solver_name.find( "plingeling" ) != std::string::npos ) {
-	//std::cout << "pingeling detected" << std::endl;
-	result_str = "-nof_threads ";
-	result_str += nof_threads_str;
-	result_str += " -t ";
-	}
-	else if ( solver_name.find( "trengeling" ) != std::string::npos ) {
-	//std::cout << "treengeling detected" << std::endl;
-	//result_str = "-t " + "11" + nof_threads_str;
-	}*/
-	else if ((solver_name.find("lingeling") != std::string::npos) &&
-		(solver_name.find("plingeling") == std::string::npos)) {
-		//std::cout << "lingeling detected" << std::endl;
-		result_str = "-T ";
-	}
-	
-	if (result_str == "") {
-		std::cout << "unknown solver detected. using timelimit" << std::endl;
-		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" + solvers_dir + "/" + solver_name;
-	}
-	else
-		result_str = "./" + solvers_dir + "/" + solver_name + " " + result_str + maxtime_seconds_str;
-
-	if (solver_name.find("dimetheus") != std::string::npos)
-		result_str += " -formula";
+	else if (solver_name.find("dimetheus") != std::string::npos)
+		solver_params_str += " -formula";
 	else if (solver_name.find("cvc4") != std::string::npos)
-		result_str += " --smtlib-strict";
+		solver_params_str += " --smtlib-strict";
 	else if (solver_name.find("z3") != std::string::npos)
-		result_str += " -smt";
+		solver_params_str += " -smt";
 	else if (solver_name.find("Spear") != std::string::npos)
-		result_str += " --dimacs";
+		solver_params_str += " --dimacs";
+
+	if (isTimeLimit)
+		solver_params_str += maxtime_seconds_str;
+	
+	if ((solver_name.find("plingeling") != std::string::npos) ||
+		(solver_name.find("treengeling") != std::string::npos))
+#ifdef _MPI
+		solver_params_str += " -t " + CORES_PER_NODE;
+#else
+		solver_params_str += " -t " + nof_threads_str;
+#endif
+
+	result_str = "./" + solvers_dir + "/" + solver_name + " " + solver_params_str;
+
+	if (solver_params_str == "") {
+		std::cout << "unknown solver detected. using timelimit" << std::endl;
+		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" +
+			solvers_dir + "/" + solver_name;
+	}
     
 	return result_str;
 }
