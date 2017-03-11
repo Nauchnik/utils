@@ -622,5 +622,8 @@ std::string get_post_cnf_solver_params_str(std::string solver_name)
 	if (solver_name.find("CSCC") != std::string::npos) {
 		result_str = " 1";
 	}
+	else if (solver_name.find("dimetheus") != std::string::npos) {
+		result_str = " -guide 6";
+	}
 	return result_str;
 }
