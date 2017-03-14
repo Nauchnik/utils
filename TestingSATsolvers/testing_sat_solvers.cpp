@@ -628,8 +628,10 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 std::string get_post_cnf_solver_params_str(std::string solver_name)
 {
 	std::string result_str;
-	if ( (solver_name.find("CSCC") != std::string::npos) || 
-	     (solver_name.find("DCCAlm") != std::string::npos) )
+	if ( (solver_name.find("CSCC") != std::string::npos)   || 
+	     (solver_name.find("DCCAlm") != std::string::npos) ||
+		 (solver_name.find("DCCASat") != std::string::npos)
+		)
 	{
 		result_str = " 1";
 	}
@@ -641,8 +643,7 @@ std::string get_post_cnf_solver_params_str(std::string solver_name)
 
 bool isSkipUnusefulSolver(std::string solver_name)
 {
-	if ((solver_name.find("DCCASat") != std::string::npos) ||
-		(solver_name.find("WalkSATlm2013") != std::string::npos))
+	if (solver_name.find("WalkSATlm2013") != std::string::npos)
 		return true;
 
 	return false;
