@@ -40,6 +40,7 @@ void getDataFromSmacValidation(std::vector<std::string> &unsolved_instances, std
 bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir, double maxtime_seconds);
 bool computingProcess(int rank);
 int callMultithreadSolver(int rank, std::string cnf_instance_name);
+bool isSkipUnusefulSolver(std::string solver_name);
 
 int main( int argc, char **argv )
 {
@@ -151,6 +152,10 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 	for (unsigned i = 0; i < solver_files_names.size(); i++) {
 		sum_time = 0;
 		solved_problems_count = 0;
+		if (isSkipUnusefulSolver(solver_files_names[i])) {
+			std::cout << "skipping uneseful solver " << solver_files_names[i] << std::endl;
+			continue;
+		}
 		for (unsigned j = 0; j < cnf_files_names.size(); j++) {
 			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
 			system_str = get_pre_cnf_solver_params_str(solvers_dir, solver_files_names[i], maxtime_seconds_str, nof_threads_str) +
@@ -253,7 +258,7 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 		std::cout << "cur_max_time " << max_time << std::endl;
 		std::cout << "solved_problems_count " << solved_problems_count << std::endl;
 
-		std::string solver_out_file_name = "out_" + solver_files_names[i] + "_total";
+		std::string solver_out_file_name = "out_" + solver_files_names[i] + "_" + cnfs_dir + "_total";
 		std::ofstream solver_out_file(solver_out_file_name.c_str());
 		for (unsigned t = 0; t < solver_cnf_times_str[i].size(); t++)
 			solver_out_file << solver_cnf_times_str[i][t] << std::endl;
@@ -574,8 +579,9 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 	std::string result_str;
 	bool isTimeLimit = false;
 
-	if ((solver_name.find("minisat") != std::string::npos) ||
-		(solver_name.find("rokk") != std::string::npos))
+	if ( ( (solver_name.find("minisat") != std::string::npos) ||
+		   (solver_name.find("rokk") != std::string::npos) ) &&
+		   (solver_name.find("cryptominisat") == std::string::npos) )
 	{
 		//std::cout << "minisat_simp detected" << std::endl;
 		solver_params_str = "-cpu-lim=";
@@ -598,12 +604,15 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 		solver_params_str += maxtime_seconds_str;
 	
 	if ((solver_name.find("plingeling") != std::string::npos) ||
-		(solver_name.find("treengeling") != std::string::npos))
+		(solver_name.find("treengeling") != std::string::npos)) {
 #ifdef _MPI
 		solver_params_str += " -t " + CORES_PER_NODE;
 #else
 		solver_params_str += " -t " + nof_threads_str;
 #endif
+	}
+	else if (solver_name.find("cryptominisat_parallel") != std::string::npos)
+		solver_params_str += "--threads=" + nof_threads_str;
 
 	result_str = "./" + solvers_dir + "/" + solver_name + " " + solver_params_str;
 
@@ -619,11 +628,22 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 std::string get_post_cnf_solver_params_str(std::string solver_name)
 {
 	std::string result_str;
-	if (solver_name.find("CSCC") != std::string::npos) {
+	if ( (solver_name.find("CSCC") != std::string::npos) || 
+	     (solver_name.find("DCCAlm") != std::string::npos) )
+	{
 		result_str = " 1";
 	}
 	else if (solver_name.find("dimetheus") != std::string::npos) {
 		result_str = " -guide 6";
 	}
 	return result_str;
+}
+
+bool isSkipUnusefulSolver(std::string solver_name)
+{
+	if ((solver_name.find("DCCASat") != std::string::npos) ||
+		(solver_name.find("WalkSATlm2013") != std::string::npos))
+		return true;
+
+	return false;
 }
