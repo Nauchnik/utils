@@ -577,9 +577,9 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 {
 	std::string solver_params_str;
 	std::string result_str;
-	bool isTimeLimit = false;
+	//bool isTimeLimit = false;
 
-	if ( ( (solver_name.find("minisat") != std::string::npos) ||
+	/*if ( ( (solver_name.find("minisat") != std::string::npos) ||
 		   (solver_name.find("rokk") != std::string::npos) ) &&
 		   (solver_name.find("cryptominisat") == std::string::npos) )
 	{
@@ -590,8 +590,9 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 	else if (solver_name.find("lingeling") != std::string::npos) {
 		solver_params_str = "-T ";
 		isTimeLimit = true;
-	}
-	else if (solver_name.find("dimetheus") != std::string::npos)
+	}*/
+	
+	if (solver_name.find("dimetheus") != std::string::npos)
 		solver_params_str += " -formula";
 	else if (solver_name.find("cvc4") != std::string::npos)
 		solver_params_str += " --smtlib-strict";
@@ -600,8 +601,8 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 	else if (solver_name.find("Spear") != std::string::npos)
 		solver_params_str += " --dimacs";
 
-	if (isTimeLimit)
-		solver_params_str += maxtime_seconds_str;
+	//if (isTimeLimit)
+	//	solver_params_str += maxtime_seconds_str;
 	
 	if ((solver_name.find("plingeling") != std::string::npos) ||
 		(solver_name.find("treengeling") != std::string::npos)) {
@@ -615,12 +616,13 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 		solver_params_str += "--threads=" + nof_threads_str;
 
 	result_str = "./" + solvers_dir + "/" + solver_name + " " + solver_params_str;
-
-	if (solver_params_str == "") {
-		std::cout << "unknown solver detected. using timelimit" << std::endl;
-		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" +
+	
+	//std::cout << "unknown solver detected. using timelimit" << std::endl;
+	result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" +
 			solvers_dir + "/" + solver_name;
-	}
+
+	if (solver_params_str != "")
+		result_str += solver_params_str;
     
 	return result_str;
 }
