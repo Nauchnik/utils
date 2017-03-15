@@ -1,4 +1,4 @@
-CPP = g++
+CPP = mpiicpc
 INC1 = ../../
 INC2 = ../../pdsat/src_common/
 INC3 = ../../pdsat/src_mpi/
