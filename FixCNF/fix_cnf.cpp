@@ -9,6 +9,8 @@ const unsigned CLAUSES_BLOCK_SIZE = 100000;
 
 bool isClause(std::string str);
 
+bool BothAreSpaces(char lhs, char rhs) { return (lhs == rhs) && (lhs == ' '); }
+
 int main( int argc, char **argv )
 {
 #ifdef _DEBUG
@@ -43,6 +45,8 @@ int main( int argc, char **argv )
 		if (str == "")
 			continue;
 		str.erase( std::remove(str.begin(), str.end(), '\r'), str.end() );
+		std::string::iterator new_end = std::unique(str.begin(), str.end(), BothAreSpaces);
+		str.erase(new_end, str.end()); // remove multiple spaces
 		pos = str.find(" 0 ");
 		if ( pos != std::string::npos )
 			str.resize(pos+2);
@@ -74,7 +78,7 @@ int main( int argc, char **argv )
 			}
 		}
 	}
-	*(main_cnf_sstream_vec[block_index]) << " "; // add space on the last string for treengeling
+	//*(main_cnf_sstream_vec[block_index]) << " "; // add space on the last string for treengeling
 	std::cout << "CNF processed" << std::endl;
 	std::cout << "clauses_block_size " << CLAUSES_BLOCK_SIZE << std::endl;
 	std::cout << "block_index " << block_index << std::endl;
@@ -90,6 +94,7 @@ int main( int argc, char **argv )
 	cnf_file << "p cnf " << var_count << " " << clause_count << std::endl;
 	for (auto x : main_cnf_sstream_vec)
 		cnf_file << (*x).rdbuf();
+	//cnf_file << std::endl; // some solvers require empty sting at the end of a file
 	cnf_file.close();
 
 	return 0;

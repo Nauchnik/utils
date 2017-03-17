@@ -70,6 +70,13 @@ int main( int argc, char **argv )
 	std::string solvers_dir, cnfs_dir;
 	solvers_dir = argv[1];
 	cnfs_dir = argv[2];
+	std::string str_to_remove = "./";
+	unsigned pos = solvers_dir.find(str_to_remove);
+	if (pos != std::string::npos)
+		solvers_dir.erase(pos, str_to_remove.length());
+	pos = cnfs_dir.find(str_to_remove);
+	if (pos != std::string::npos)
+		cnfs_dir.erase(pos, str_to_remove.length());
 
 	bool isMPI = false;
 	std::string str;
@@ -144,13 +151,12 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 
 	bool isTimeStr, isSAT;
 	unsigned solved_problems_count;
-	double sum_time = 0, min_time = 0, max_time = 0;
 	std::vector< std::vector<std::string> > solver_cnf_times_str;
 	std::string solver_time_str;
 	std::stringstream convert_sstream;
 	solver_cnf_times_str.resize(solver_files_names.size());
 	for (unsigned i = 0; i < solver_files_names.size(); i++) {
-		sum_time = 0;
+		double sum_time = 0, min_time = 0, max_time = 0;
 		solved_problems_count = 0;
 		if (isSkipUnusefulSolver(solver_files_names[i])) {
 			std::cout << "skipping uneseful solver " << solver_files_names[i] << std::endl;
@@ -258,7 +264,11 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 		std::cout << "cur_max_time " << max_time << std::endl;
 		std::cout << "solved_problems_count " << solved_problems_count << std::endl;
 
-		std::string solver_out_file_name = "out_" + solver_files_names[i] + "_" + cnfs_dir + "_total";
+		std::string tmp_cnfs_dir = cnfs_dir;
+		tmp_cnfs_dir.erase(std::remove(tmp_cnfs_dir.begin(), tmp_cnfs_dir.end(), '.'), tmp_cnfs_dir.end());
+		tmp_cnfs_dir.erase(std::remove(tmp_cnfs_dir.begin(), tmp_cnfs_dir.end(), '/'), tmp_cnfs_dir.end());
+
+		std::string solver_out_file_name = "*out_total_" + solver_files_names[i] + "_" + tmp_cnfs_dir;
 		std::ofstream solver_out_file(solver_out_file_name.c_str());
 		for (unsigned t = 0; t < solver_cnf_times_str[i].size(); t++)
 			solver_out_file << solver_cnf_times_str[i][t] << std::endl;
