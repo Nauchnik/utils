@@ -39,7 +39,7 @@ std::string get_post_cnf_solver_params_str(std::string solver_name);
 void getDataFromSmacValidation(std::vector<std::string> &unsolved_instances, std::vector<std::string> &solved_instances);
 bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir, double maxtime_seconds);
 bool computingProcess(int rank);
-int callMultithreadSolver(int rank, std::string cnf_instance_name);
+//int callMultithreadSolver(int rank, std::string cnf_instance_name);
 bool isSkipUnusefulSolver(std::string solver_name);
 
 int main( int argc, char **argv )
@@ -512,7 +512,7 @@ bool computingProcess(int rank)
 
 		process_solving_time = MPI_Wtime();
 		// solving with received Tfact
-		result = callMultithreadSolver(rank, cur_cnf_instance_name_str);
+		//result = callMultithreadSolver(rank, cur_cnf_instance_name_str);
 		process_solving_time = MPI_Wtime() - process_solving_time;
 
 		MPI_Send(&process_task_index,   1, MPI_INT,    0, 0, MPI_COMM_WORLD);
