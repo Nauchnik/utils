@@ -15,8 +15,10 @@
 #include <algorithm>
 #include "addit_func.h"
 
+using namespace std;
+
 std::string basic_cnf_dir_name = "/home/ozaikin/cssc14_environment/instances/Sat_Data/k_num_6_first80vars_1000sec/";
-const unsigned CORES_PER_NODE = 32; // 32 for multithread solver, 1 for sequential solver
+const unsigned CORES_PER_NODE = 36;
 const int SAT = 1;
 const int UNSAT = 2;
 const int UNKNOWN = 3;
@@ -31,6 +33,12 @@ struct solver_info
 	double max_time;
 };
 
+struct mpi_task_solver_cnf
+{
+	string solver_name;
+	string cnf_name;
+};
+
 bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxtime_seconds, 
 	                  std::string maxtime_seconds_str);
 std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string solver_name,
@@ -38,6 +46,7 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 std::string get_post_cnf_solver_params_str(std::string solver_name);
 void getDataFromSmacValidation(std::vector<std::string> &unsolved_instances, std::vector<std::string> &solved_instances);
 bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir, double maxtime_seconds);
+void SendTask(mpi_task_solver_cnf cur_task, unsigned i, int computing_process);
 bool computingProcess(int rank);
 //int callMultithreadSolver(int rank, std::string cnf_instance_name);
 bool isSkipUnusefulSolver(std::string solver_name);
@@ -60,7 +69,7 @@ int main( int argc, char **argv )
 	std::string maxtime_seconds_str;
 	if ( argc == 3 ) {
 		maxtime_seconds_str = "600"; 
-		std::cout << "maxtime_seconds was set to default == 600 seconds" << std::endl;
+		std::cout << "maxtime_seconds was set to default value of 600 seconds" << std::endl;
 	} else
 		maxtime_seconds_str = argv[3];
 
@@ -298,26 +307,41 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 
 bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir, double maxtime_seconds)
 {
+#ifdef _MPI
+	cout << "control MPI process" << endl;
 	std::cout << "solvers_dir " << solvers_dir << std::endl;
 	std::cout << "cnfs_dir " << cnfs_dir << std::endl;
 	std::cout << "maxtime_seconds " << maxtime_seconds << std::endl;
 
 	std::string system_str, cur_process_dir_name;
-	std::cout << "Start of the control process" << std::endl;
 
-#ifdef _MPI
 	double control_process_solving_time = MPI_Wtime();
-	unsigned interrupted = 0;
-	
-	// make list of tasks from SMAC output
+	std::vector<std::string> solver_files_names = std::vector<std::string>();
+	std::vector<std::string> cnf_files_names = std::vector<std::string>();
+
 	std::vector<std::string> unsolved_instances_names, solved_instances;
-	//getDataFromSmacValidation(unsolved_instances_names, solved_instances);
-	//unsolved_instances_names = solved_instances; // hack to solve already solved
-	//for ( auto &x : solved_instances ) unsolved_instances_names.push_back(x); // hack to solve all instances
-	//sort(unsolved_instances_names.begin(), unsolved_instances_names.end()); // hack to solve all instances
-	//std::cout << "unsolved_instances_names.size() " << unsolved_instances_names.size() << std::endl;
-	unsigned tasks = unsolved_instances_names.size();
-	std::cout << "tasks_number " << tasks << std::endl;
+	if (!Addit_func::getdir(cnfs_dir, cnf_files_names)) { return false; };
+	if (!Addit_func::getdir(solvers_dir, solver_files_names)) { return false; }
+	sort(solver_files_names.begin(), solver_files_names.end());
+	sort(cnf_files_names.begin(), cnf_files_names.end());
+
+	std::cout << std::endl << "solver_files_names :" << std::endl;
+	for (std::vector<std::string> ::iterator it = solver_files_names.begin(); it != solver_files_names.end(); it++)
+		std::cout << *it << std::endl;
+	std::cout << std::endl << "cnf_files_names :" << std::endl;
+	for (std::vector<std::string> ::iterator it = cnf_files_names.begin(); it != cnf_files_names.end(); it++)
+		std::cout << *it << std::endl;
+
+	vector<mpi_task_solver_cnf> tasks_vec;
+	mpi_task_solver_cnf cur_task;
+	for (auto &x : solver_files)
+		for (auto &y : cnf_files_names) {
+			cur_task.solver_name = x;
+			cur_task.cnf_name = y;
+			tasks_vec.push_back(cur_task);
+		}
+	cout << "tasks_vec.size() " << tasks_vec.size() << endl;
+	
 	int sent_tasks = 0, solved_tasks = 0;
 
 	std::vector<int> computing_process_vec; // vector of processes which must launch a multithread solver
@@ -329,17 +353,19 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 		for (unsigned i = 1; i < corecount; i++)
 			computing_process_vec.push_back(i);
 	}
-	
 	std::cout << "computing_process_vec " << std::endl;
 	for (auto &x : computing_process_vec)
 		std::cout << x << " ";
 	std::cout << std::endl;
-	
-	int computing_processes = computing_process_vec.size();
+	unsigned computing_processes = computing_process_vec.size();
 	std::cout << "computing_processes " << computing_processes << std::endl;
+
+	int first_send_tasks = (computing_processes < tasks_vec.size()) ? computing_processes : tasks_vec.size();
+	std::cout << "first_send_tasks " << first_send_tasks << std::endl;
 	
 	// send maxtime_seconds data once for 1 process per node
 	// for the others processes from a node send the sleep message
+	unsigned interrupted = 0;
 	double sleep_message = -1;
 	for (int i = 1; i < corecount; i++) {
 		if (std::find(computing_process_vec.begin(), computing_process_vec.end(), i) != computing_process_vec.end())
@@ -348,26 +374,9 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 			MPI_Send(&sleep_message, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD); // process for sleeping
 	}
 	
-	int first_send_tasks = (computing_processes < tasks) ? computing_processes : tasks;
-	std::cout << "first_send_tasks " << first_send_tasks << std::endl;
-	int cur_cnf_instance_name_char_arr_len = 0;
-	char *cur_cnf_instance_name_char_arr;
-
 	// send first part of tasks
-	for (int i = 0; i < first_send_tasks; i++) {
-		MPI_Send(&i, 1, MPI_INT, computing_process_vec[i], 0, MPI_COMM_WORLD);
-		std::cout << "Sending sent_tasks " << i << std::endl;
-		cur_cnf_instance_name_char_arr_len = unsolved_instances_names[i].size();
-		MPI_Send(&cur_cnf_instance_name_char_arr_len, 1, MPI_INT, computing_process_vec[i], 0, MPI_COMM_WORLD);
-		std::cout << "Sending cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr_len << std::endl;
-		cur_cnf_instance_name_char_arr = new char[cur_cnf_instance_name_char_arr_len+1];
-		cur_cnf_instance_name_char_arr[cur_cnf_instance_name_char_arr_len] = NULL;
-		for (unsigned j = 0; j < cur_cnf_instance_name_char_arr_len; j++)
-			cur_cnf_instance_name_char_arr[j] = unsolved_instances_names[i][j];
-		MPI_Send(cur_cnf_instance_name_char_arr, cur_cnf_instance_name_char_arr_len+1, MPI_CHAR, computing_process_vec[i], 0, MPI_COMM_WORLD);
-		std::cout << "Sending cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr << std::endl;
-		delete[] cur_cnf_instance_name_char_arr;
-	}
+	for (int i = 0; i < first_send_tasks; i++)
+		SendTask(tasks_vec[i], i, computing_process_vec[i]);
 	sent_tasks = first_send_tasks;
 	
 	MPI_Status status;
@@ -375,9 +384,8 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	int process_task_index;
 	std::vector<double> process_solving_time_vec;
 	std::vector<int> result_vec;
-	process_solving_time_vec.resize(tasks);
-	result_vec.resize(tasks);
-	process_solving_time_vec.resize(tasks);
+	process_solving_time_vec.resize(tasks_vec.size());
+	result_vec.resize(tasks_vec.size());
 	for (auto &x : process_solving_time_vec)
 		x = -1;
 	for (auto &x : result_vec)
@@ -402,20 +410,9 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 		if (interrupted)
 			std::cout << "interrupted " << solved_tasks << std::endl;
 		
-		if (sent_tasks < tasks) {
+		if (sent_tasks < tasks_vec.size()) {
 			// send a new task if one exists
-			MPI_Send(&sent_tasks, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
-			std::cout << "Sending sent_tasks " << sent_tasks << std::endl;
-			cur_cnf_instance_name_char_arr_len = unsolved_instances_names[sent_tasks].size();
-			MPI_Send(&cur_cnf_instance_name_char_arr_len, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
-			std::cout << "Sending cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr_len << std::endl;
-			cur_cnf_instance_name_char_arr = new char[cur_cnf_instance_name_char_arr_len + 1];
-			cur_cnf_instance_name_char_arr[cur_cnf_instance_name_char_arr_len] = NULL;
-			for (unsigned j = 0; j < cur_cnf_instance_name_char_arr_len; j++)
-				cur_cnf_instance_name_char_arr[j] = unsolved_instances_names[sent_tasks][j];
-			MPI_Send(cur_cnf_instance_name_char_arr, cur_cnf_instance_name_char_arr_len + 1, MPI_CHAR, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
-			std::cout << "Sending cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr << std::endl;
-			delete[] cur_cnf_instance_name_char_arr;
+			SendTask(tasks_vec[sent_tasks], sent_tasks, status.MPI_SOURCE);
 			sent_tasks++;
 			std::cout << "sent_tasks " << sent_tasks << std::endl;
 		}
@@ -462,6 +459,41 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	MPI_Finalize();
 #endif
 	return true;
+}
+
+void SendTask(mpi_task_solver_cnf cur_task, unsigned i, int computing_process)
+{
+#ifdef _MPI
+	MPI_Send(&i, 1, MPI_INT, computing_process, 0, MPI_COMM_WORLD);
+
+	int cur_cnf_instance_name_char_arr_len = 0;
+	int cur_solver_name_char_arr_len = 0;
+	char *cur_cnf_instance_name_char_arr;
+	char *cur_solver_name_char_arr;
+
+	std::cout << "Sending task " << i << std::endl;
+	cur_cnf_instance_name_char_arr_len = cur_task.cnf_name.size();
+	MPI_Send(&cur_cnf_instance_name_char_arr_len, 1, MPI_INT, computing_process, 0, MPI_COMM_WORLD);
+	std::cout << "Sending cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr_len << std::endl;
+	cur_cnf_instance_name_char_arr = new char[cur_cnf_instance_name_char_arr_len + 1];
+	cur_cnf_instance_name_char_arr[cur_cnf_instance_name_char_arr_len] = NULL;
+	for (unsigned j = 0; j < cur_cnf_instance_name_char_arr_len; j++)
+		cur_cnf_instance_name_char_arr[j] = cur_task.cnf_name[j];
+	MPI_Send(cur_cnf_instance_name_char_arr, cur_cnf_instance_name_char_arr_len + 1, MPI_CHAR, computing_process, 0, MPI_COMM_WORLD);
+	std::cout << "Sending cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr << std::endl;
+	delete[] cur_cnf_instance_name_char_arr;
+
+	cur_solver_name_char_arr_len = cur_task.solver_name.size();
+	MPI_Send(&cur_solver_name_char_arr_len, 1, MPI_INT, computing_process, 0, MPI_COMM_WORLD);
+	std::cout << "Sending cur_solver_name_char_arr_len " << cur_solver_name_char_arr_len << std::endl;
+	cur_solver_name_char_arr = new char[cur_solver_name_char_arr_len + 1];
+	cur_solver_name_char_arr[cur_solver_name_char_arr_len] = NULL;
+	for (unsigned j = 0; j < cur_solver_name_char_arr_len; j++)
+		cur_solver_name_char_arr[j] = cur_task.solver_name[j];
+	MPI_Send(cur_solver_name_char_arr, cur_solver_name_char_arr_len + 1, MPI_CHAR, computing_process, 0, MPI_COMM_WORLD);
+	std::cout << "Sending cur_solver_name_char_arr_len " << cur_solver_name_char_arr << std::endl;
+	delete[] cur_solver_name_char_arr;
+#endif
 }
 
 bool computingProcess(int rank)
