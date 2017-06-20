@@ -13,15 +13,18 @@
 #include <thread>
 #include <chrono>
 #include <algorithm>
+#include <stdexcept>
+
 #include "addit_func.h"
 
 using namespace std;
 
-std::string basic_cnf_dir_name = "/home/ozaikin/cssc14_environment/instances/Sat_Data/k_num_6_first80vars_1000sec/";
 const unsigned CORES_PER_NODE = 36;
 const int SAT = 1;
 const int UNSAT = 2;
 const int UNKNOWN = 3;
+const int STOP_MESSAGE = -1;
+const double SLEEP_MESSAGE = -2;
 
 using namespace Addit_func;
 
@@ -41,19 +44,18 @@ struct mpi_task_solver_cnf
 
 bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxtime_seconds, 
 	                  std::string maxtime_seconds_str);
+int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, string cnf_name, string maxtime_seconds_str, string nof_threads_str);
 std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string solver_name,
 	std::string maxtime_seconds_str, std::string nof_threads_str);
 std::string get_post_cnf_solver_params_str(std::string solver_name);
-void getDataFromSmacValidation(std::vector<std::string> &unsolved_instances, std::vector<std::string> &solved_instances);
 bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir, double maxtime_seconds);
-void SendTask(mpi_task_solver_cnf cur_task, unsigned i, int computing_process);
-bool computingProcess(int rank);
-//int callMultithreadSolver(int rank, std::string cnf_instance_name);
+void SendString(string string_to_send, int computing_process);
+bool computingProcess(int rank, string solvers_dir, string cnfs_dir, double maxtime_seconds);
+int callMultithreadSolver(int rank, double maxtime_seconds, string solvers_dir, string cnfs_dir, string solver_name_str, string cnf_name_str);
 bool isSkipUnusefulSolver(std::string solver_name);
 
 int main( int argc, char **argv )
 {
-	
 #ifdef _DEBUG
 	argc = 3;
 	argv[1] = "solvers";
@@ -106,7 +108,7 @@ int main( int argc, char **argv )
 		if (rank == 0)
 			controlProcess(corecount, solvers_dir, cnfs_dir, maxtime_seconds);
 		else
-			computingProcess(rank);
+			computingProcess(rank, solvers_dir, cnfs_dir, maxtime_seconds);
 #endif
 	}
 	else {
@@ -122,9 +124,6 @@ int main( int argc, char **argv )
 
 bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxtime_seconds, std::string maxtime_seconds_str)
 {
-	double clock_solving_time;
-	std::string system_str, current_out_name, str;
-	unsigned copy_from, copy_to;
 	std::fstream current_out;
 	double cur_time, avg_time = 0;
 	std::stringstream sstream;
@@ -135,14 +134,17 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 	nof_threads_str = sstream.str();
 	sstream.clear(); sstream.str("");
 	std::cout << "nof_threads_str " << nof_threads_str << std::endl;
+	sstream << maxtime_seconds;
+	maxtime_seconds_str = sstream.str();
+	sstream.clear(); sstream.str("");
 
 	std::vector<std::string> solver_files_names = std::vector<std::string>();
 	std::vector<std::string> cnf_files_names = std::vector<std::string>();
 
 	if (!Addit_func::getdir(solvers_dir, solver_files_names)) { return false; }
 	if (!Addit_func::getdir(cnfs_dir, cnf_files_names)) { return false; };
-	sort(solver_files_names.begin(), solver_files_names.end());
-	sort(cnf_files_names.begin(), cnf_files_names.end());
+	std::sort(solver_files_names.begin(), solver_files_names.end());
+	std::sort(cnf_files_names.begin(), cnf_files_names.end());
 
 	std::cout << std::endl << "solver_files_names :" << std::endl;
 	for (std::vector<std::string> ::iterator it = solver_files_names.begin(); it != solver_files_names.end(); it++)
@@ -158,7 +160,6 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 	for (std::vector<unsigned> ::iterator it = sat_count_vec.begin(); it != sat_count_vec.end(); it++)
 		*it = 0;
 
-	bool isTimeStr, isSAT;
 	unsigned solved_problems_count;
 	std::vector< std::vector<std::string> > solver_cnf_times_str;
 	std::string solver_time_str;
@@ -172,77 +173,14 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 			continue;
 		}
 		for (unsigned j = 0; j < cnf_files_names.size(); j++) {
-			current_out_name = "out_" + solver_files_names[i] + "_" + cnf_files_names[j];
-			system_str = get_pre_cnf_solver_params_str(solvers_dir, solver_files_names[i], maxtime_seconds_str, nof_threads_str) +
-				" ./" + cnfs_dir + "/" + cnf_files_names[j] + get_post_cnf_solver_params_str(solver_files_names[i]);
-			std::cout << system_str << std::endl;
-			// + " &> ./" + current_out_name;
-			//std::cout << system_str << std::endl;
-			//cout << "system_result_stream" << endl;
-			//cout << system_result_stream.str() << endl;
-			//system( system_str.c_str( ) );
-			current_out.open(current_out_name.c_str(), std::ios_base::out);
 			std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-			current_out << Addit_func::exec(system_str);
+			int result = solveInstance(solvers_dir, cnfs_dir, solver_files_names[i], cnf_files_names[j], maxtime_seconds_str, nof_threads_str);
 			std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
 			std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-			clock_solving_time = time_span.count();
-			current_out.close();
-			std::cout << "clock_solving_time " << clock_solving_time << std::endl;
-
-			current_out.open(current_out_name.c_str(), std::ios_base::in);
-
-			isSAT = false;
-			cur_time = 0.0;
-			while (getline(current_out, str)) {
-				if (str.find("SATISFIABLE") != std::string::npos) {
-					isSAT = true;
-					sat_count_vec[i]++;
-					//std::cout << "SAT found" << std::endl;
-					//std::cout << "current_out_name " << current_out_name << std::endl;
-				}
-				isTimeStr = true;
-				if (str.find("CPU time") != std::string::npos) {
-					copy_from = str.find(":") + 2;
-					copy_to = str.find(" s") - 1;
-				}
-				else if ((str.find("wall clock time, ") != std::string::npos) && // treengeling format
-					(str.find("process time") != std::string::npos))
-				{
-					copy_from = str.find("wall clock time, ") + 17;
-					copy_to = str.find(" process time") - 1;
-				}
-				else if (str.find("process time") != std::string::npos) { // plingeling format
-					copy_from = str.find("c ") + 2;
-					copy_to = str.find(" process time") - 1;
-				}
-				else if ((str.find("seconds") != std::string::npos) && // lingeling format
-					(str.find("MB") != std::string::npos) &&
-					(str.size() < 30)) {
-					copy_from = str.find("c ") + 2;
-					copy_to = str.find(" seconds") - 1;
-				}
-				else if (str.find("c Running time=") != std::string::npos) { // glueSplit_clasp format
-					copy_from = str.find("c Running time=") + 15;
-					copy_to = str.size() - 1;
-				}
-				else
-					isTimeStr = false;
-				if (isTimeStr) {
-					std::cout << "time str " << str << std::endl;
-					str = str.substr(copy_from, (copy_to - copy_from + 1));
-					sstream << str;
-					sstream >> cur_time;
-					sstream.str(""); sstream.clear();
-					break;
-				}
-			}
-			current_out.close();
-
-			if (cur_time <= 0.0)
-				cur_time = clock_solving_time;
-			std::cout << "cur_time " << cur_time << std::endl;
-
+			cur_time = time_span.count();
+			if (result == SAT)
+				sat_count_vec[i]++;
+			
 			// deal only with finished calculations
 			if (cur_time < maxtime_seconds) {
 				sum_time += cur_time;
@@ -305,6 +243,90 @@ bool conseqProcessing(std::string solvers_dir, std::string cnfs_dir, double maxt
 	return true;
 }
 
+int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, string cnf_name, string maxtime_seconds_str, string nof_threads_str)
+{
+	std::string system_str, current_out_name, str;
+	unsigned copy_from, copy_to;
+	
+#ifdef _MPI
+	string cur_path = Addit_func::exec("echo $PWD");
+	cur_path.erase(std::remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
+	cur_path.erase(std::remove(cur_path.begin(), cur_path.end(), '\n'), cur_path.end());
+	current_out_name = cur_path + "/out_" + solver_name + "_" + cnf_name;
+	system_str = get_pre_cnf_solver_params_str(solvers_dir, solver_name, maxtime_seconds_str, nof_threads_str) +
+		" " + cur_path + "/" + cnfs_dir + "/" + cnf_name + get_post_cnf_solver_params_str(solver_name);
+#else
+	current_out_name = "out_" + solver_name + "_" + cnf_name;
+	system_str = get_pre_cnf_solver_params_str(solvers_dir, solver_name, maxtime_seconds_str, nof_threads_str) +
+		" ./" + cnfs_dir + "/" + cnf_name + get_post_cnf_solver_params_str(solver_name);
+#endif
+	
+	std::cout << system_str << std::endl;
+	// + " &> ./" + current_out_name;
+	//std::cout << system_str << std::endl;
+	//cout << "system_result_stream" << endl;
+	//cout << system_result_stream.str() << endl;
+	//system( system_str.c_str( ) );
+	fstream current_out; 
+	current_out.open(current_out_name.c_str(), std::ios_base::out);
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+	current_out << Addit_func::exec(system_str);
+	current_out.close();
+
+	current_out.open(current_out_name.c_str(), std::ios_base::in);
+	
+	stringstream sstream;
+	int result = UNKNOWN;
+	double cur_time = 0.0;
+	while (getline(current_out, str)) {
+		if (str.find("SATISFIABLE") != std::string::npos) {
+			result = SAT;
+			//sat_count_vec[i]++;
+			//std::cout << "SAT found" << std::endl;
+			//std::cout << "current_out_name " << current_out_name << std::endl;
+		}
+		else if (str.find("UNSAT") != std::string::npos)
+			result = UNSAT;
+		bool isTimeStr = true;
+		if (str.find("CPU time") != std::string::npos) {
+			copy_from = str.find(":") + 2;
+			copy_to = str.find(" s") - 1;
+		}
+		else if ((str.find("wall clock time, ") != std::string::npos) && // treengeling format
+			(str.find("process time") != std::string::npos))
+		{
+			copy_from = str.find("wall clock time, ") + 17;
+			copy_to = str.find(" process time") - 1;
+		}
+		else if (str.find("process time") != std::string::npos) { // plingeling format
+			copy_from = str.find("c ") + 2;
+			copy_to = str.find(" process time") - 1;
+		}
+		else if ((str.find("seconds") != std::string::npos) && // lingeling format
+			(str.find("MB") != std::string::npos) &&
+			(str.size() < 30)) {
+			copy_from = str.find("c ") + 2;
+			copy_to = str.find(" seconds") - 1;
+		}
+		else if (str.find("c Running time=") != std::string::npos) { // glueSplit_clasp format
+			copy_from = str.find("c Running time=") + 15;
+			copy_to = str.size() - 1;
+		}
+		else
+			isTimeStr = false;
+		if (isTimeStr) {
+			std::cout << "time str " << str << std::endl;
+			str = str.substr(copy_from, (copy_to - copy_from + 1));
+			sstream << str;
+			sstream >> cur_time;
+			sstream.str(""); sstream.clear();
+			break;
+		}
+	}
+	current_out.close();
+	return result;
+}
+
 bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir, double maxtime_seconds)
 {
 #ifdef _MPI
@@ -318,8 +340,15 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	double control_process_solving_time = MPI_Wtime();
 	std::vector<std::string> solver_files_names = std::vector<std::string>();
 	std::vector<std::string> cnf_files_names = std::vector<std::string>();
-
-	std::vector<std::string> unsolved_instances_names, solved_instances;
+	
+	std::vector<std::string> solved_instances;
+	string cur_path = Addit_func::exec("echo $PWD");
+	cur_path.erase(std::remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
+	cur_path.erase(std::remove(cur_path.begin(), cur_path.end(), '\n'), cur_path.end());
+	solvers_dir = cur_path + solvers_dir;
+	cout << "full solvers_dir " << solvers_dir << endl;
+	solvers_dir = cur_path + cnfs_dir;
+	cout << "full cnfs_dir " << cnfs_dir << endl;
 	if (!Addit_func::getdir(cnfs_dir, cnf_files_names)) { return false; };
 	if (!Addit_func::getdir(solvers_dir, solver_files_names)) { return false; }
 	sort(solver_files_names.begin(), solver_files_names.end());
@@ -334,7 +363,7 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 
 	vector<mpi_task_solver_cnf> tasks_vec;
 	mpi_task_solver_cnf cur_task;
-	for (auto &x : solver_files)
+	for (auto &x : solver_files_names)
 		for (auto &y : cnf_files_names) {
 			cur_task.solver_name = x;
 			cur_task.cnf_name = y;
@@ -366,17 +395,23 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	// send maxtime_seconds data once for 1 process per node
 	// for the others processes from a node send the sleep message
 	unsigned interrupted = 0;
-	double sleep_message = -1;
+	double one_d = 1;
 	for (int i = 1; i < corecount; i++) {
 		if (std::find(computing_process_vec.begin(), computing_process_vec.end(), i) != computing_process_vec.end())
-			MPI_Send(&maxtime_seconds, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD); // process for solver launching
+			MPI_Send(&one_d, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
 		else
-			MPI_Send(&sleep_message, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD); // process for sleeping
+			MPI_Send(&SLEEP_MESSAGE, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD); // process for sleeping
 	}
 	
 	// send first part of tasks
-	for (int i = 0; i < first_send_tasks; i++)
-		SendTask(tasks_vec[i], i, computing_process_vec[i]);
+	for (int i = 0; i < first_send_tasks; i++) {
+		cout << "Sending task " << i << endl;
+		MPI_Send(&i, 1, MPI_INT, computing_process_vec[i], 0, MPI_COMM_WORLD);
+		cout << "Sending solver_name " << tasks_vec[i].solver_name << endl;
+		SendString(tasks_vec[i].solver_name, computing_process_vec[i]);
+		cout << "Sending cnf_name " << tasks_vec[i].cnf_name << endl;
+		SendString(tasks_vec[i].cnf_name, computing_process_vec[i]);
+	}
 	sent_tasks = first_send_tasks;
 	
 	MPI_Status status;
@@ -392,9 +427,8 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 		x = UNKNOWN;
 	std::ofstream ofile;
 	int result;
-	int stop_message = -1;
 
-	while (solved_tasks < tasks) {
+	while (solved_tasks < tasks_vec.size()) {
 		MPI_Recv(&process_task_index, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		std::cout << "Recieved process_task_index " << process_task_index << std::endl;
 		MPI_Recv(&process_solving_time, 1, MPI_DOUBLE, status.MPI_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
@@ -412,21 +446,28 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 		
 		if (sent_tasks < tasks_vec.size()) {
 			// send a new task if one exists
-			SendTask(tasks_vec[sent_tasks], sent_tasks, status.MPI_SOURCE);
+			cout << "Sending task " << sent_tasks << endl;
+			MPI_Send(&sent_tasks, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+			cout << "Sending solver_name " << tasks_vec[sent_tasks].solver_name << endl;
+			SendString(tasks_vec[sent_tasks].solver_name, status.MPI_SOURCE);
+			cout << "Sending cnf_name " << tasks_vec[sent_tasks].cnf_name << endl;
+			SendString(tasks_vec[sent_tasks].cnf_name, status.MPI_SOURCE);
 			sent_tasks++;
 			std::cout << "sent_tasks " << sent_tasks << std::endl;
 		}
 		else {
 			// no new tasks, tell computing process to free its resources
-			MPI_Send(&stop_message, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+			MPI_Send(&STOP_MESSAGE, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
 			std::cout << "stop-message has been sent to computing process " << status.MPI_SOURCE << std::endl;
 		}
 		
 		ofile.open("testing_sat_solvers_out", std::ios_base::out);
 		ofile << "instance result time" << std::endl;
-		for (int i = 0; i < tasks; i++)
-			ofile << unsolved_instances_names[i] << " " << result_vec[i] 
-			      << " " <<  process_solving_time_vec[i] << std::endl;
+		for (int i = 0; i < tasks_vec.size(); i++)
+			ofile << tasks_vec[i].solver_name << " " 
+			      << tasks_vec[i].cnf_name << " " 
+			      << result_vec[i] << " " 
+			      << process_solving_time_vec[i] << std::endl;
 		ofile.close(); ofile.clear();
 	}
 	
@@ -461,90 +502,83 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	return true;
 }
 
-void SendTask(mpi_task_solver_cnf cur_task, unsigned i, int computing_process)
+void SendString(string string_to_send, int computing_process)
 {
 #ifdef _MPI
-	MPI_Send(&i, 1, MPI_INT, computing_process, 0, MPI_COMM_WORLD);
+	int char_arr_len = string_to_send.size();
+	char *char_arr;
 
-	int cur_cnf_instance_name_char_arr_len = 0;
-	int cur_solver_name_char_arr_len = 0;
-	char *cur_cnf_instance_name_char_arr;
-	char *cur_solver_name_char_arr;
-
-	std::cout << "Sending task " << i << std::endl;
-	cur_cnf_instance_name_char_arr_len = cur_task.cnf_name.size();
-	MPI_Send(&cur_cnf_instance_name_char_arr_len, 1, MPI_INT, computing_process, 0, MPI_COMM_WORLD);
-	std::cout << "Sending cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr_len << std::endl;
-	cur_cnf_instance_name_char_arr = new char[cur_cnf_instance_name_char_arr_len + 1];
-	cur_cnf_instance_name_char_arr[cur_cnf_instance_name_char_arr_len] = NULL;
-	for (unsigned j = 0; j < cur_cnf_instance_name_char_arr_len; j++)
-		cur_cnf_instance_name_char_arr[j] = cur_task.cnf_name[j];
-	MPI_Send(cur_cnf_instance_name_char_arr, cur_cnf_instance_name_char_arr_len + 1, MPI_CHAR, computing_process, 0, MPI_COMM_WORLD);
-	std::cout << "Sending cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr << std::endl;
-	delete[] cur_cnf_instance_name_char_arr;
-
-	cur_solver_name_char_arr_len = cur_task.solver_name.size();
-	MPI_Send(&cur_solver_name_char_arr_len, 1, MPI_INT, computing_process, 0, MPI_COMM_WORLD);
-	std::cout << "Sending cur_solver_name_char_arr_len " << cur_solver_name_char_arr_len << std::endl;
-	cur_solver_name_char_arr = new char[cur_solver_name_char_arr_len + 1];
-	cur_solver_name_char_arr[cur_solver_name_char_arr_len] = NULL;
-	for (unsigned j = 0; j < cur_solver_name_char_arr_len; j++)
-		cur_solver_name_char_arr[j] = cur_task.solver_name[j];
-	MPI_Send(cur_solver_name_char_arr, cur_solver_name_char_arr_len + 1, MPI_CHAR, computing_process, 0, MPI_COMM_WORLD);
-	std::cout << "Sending cur_solver_name_char_arr_len " << cur_solver_name_char_arr << std::endl;
-	delete[] cur_solver_name_char_arr;
+	std::cout << "Sending char_arr_len " << char_arr_len << std::endl;
+	MPI_Send(&char_arr_len, 1, MPI_INT, computing_process, 0, MPI_COMM_WORLD);
+	char_arr = new char[char_arr_len + 1];
+	char_arr[char_arr_len] = NULL;
+	for (unsigned j = 0; j < char_arr_len; j++)
+		char_arr[j] = string_to_send[j];
+	std::cout << "Sending char_arr " << char_arr << std::endl;
+	MPI_Send(char_arr, char_arr_len + 1, MPI_CHAR, computing_process, 0, MPI_COMM_WORLD);
+	delete[] char_arr;
 #endif
 }
 
-bool computingProcess(int rank)
+bool computingProcess(int rank, string solvers_dir, string cnfs_dir, double maxtime_seconds)
 {
 #ifdef _MPI
 	MPI_Status status;
 	int process_task_index;
 	double process_solving_time = 0;
 	std::string cnf_instance_name;
-	double maxtime_seconds = 0;
-	int cur_cnf_instance_name_char_arr_len = 0;
-	char *cur_cnf_instance_name_char_arr;
-	std::string cur_cnf_instance_name_str;
-	double sleep_message = -1;
-
+	int cnf_name_char_arr_len = 0;
+	char *cnf_name_char_arr;
+	int solver_name_char_arr_len = 0;
+	char *solver_name_char_arr;
+	int first_message;
+	
 	// get maxtime_seconds once
-	MPI_Recv(&maxtime_seconds, 1, MPI_DOUBLE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+	MPI_Recv(&first_message, 1, MPI_DOUBLE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
 	if (rank == 1)
-		std::cout << "Recevied maxtime_seconds " << maxtime_seconds << std::endl;
+		cout << "Recevied maxtime_seconds " << maxtime_seconds << std::endl;
 	
 	// sleep and let other process from the node to launch multithread solver
-	if (maxtime_seconds == sleep_message) {
-		//std::cout << "rank " << rank << " starts sleeping" << std::endl;
+	if (first_message == SLEEP_MESSAGE) {
+		cout << "computing process " << rank << " starts to sleep" << endl;
 		sleep(604800);
 	}
+	
 	int result;
-	int stop_message = -1;
 	
 	for (;;) {
 		MPI_Recv(&process_task_index, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		if (rank == 1)
-			std::cout << "Received process_task_index " << process_task_index << std::endl;
-		if (process_task_index == stop_message) {
-			std::cout << "Received stop message on computing process " << rank << std::endl;
+			cout << "Received process_task_index " << process_task_index << endl;
+		if (process_task_index == STOP_MESSAGE) {
+			cout << "Received stop message on computing process " << rank << endl;
 			break;
 		}
-		MPI_Recv(&cur_cnf_instance_name_char_arr_len, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		MPI_Recv(&cnf_name_char_arr_len, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		if (rank == 1)
-			std::cout << "cur_cnf_instance_name_char_arr_len " << cur_cnf_instance_name_char_arr_len << std::endl;
-		cur_cnf_instance_name_char_arr = new char[cur_cnf_instance_name_char_arr_len + 1];
-		MPI_Recv(cur_cnf_instance_name_char_arr, cur_cnf_instance_name_char_arr_len + 1,
+			cout << "cnf_name_char_arr_len " << cnf_name_char_arr_len << endl;
+		cnf_name_char_arr = new char[cnf_name_char_arr_len + 1];
+		MPI_Recv(cnf_name_char_arr, cnf_name_char_arr_len + 1,
 			MPI_CHAR, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-		cur_cnf_instance_name_str = cur_cnf_instance_name_char_arr;
-		delete[] cur_cnf_instance_name_char_arr;
+		string cnf_name_str = cnf_name_char_arr;
+		delete[] cnf_name_char_arr;
 		if (rank == 1)
-			std::cout << "Received cur_cnf_instance_name_str " << cur_cnf_instance_name_str << std::endl;
+			cout << "Received cnf_name_str " << cnf_name_str << endl;
+		MPI_Recv(&solver_name_char_arr_len, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		if (rank == 1)
+			cout << "solver_name_char_arr_len " << solver_name_char_arr_len << endl;
+		solver_name_char_arr = new char[solver_name_char_arr_len + 1];
+		MPI_Recv(solver_name_char_arr, solver_name_char_arr_len + 1,
+			MPI_CHAR, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		string solver_name_str = solver_name_char_arr;
+		delete[] solver_name_char_arr;
+		if (rank == 1)
+			cout << "Received solver_name_str " << solver_name_str << endl;
 
 		process_solving_time = MPI_Wtime();
 		// solving with received Tfact
-		//result = callMultithreadSolver(rank, cur_cnf_instance_name_str);
+		result = callMultithreadSolver(rank, maxtime_seconds, solvers_dir, cnfs_dir, solver_name_str, cnf_name_str);
 		process_solving_time = MPI_Wtime() - process_solving_time;
 
 		MPI_Send(&process_task_index,   1, MPI_INT,    0, 0, MPI_COMM_WORLD);
@@ -556,62 +590,23 @@ bool computingProcess(int rank)
 	return true;
 }
 
-void getDataFromSmacValidation(	std::vector<std::string> &unsolved_instances, std::vector<std::string> &solved_instances)
+int callMultithreadSolver( int rank, 
+	                       double maxtime_seconds, 
+	                       string solvers_dir, 
+	                       string cnfs_dir, 
+	                       string solver_name_str, 
+	                       string cnf_name_str)
 {
-	std::string smac_validation_file_name = "validationResultsMatrix-tunertime-run0.csv";
-	std::ifstream smac_validation_file(smac_validation_file_name.c_str());
-
-	std::string str;
-	int index_from = -1, index_to = -1;
-	unsigned value_count;
-	std::vector<double> solved_instances_time;
-	std::string cur_value_str, instance_name, obj_str, time_str;
-	double time_value;
-	while (getline(smac_validation_file, str)) {
-		if (str.find("Objective") != std::string::npos)
-			continue;
-		value_count = 0;
-		for (unsigned i = 0; i < str.size(); i++) {
-			if (str[i] == '\"') {
-				if ((i < str.size() - 1) && (index_from == -1))
-					index_from = i + 1;
-				else if (index_to == -1) {
-					index_to = i - 1;
-					cur_value_str = str.substr(index_from, index_to - index_from + 1);
-					switch (value_count) {
-					case 1: instance_name = cur_value_str;
-					case 2: obj_str = cur_value_str;
-					case 3: time_str = cur_value_str;
-					}
-					value_count++;
-					index_from = -1; // reset indexes
-					index_to = -1;
-				}
-			}
-		}
-		for (unsigned j = instance_name.size() - 1; j>0; j--)
-			if (instance_name[j] == '/') {
-				instance_name = instance_name.substr(j + 1, instance_name.size() - j);
-				break;
-			}
-		if (obj_str == time_str) {
-			std::istringstream(time_str) >> time_value;
-			solved_instances_time.push_back(time_value);
-			solved_instances.push_back(instance_name);
-		}
-		else 
-			unsolved_instances.push_back(instance_name);
-	}
-	smac_validation_file.close();
-
-	double min = 1e50, max = 0, med = -1, sum = 0;
-	for (auto &x : solved_instances_time) {
-		if (x < min) min = x;
-		if (x > max) max = x;
-		sum += x;
-	}
-	if (solved_instances_time.size() > 0)
-		med = sum / solved_instances_time.size();
+	string maxtime_seconds_str;
+	stringstream sstream;
+	sstream << maxtime_seconds;
+	maxtime_seconds_str = sstream.str();
+	sstream.str(""); sstream.clear();
+	sstream << CORES_PER_NODE;
+	string nof_threads_str = sstream.str();
+	sstream.str(""); sstream.clear();
+	int result = solveInstance(solvers_dir, cnfs_dir, solver_name_str, cnf_name_str, maxtime_seconds_str, nof_threads_str);
+	return result;
 }
 
 std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string solver_name,
@@ -647,21 +642,21 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 	//	solver_params_str += maxtime_seconds_str;
 	
 	if ((solver_name.find("plingeling") != std::string::npos) ||
-		(solver_name.find("treengeling") != std::string::npos)) {
-#ifdef _MPI
-		solver_params_str += " -t " + CORES_PER_NODE;
-#else
+		(solver_name.find("treengeling") != std::string::npos))
 		solver_params_str += " -t " + nof_threads_str;
-#endif
-	}
 	else if (solver_name.find("cryptominisat_parallel") != std::string::npos)
 		solver_params_str += "--threads=" + nof_threads_str;
 
-	result_str = "./" + solvers_dir + "/" + solver_name + " " + solver_params_str;
-	
-	//std::cout << "unknown solver detected. using timelimit" << std::endl;
+#ifdef _MPI
+	string cur_path = Addit_func::exec("echo $PWD");
+	cur_path.erase(std::remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
+	cur_path.erase(std::remove(cur_path.begin(), cur_path.end(), '\n'), cur_path.end());
+	result_str = cur_path + "/timelimit -t " + maxtime_seconds_str + " -T 1 " + cur_path + "/" +
+		solvers_dir + "/" + solver_name;
+#else
 	result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" +
-			solvers_dir + "/" + solver_name;
+		solvers_dir + "/" + solver_name;
+#endif
 
 	if (solver_params_str != "")
 		result_str += solver_params_str;
