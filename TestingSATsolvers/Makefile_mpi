@@ -1,4 +1,4 @@
-CPP = mpiicpc
+CPP = mpicxx
 INC1 = ../../
 INC2 = ../../pdsat/src_common/
 INCDIRS = -I${INC1} -I${INC2}
