@@ -64,7 +64,7 @@ int main( int argc, char **argv )
 #endif
 	
 	if ( argc < 3 ) {
-		std::cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem] [-mpi]" << std::endl;
+		std::cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem]" << std::endl;
 		return 1;
 	}
 
@@ -88,36 +88,25 @@ int main( int argc, char **argv )
 	pos = cnfs_dir.find(str_to_remove);
 	if (pos != std::string::npos)
 		cnfs_dir.erase(pos, str_to_remove.length());
-
-	bool isMPI = false;
-	std::string str;
-	if (argc == 4) {
-		str = argv[3];
-		if (str == "-mpi")
-			isMPI = true;
-	}
-	
-	if (isMPI) {
-		std::cout << "MPI mode " << std::endl;
+		
 #ifdef _MPI
-		int rank, corecount;
-		MPI_Init(&argc, &argv);
-		MPI_Comm_size(MPI_COMM_WORLD, &corecount);
-		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	std::cout << "MPI mode " << std::endl;
+	int rank, corecount;
+	MPI_Init(&argc, &argv);
+	MPI_Comm_size(MPI_COMM_WORLD, &corecount);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-		if (rank == 0)
-			controlProcess(corecount, solvers_dir, cnfs_dir, maxtime_seconds);
-		else
-			computingProcess(rank, solvers_dir, cnfs_dir, maxtime_seconds);
+	if (rank == 0)
+		controlProcess(corecount, solvers_dir, cnfs_dir, maxtime_seconds);
+	else
+		computingProcess(rank, solvers_dir, cnfs_dir, maxtime_seconds);
+#else
+	std::cout << "Conseq mode " << std::endl;
+	std::cout << "solvers_dir " << solvers_dir << std::endl;
+	std::cout << "cnfs_dir " << cnfs_dir << std::endl;
+	std::cout << "maxtime_seconds " << maxtime_seconds_str << std::endl;
+	conseqProcessing(solvers_dir, cnfs_dir, maxtime_seconds, maxtime_seconds_str);
 #endif
-	}
-	else {
-		std::cout << "Conseq mode " << std::endl;
-		std::cout << "solvers_dir " << solvers_dir << std::endl;
-		std::cout << "cnfs_dir " << cnfs_dir << std::endl;
-		std::cout << "maxtime_seconds " << maxtime_seconds_str << std::endl;
-		conseqProcessing(solvers_dir, cnfs_dir, maxtime_seconds, maxtime_seconds_str);
-	}
 	
 	return 0;
 }
@@ -345,9 +334,9 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	string cur_path = Addit_func::exec("echo $PWD");
 	cur_path.erase(std::remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
 	cur_path.erase(std::remove(cur_path.begin(), cur_path.end(), '\n'), cur_path.end());
-	solvers_dir = cur_path + solvers_dir;
+	solvers_dir = cur_path + "/" + solvers_dir;
 	cout << "full solvers_dir " << solvers_dir << endl;
-	solvers_dir = cur_path + cnfs_dir;
+	cnfs_dir = cur_path + "/" + cnfs_dir;
 	cout << "full cnfs_dir " << cnfs_dir << endl;
 	if (!Addit_func::getdir(cnfs_dir, cnf_files_names)) { return false; };
 	if (!Addit_func::getdir(solvers_dir, solver_files_names)) { return false; }
@@ -387,7 +376,6 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 		std::cout << x << " ";
 	std::cout << std::endl;
 	unsigned computing_processes = computing_process_vec.size();
-	std::cout << "computing_processes " << computing_processes << std::endl;
 
 	int first_send_tasks = (computing_processes < tasks_vec.size()) ? computing_processes : tasks_vec.size();
 	std::cout << "first_send_tasks " << first_send_tasks << std::endl;
@@ -399,8 +387,10 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	for (int i = 1; i < corecount; i++) {
 		if (std::find(computing_process_vec.begin(), computing_process_vec.end(), i) != computing_process_vec.end())
 			MPI_Send(&one_d, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
-		else
+		else {
 			MPI_Send(&SLEEP_MESSAGE, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD); // process for sleeping
+			cout << "sleep-message was sent to the computing process " << i << endl;
+		}
 	}
 	
 	// send first part of tasks
@@ -555,6 +545,14 @@ bool computingProcess(int rank, string solvers_dir, string cnfs_dir, double maxt
 			cout << "Received stop message on computing process " << rank << endl;
 			break;
 		}
+		MPI_Recv(&solver_name_char_arr_len, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		if (rank == 1)
+			cout << "solver_name_char_arr_len " << solver_name_char_arr_len << endl;
+		solver_name_char_arr = new char[solver_name_char_arr_len + 1];
+		MPI_Recv(solver_name_char_arr, solver_name_char_arr_len + 1,
+			MPI_CHAR, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		string solver_name_str = solver_name_char_arr;
+		delete[] solver_name_char_arr;
 		MPI_Recv(&cnf_name_char_arr_len, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		if (rank == 1)
 			cout << "cnf_name_char_arr_len " << cnf_name_char_arr_len << endl;
@@ -565,17 +563,9 @@ bool computingProcess(int rank, string solvers_dir, string cnfs_dir, double maxt
 		delete[] cnf_name_char_arr;
 		if (rank == 1)
 			cout << "Received cnf_name_str " << cnf_name_str << endl;
-		MPI_Recv(&solver_name_char_arr_len, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-		if (rank == 1)
-			cout << "solver_name_char_arr_len " << solver_name_char_arr_len << endl;
-		solver_name_char_arr = new char[solver_name_char_arr_len + 1];
-		MPI_Recv(solver_name_char_arr, solver_name_char_arr_len + 1,
-			MPI_CHAR, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-		string solver_name_str = solver_name_char_arr;
-		delete[] solver_name_char_arr;
 		if (rank == 1)
 			cout << "Received solver_name_str " << solver_name_str << endl;
-
+		
 		process_solving_time = MPI_Wtime();
 		// solving with received Tfact
 		result = callMultithreadSolver(rank, maxtime_seconds, solvers_dir, cnfs_dir, solver_name_str, cnf_name_str);
