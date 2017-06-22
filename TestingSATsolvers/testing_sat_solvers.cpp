@@ -487,6 +487,7 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	std::cout << "sat_count " << sat_count << std::endl;
 	std::cout << "unsat_count " << unsat_count << std::endl;
 	std::cout << "unknown_count " << unknown_count << std::endl;
+	MPI_Abort(MPI_COMM_WORLD, 0);
 	MPI_Finalize();
 #endif
 	return true;
