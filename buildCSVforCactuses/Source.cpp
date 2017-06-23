@@ -5,48 +5,65 @@
 #include <ctime>
 #include <vector>
 
+using namespace std;
+
 int main(int argc, char** argv)
 {
-	std::vector<std::string> files_names;
-	files_names.push_back("*out_total_eva500a_geffe96_cnfs_2rail");
-	files_names.push_back("*out_total_mscg15a_geffe96_cnfs_2rail");
-	files_names.push_back("*out_total_mscg15b_geffe96_cnfs_2rail");
-	files_names.push_back("*out_total_open-wbo16_geffe96_cnfs_2rail");
-	files_names.push_back("*out_total_wpm3-2015-co_geffe96_cnfs_2rail");
-
+	string file_name = "testing_sat_solvers_out";
 	
-	std::vector<std::vector<double>> values_vec_vec;
-	std::vector<std::string> cnfs_names;
-	std::string str, word1;
-	std::stringstream sstream;
-	for (unsigned i = 0; i < files_names.size(); i++) {
-		bool isGotFiles = true;
-		if (cnfs_names.size() == 0)
-			isGotFiles = false;
-		std::ifstream ifile(files_names[i]);
-		if (ifile.is_open()) {
-			std::vector<double> cur_values_vec;
-			while (getline(ifile,str)) {
-				sstream << str;
-				double dval;
-				sstream >> word1 >> dval;
-				sstream.str("");
-				sstream.clear();
-				if (!isGotFiles)
-					cnfs_names.push_back(word1);
-				cur_values_vec.push_back(dval);
-			}
-			values_vec_vec.push_back(cur_values_vec);
+	vector<vector<double>> values_vec_vec;
+	vector<string> solvers_names;
+	vector<string> cnfs_names;
+	string str, cur_solver_name, cur_cnf_name;
+	stringstream sstream;
+	
+	ifstream ifile(file_name);
+	if (ifile.is_open()) {
+		while (getline(ifile,str)) {
+			sstream.str("");
+			sstream.clear();
+			if (str == "") 
+				continue;
+			sstream << str;
+			sstream >> cur_solver_name;
+			if (cur_solver_name == "instance")
+				continue;
+			if (std::find(solvers_names.begin(), solvers_names.end(), cur_solver_name) == solvers_names.end())
+				solvers_names.push_back(cur_solver_name);
+			sstream >> cur_cnf_name;
+			if (std::find(cnfs_names.begin(), cnfs_names.end(), cur_cnf_name) == cnfs_names.end())
+				cnfs_names.push_back(cur_cnf_name);
+			unsigned solver_index, cnf_index;
+			for (unsigned j = 0; j < solvers_names.size(); j++)
+				if (cur_solver_name == solvers_names[j]) {
+					solver_index = j;
+					break;
+				}
+			for (unsigned j = 0; j < cnfs_names.size(); j++)
+				if (cur_cnf_name == cnfs_names[j]) {
+					cnf_index = j;
+					break;
+				}
+			double dval;
+			sstream >> dval; // skip result status
+			sstream >> dval;
+			if (values_vec_vec.size() < cnf_index + 1)
+				values_vec_vec.resize(cnf_index + 1);
+			if (values_vec_vec[cnf_index].size() < solver_index + 1)
+				values_vec_vec[cnf_index].resize(solver_index + 1);
+			values_vec_vec[cnf_index][solver_index] = dval;
 		}
 	}
 
-	std::string head_str = "Instance eva500a mscg15a mscg15b open-wbo16 wpm3-2015-co";
-	std::ofstream ofile("geffe_csv");
+	std::string head_str = "Instance";
+	for (auto &x : solvers_names)
+		head_str += " " + x;
+	std::ofstream ofile("out.csv");
 	ofile << head_str << std::endl;
-	for (unsigned i=0; i < cnfs_names.size(); i++) {
-		ofile << cnfs_names[i] << " ";
-		for (unsigned j = 0; j < values_vec_vec.size(); j++)
-			ofile << values_vec_vec[j][i];
+	for (unsigned i=0; i < values_vec_vec.size(); i++) {
+		ofile << cnfs_names[i];
+		for (unsigned j = 0; j < values_vec_vec[i].size(); j++)
+			ofile << " " << values_vec_vec[i][j];
 		ofile << std::endl;
 	}
 	ofile.close();
