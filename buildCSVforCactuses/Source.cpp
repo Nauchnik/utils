@@ -9,8 +9,14 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-	string file_name = "testing_sat_solvers_out";
-	
+#ifdef _DEBUG
+	argc = 3;
+	argv[1] = "testing_sat_solvers_out";
+	argv[2] = "out.csv";
+#endif
+	string file_name = argv[1];
+	string ofile_name = argv[2];
+
 	vector<vector<double>> values_vec_vec;
 	vector<string> solvers_names;
 	vector<string> cnfs_names;
@@ -58,7 +64,7 @@ int main(int argc, char** argv)
 	std::string head_str = "Instance";
 	for (auto &x : solvers_names)
 		head_str += " " + x;
-	std::ofstream ofile("out.csv");
+	std::ofstream ofile(ofile_name);
 	ofile << head_str << std::endl;
 	for (unsigned i=0; i < values_vec_vec.size(); i++) {
 		ofile << cnfs_names[i];
