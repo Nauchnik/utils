@@ -445,11 +445,11 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 			sent_tasks++;
 			std::cout << "sent_tasks " << sent_tasks << std::endl;
 		}
-		else {
+		/*else {
 			// no new tasks, tell computing process to free its resources
 			MPI_Send(&STOP_MESSAGE, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
 			std::cout << "stop-message has been sent to computing process " << status.MPI_SOURCE << std::endl;
-		}
+		}*/ // send stop-message on all processes including sleeping ones
 		
 		ofile.open("testing_sat_solvers_out", std::ios_base::out);
 		ofile << "instance result time" << std::endl;
@@ -464,6 +464,11 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	std::cout << "End of the control process" << std::endl;
 	control_process_solving_time = MPI_Wtime() - control_process_solving_time;
 	std::cout << "control_process_solving_time " << control_process_solving_time << std::endl;
+
+	MPI_Request mpi_request;
+	cout << "sending stop-messages on all processes " << endl;
+	for (int i = 1; i < corecount; i++)
+		MPI_Isend(&STOP_MESSAGE, 1, MPI_INT, i, 0, MPI_COMM_WORLD, &mpi_request);
 	
 	double min = 1e50, max = 0, med = -1, sum = 0;
 	for (auto &x : process_solving_time_vec) {
@@ -487,7 +492,6 @@ bool controlProcess(int corecount, std::string solvers_dir, std::string cnfs_dir
 	std::cout << "sat_count " << sat_count << std::endl;
 	std::cout << "unsat_count " << unsat_count << std::endl;
 	std::cout << "unknown_count " << unknown_count << std::endl;
-	MPI_Abort(MPI_COMM_WORLD, 0);
 	MPI_Finalize();
 #endif
 	return true;
@@ -530,15 +534,27 @@ bool computingProcess(int rank, string solvers_dir, string cnfs_dir, double maxt
 	if (rank == 1)
 		cout << "Recevied maxtime_seconds " << maxtime_seconds << std::endl;
 	
+	bool isFinalize = false;
 	// sleep and let other process from the node to launch multithread solver
 	if (first_message == SLEEP_MESSAGE) {
 		cout << "computing process " << rank << " starts to sleep" << endl;
-		sleep(604800);
+		for (;;) {
+			sleep(100);
+			int iprobe_message = 0;
+			MPI_Iprobe(0, MPI_ANY_TAG, MPI_COMM_WORLD, &iprobe_message, &status);
+			if (iprobe_message) {
+				isFinalize = true;
+				cout << "Received stop message on computing process " << rank << endl;
+				break; // if any message from computing processes, catch it
+			}
+		}
 	}
 	
 	int result;
 	
 	for (;;) {
+		if (isFinalize)
+			break;
 		MPI_Recv(&process_task_index, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		if (rank == 1)
 			cout << "Received process_task_index " << process_task_index << endl;
@@ -605,22 +621,18 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 {
 	std::string solver_params_str;
 	std::string result_str;
-	//bool isTimeLimit = false;
+	bool isTimeLimit = false;
 
-	/*if ( ( (solver_name.find("minisat") != std::string::npos) ||
+	if ( ( (solver_name.find("minisat") != std::string::npos) ||
 		   (solver_name.find("rokk") != std::string::npos) ) &&
 		   (solver_name.find("cryptominisat") == std::string::npos) )
 	{
-		//std::cout << "minisat_simp detected" << std::endl;
-		solver_params_str = "-cpu-lim=";
+		solver_params_str = "-cpu-lim=" + maxtime_seconds_str;
 		isTimeLimit = true;
 	}
-	else if (solver_name.find("lingeling") != std::string::npos) {
-		solver_params_str = "-T ";
-		isTimeLimit = true;
-	}*/
+	std::cout << "isTimeLimit " << isTimeLimit << std::endl;
 	
-	if (solver_name.find("dimetheus") != std::string::npos)
+	/*if (solver_name.find("dimetheus") != std::string::npos)
 		solver_params_str += " -formula";
 	else if (solver_name.find("cvc4") != std::string::npos)
 		solver_params_str += " --smtlib-strict";
@@ -628,16 +640,14 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 		solver_params_str += " -smt";
 	else if (solver_name.find("Spear") != std::string::npos)
 		solver_params_str += " --dimacs";
-
-	//if (isTimeLimit)
-	//	solver_params_str += maxtime_seconds_str;
 	
 	if ((solver_name.find("plingeling") != std::string::npos) ||
 		(solver_name.find("treengeling") != std::string::npos))
 		solver_params_str += " -t " + nof_threads_str;
 	else if (solver_name.find("cryptominisat_parallel") != std::string::npos)
 		solver_params_str += "--threads=" + nof_threads_str;
-
+	*/
+	
 #ifdef _MPI
 	string cur_path = Addit_func::exec("echo $PWD");
 	cur_path.erase(std::remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
@@ -645,13 +655,15 @@ std::string get_pre_cnf_solver_params_str(std::string solvers_dir, std::string s
 	result_str = cur_path + "/timelimit -t " + maxtime_seconds_str + " -T 1 " + cur_path + "/" +
 		solvers_dir + "/" + solver_name;
 #else
-	result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" +
-		solvers_dir + "/" + solver_name;
+	if (!isTimeLimit) {
+		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" +
+			solvers_dir + "/" + solver_name;
+	}
+	else {
+		result_str = "./" + solvers_dir + "/" + solver_name + " " + solver_params_str;
+	}
 #endif
 
-	if (solver_params_str != "")
-		result_str += solver_params_str;
-    
 	return result_str;
 }
 
