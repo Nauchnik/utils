@@ -19,8 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{C2F91D44-1CD2-4A00-A053-FECADCD9E622}</ProjectGuid>
-    <RootNamespace>Test</RootNamespace>
+    <ProjectGuid>{8087963A-083B-4AF4-8500-8A755367E297}</ProjectGuid>
+    <RootNamespace>buildCSVforCactuses</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
