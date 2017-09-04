@@ -1,5 +1,4 @@
 Instance minisat_simp_SAT2013
-gifford_0_31.cnf 2400.11
 gifford_0_0.cnf 2400.14
 gifford_0_1.cnf 2400.15
 gifford_0_10.cnf 2400.15
@@ -25,6 +24,7 @@ gifford_0_28.cnf 2400.06
 gifford_0_29.cnf 2400.11
 gifford_0_3.cnf 2400.11
 gifford_0_30.cnf 2400.11
+gifford_0_31.cnf 2400.11
 gifford_0_32.cnf 2400.16
 gifford_0_33.cnf 2400.18
 gifford_0_34.cnf 2400.17
