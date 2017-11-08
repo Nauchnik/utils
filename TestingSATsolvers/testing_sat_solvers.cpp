@@ -42,6 +42,9 @@ struct mpi_task_solver_cnf
 	string cnf_name;
 };
 
+string max_memory_mb_str;
+double max_memory_mb;
+
 bool conseqProcessing(string solvers_dir, string cnfs_dir, double maxtime_seconds, 
 	                  string maxtime_seconds_str);
 int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, string cnf_name, string maxtime_seconds_str, string nof_threads_str);
@@ -64,19 +67,29 @@ int main( int argc, char **argv )
 #endif
 	
 	if ( argc < 3 ) {
-		cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_one_problem]" << endl;
+		cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_instance] [max_memory_mb]" << endl;
 		return 1;
 	}
-
+	
 	string maxtime_seconds_str;
-	if ( argc == 3 ) {
+	if ( argc <= 3 ) {
 		maxtime_seconds_str = "600"; 
-		cout << "maxtime_seconds was set to default value of 600 seconds" << endl;
+		cout << "maxtime_seconds was set to the default value of 600 seconds" << endl;
 	} else
 		maxtime_seconds_str = argv[3];
-
-	double maxtime_seconds; 
+	double maxtime_seconds;
 	istringstream(maxtime_seconds_str) >> maxtime_seconds;
+	cout << "maxtime_seconds " << maxtime_seconds << endl;
+
+	if (argc <= 4) {
+		max_memory_mb_str = "65536";
+		cout << "max_memory_mb was set to the default value of 65536 mb" << endl;
+	}
+	else
+		max_memory_mb_str = argv[4];
+
+	istringstream(max_memory_mb_str) >> max_memory_mb;
+	cout << "max_memory_mb " << max_memory_mb << endl;
 
 	string solvers_dir, cnfs_dir;
 	solvers_dir = argv[1];
@@ -632,28 +645,34 @@ string get_pre_cnf_solver_params_str(string solvers_dir, string solver_name,
 	}
 	cout << "isTimeLimit " << isTimeLimit << endl;
 	
-	/*if (solver_name.find("dimetheus") != string::npos)
-		solver_params_str += " -formula";
-	else if (solver_name.find("cvc4") != string::npos)
-		solver_params_str += " --smtlib-strict";
-	else if (solver_name.find("z3") != string::npos)
-		solver_params_str += " -smt";
-	else if (solver_name.find("Spear") != string::npos)
-		solver_params_str += " --dimacs";
-	
 	if ((solver_name.find("plingeling") != string::npos) ||
 		(solver_name.find("treengeling") != string::npos))
-		solver_params_str += " -t " + nof_threads_str;
-	else if (solver_name.find("cryptominisat_parallel") != string::npos)
-		solver_params_str += "--threads=" + nof_threads_str;
-	*/
+		solver_params_str += " -t ";
+	else if (solver_name.find("cryptominisat") != string::npos)
+		solver_params_str += "--threads=";
+	else if (solver_name.find("syrup") != string::npos)
+		solver_params_str += "-nthreads=";
+	else if ((solver_name.find("hordesat") != string::npos) ||
+		     (solver_name.find("painless") != string::npos))
+		solver_params_str += "-c=";
+
+	solver_params_str += nof_threads_str;
+	
+	double max_memory_gb = max_memory_mb / 1024;
+	stringstream sstream;
+	sstream << max_memory_gb;
+	string max_memory_gb_str = sstream.str();
+	if (solver_name.find("painless") != string::npos)
+		solver_params_str += " -max-memory=" + max_memory_gb_str;
+	else if (solver_name.find("syrup") != string::npos)
+		solver_params_str += " -maxmemory=" + max_memory_mb_str;
 	
 #ifdef _MPI
 	string cur_path = Addit_func::exec("echo $PWD");
 	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
 	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\n'), cur_path.end());
 	result_str = cur_path + "/timelimit -t " + maxtime_seconds_str + " -T 1 " + cur_path + "/" +
-		solvers_dir + "/" + solver_name;
+		solvers_dir + "/" + solver_name + " " + solver_params_str;
 #else
 	if (!isTimeLimit) {
 		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" +
