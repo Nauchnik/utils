@@ -288,14 +288,23 @@ int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, strin
 	//cout << system_result_stream.str() << endl;
 	//system( system_str.c_str( ) );
 	fstream current_out;
-	current_out.open(current_out_name.c_str(), ios_base::out);
+	current_out.open(current_out_name, ios_base::out);
+	if (!current_out.is_open()) {
+		cout << current_out_name << " wasn't opened" << endl;
+		cout << "try to open it one more time" << endl;
+		current_out.open(current_out_name, ios_base::out);
+	}
+	if (!current_out.is_open()) {
+		cerr << "couldn't open file " << current_out_name << endl;
+		exit(1);
+	}
 	cout << "created out file " << current_out_name << endl;
 	chrono::high_resolution_clock::time_point t1 = chrono::high_resolution_clock::now();
 	current_out << Addit_func::exec(system_str);
 	current_out.clear();
 	current_out.close();
 	
-	current_out.open(current_out_name.c_str(), ios_base::in);
+	current_out.open(current_out_name, ios_base::in);
 	if (!current_out.is_open()) {
 		cerr << "couldn't open file " << current_out_name << endl;
 		exit(1);
@@ -390,7 +399,7 @@ bool controlProcess(int corecount, string solvers_dir, string cnfs_dir, double m
 			checked_hosts_names.push_back(hosts_names_vec[i]);
 			computing_process_vec.push_back(i+1);
 		}
-		
+	
 	cout << "computing_process_vec " << endl;
 	for (auto &x : computing_process_vec)
 		cout << x << " ";
