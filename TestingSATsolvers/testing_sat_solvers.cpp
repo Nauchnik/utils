@@ -54,7 +54,7 @@ string get_post_cnf_solver_params_str(string solver_name, string maxtime_seconds
 bool controlProcess(int corecount, string solvers_dir, string cnfs_dir, double maxtime_seconds);
 void SendString(string string_to_send, int computing_process);
 bool computingProcess(int rank, string solvers_dir, string cnfs_dir, double maxtime_seconds);
-int callMultithreadSolver(int rank, double maxtime_seconds, int cores_per_node, string solvers_dir, string cnfs_dir, string solver_name_str, string cnf_name_str);
+int callMultithreadSolver(int rank, double maxtime_seconds, string solvers_dir, string cnfs_dir, string solver_name_str, string cnf_name_str);
 bool isSkipUnusefulSolver(string solver_name);
 
 int main( int argc, char **argv )
@@ -287,13 +287,19 @@ int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, strin
 	//cout << "system_result_stream" << endl;
 	//cout << system_result_stream.str() << endl;
 	//system( system_str.c_str( ) );
-	fstream current_out; 
+	fstream current_out;
 	current_out.open(current_out_name.c_str(), ios_base::out);
+	cout << "created out file " << current_out_name << endl;
 	chrono::high_resolution_clock::time_point t1 = chrono::high_resolution_clock::now();
 	current_out << Addit_func::exec(system_str);
+	current_out.clear();
 	current_out.close();
-
+	
 	current_out.open(current_out_name.c_str(), ios_base::in);
+	if (!current_out.is_open()) {
+		cerr << "couldn't open file " << current_out_name << endl;
+		exit(1);
+	}
 	
 	stringstream sstream;
 	int result = UNKNOWN;
@@ -371,7 +377,7 @@ bool controlProcess(int corecount, string solvers_dir, string cnfs_dir, double m
 		delete[] buffer;
 	}
 	
-	cout << "hosts_names: ";
+	cout << "hosts_names : " << endl; 
 	for (auto &x : hosts_names_vec)
 		cout << x << endl;
 
@@ -391,9 +397,6 @@ bool controlProcess(int corecount, string solvers_dir, string cnfs_dir, double m
 	cout << endl;
 	unsigned computing_processes = computing_process_vec.size();
 	
-	int cores_per_node = corecount / computing_process_vec.size();
-	cout << "cores_per_node " << cores_per_node << endl;
-
 	string system_str, cur_process_dir_name;
 
 	double control_process_solving_time = MPI_Wtime();
@@ -438,7 +441,6 @@ bool controlProcess(int corecount, string solvers_dir, string cnfs_dir, double m
 	// for the others processes from a node send the sleep message
 	unsigned interrupted = 0;
 	for (int i = 1; i < corecount; i++) {
-		MPI_Send(&cores_per_node, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
 		int message = 0;
 		if (find(computing_process_vec.begin(), computing_process_vec.end(), i) != computing_process_vec.end())
 			message = WORK_MESSAGE;
@@ -469,9 +471,18 @@ bool controlProcess(int corecount, string solvers_dir, string cnfs_dir, double m
 	for (auto &x : result_vec)
 		x = UNKNOWN;
 	ofstream ofile;
-	int result;
+	int result = 0;
+	int iprobe_message = 0;
 
 	while (solved_tasks < tasks_vec.size()) {
+		/*iprobe_message = 0;
+		for (;;) {
+			MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &iprobe_message, &status);
+			if (iprobe_message)
+				break; // if any message from computing processes, catch it
+			sleep(10);
+		}*/ // don't sleep, just use 1 core of the first node (this node will not be used for solvers launching)
+		
 		MPI_Recv(&process_task_index, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		cout << "Recieved process_task_index " << process_task_index << endl;
 		MPI_Recv(&process_solving_time, 1, MPI_DOUBLE, status.MPI_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
@@ -562,10 +573,6 @@ bool computingProcess(int rank, string solvers_dir, string cnfs_dir, double maxt
 	delete[] hostName;
 
 	MPI_Status status;
-	int cores_per_node;
-	MPI_Recv(&cores_per_node, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-	cout << "recv cores_per_node " << cores_per_node << endl;
-	
 	int process_task_index;
 	double process_solving_time = 0;
 	string cnf_instance_name;
@@ -632,7 +639,7 @@ bool computingProcess(int rank, string solvers_dir, string cnfs_dir, double maxt
 		
 		process_solving_time = MPI_Wtime();
 		// solving with received Tfact
-		result = callMultithreadSolver(rank, maxtime_seconds, cores_per_node, solvers_dir, cnfs_dir, solver_name_str, cnf_name_str);
+		result = callMultithreadSolver(rank, maxtime_seconds, solvers_dir, cnfs_dir, solver_name_str, cnf_name_str);
 		process_solving_time = MPI_Wtime() - process_solving_time;
 
 		MPI_Send(&process_task_index,   1, MPI_INT,    0, 0, MPI_COMM_WORLD);
@@ -646,7 +653,6 @@ bool computingProcess(int rank, string solvers_dir, string cnfs_dir, double maxt
 
 int callMultithreadSolver( int rank, 
 	                       double maxtime_seconds, 
-						   int cores_per_node,
 	                       string solvers_dir, 
 	                       string cnfs_dir, 
 	                       string solver_name_str, 
@@ -657,6 +663,8 @@ int callMultithreadSolver( int rank,
 	sstream << maxtime_seconds;
 	maxtime_seconds_str = sstream.str();
 	sstream.str(""); sstream.clear();
+	int cores_per_node = std::thread::hardware_concurrency();
+	//cout << "cores_per_node " << cores_per_node << endl;
 	sstream << cores_per_node;
 	string nof_threads_str = sstream.str();
 	sstream.str(""); sstream.clear();
