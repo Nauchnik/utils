@@ -45,8 +45,7 @@ struct mpi_task_solver_cnf
 string max_memory_mb_str;
 double max_memory_mb;
 
-bool conseqProcessing(string solvers_dir, string cnfs_dir, double maxtime_seconds, 
-	                  string maxtime_seconds_str);
+bool conseqProcessing(string solvers_dir, string cnfs_dir, double maxtime_seconds, string maxtime_seconds_str);
 int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, string cnf_name, string maxtime_seconds_str, string nof_threads_str);
 string get_pre_cnf_solver_params_str(string solvers_dir, string solver_name,
 	string maxtime_seconds_str, string nof_threads_str);
@@ -60,10 +59,11 @@ bool isSkipUnusefulSolver(string solver_name);
 int main( int argc, char **argv )
 {
 #ifdef _DEBUG
-	argc = 3;
+	argc = 5;
 	argv[1] = "solvers";
 	argv[2] = "cnfs";
-	argv[3] = "-mpi";
+	argv[3] = "600";
+	argv[4] = "4096";
 #endif
 	
 	if ( argc < 3 ) {
@@ -101,14 +101,14 @@ int main( int argc, char **argv )
 	pos = cnfs_dir.find(str_to_remove);
 	if (pos != string::npos)
 		cnfs_dir.erase(pos, str_to_remove.length());
-		
+	
 #ifdef _MPI
 	cout << "MPI mode " << endl;
 	int rank, corecount;
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &corecount);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
+	
 	if (rank == 0)
 		controlProcess(corecount, solvers_dir, cnfs_dir, maxtime_seconds);
 	else
@@ -699,16 +699,14 @@ string get_pre_cnf_solver_params_str(string solvers_dir, string solver_name,
 	
 	if ((solver_name.find("plingeling") != string::npos) ||
 		(solver_name.find("treengeling") != string::npos))
-		solver_params_str += " -t ";
+		solver_params_str += " -t " + nof_threads_str;
 	else if (solver_name.find("cryptominisat") != string::npos)
-		solver_params_str += "--threads=";
+		solver_params_str += "--threads=" + nof_threads_str;
 	else if (solver_name.find("syrup") != string::npos)
-		solver_params_str += "-nthreads=";
+		solver_params_str += "-nthreads=" + nof_threads_str;
 	else if ((solver_name.find("hordesat") != string::npos) ||
 		     (solver_name.find("painless") != string::npos))
-		solver_params_str += "-c=";
-
-	solver_params_str += nof_threads_str;
+		solver_params_str += "-c=" + nof_threads_str;
 	
 	double max_memory_gb = max_memory_mb / 1024;
 	stringstream sstream;
