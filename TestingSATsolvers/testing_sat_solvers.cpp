@@ -709,6 +709,8 @@ string get_pre_cnf_solver_params_str(string solvers_dir, string solver_name,
 		solver_params_str += "-c=" + nof_threads_str;
 	else if (solver_name.find("cvc4") != string::npos)
 		solver_params_str += "--lang smtlib2";
+	else if (solver_name.find("z3") != string::npos)
+		solver_params_str += "-smt2";
 	
 	double max_memory_gb = max_memory_mb / 1024;
 	stringstream sstream;
