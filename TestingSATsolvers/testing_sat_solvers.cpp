@@ -44,9 +44,14 @@ struct mpi_task_solver_cnf
 
 string max_memory_mb_str;
 double max_memory_mb;
+bool isAlias = false;
+string pcs_name = "";
 
 bool conseqProcessing(string solvers_dir, string cnfs_dir, double maxtime_seconds, string maxtime_seconds_str);
-int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, string cnf_name, string maxtime_seconds_str, string nof_threads_str);
+int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, string cnf_name, 
+	string maxtime_seconds_str, string nof_threads_str);
+int solveAliasInstance(string solvers_dir, string cnfs_dir, string solver_name, string cnf_name,
+	string maxtime_seconds_str, string nof_threads_str);
 string get_pre_cnf_solver_params_str(string solvers_dir, string solver_name,
 	string maxtime_seconds_str, string nof_threads_str);
 string get_post_cnf_solver_params_str(string solver_name, string maxtime_seconds_str);
@@ -67,7 +72,7 @@ int main( int argc, char **argv )
 #endif
 	
 	if ( argc < 3 ) {
-		cout << "Usage: [solvers_path] [cnfs_path] [maxtime_seconds_instance] [max_memory_mb]" << endl;
+		cout << "Usage: solvers_path cnfs_path maxtime_seconds_instance [max_memory_mb] -pcs [pcs_name]" << endl;
 		return 1;
 	}
 	
@@ -88,6 +93,17 @@ int main( int argc, char **argv )
 	else
 		max_memory_mb_str = argv[4];
 
+	for (int i = 1; i < argc; i++) {
+		string str = argv[i];
+		if (str == "-pcs") {
+			isAlias = true;
+			cout << "ALIAS mode" << endl;
+			if (i < argc - 1)
+				pcs_name = argv[i + 1];
+			cout << "pcs_name " << pcs_name << endl;
+		}
+	}
+	
 	istringstream(max_memory_mb_str) >> max_memory_mb;
 	cout << "max_memory_mb " << max_memory_mb << endl;
 
@@ -263,7 +279,49 @@ bool conseqProcessing(string solvers_dir, string cnfs_dir, double maxtime_second
 	return true;
 }
 
-int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, string cnf_name, string maxtime_seconds_str, string nof_threads_str)
+int solveAliasInstance(string solvers_dir, string cnfs_dir, string solver_name, string cnf_name,
+	string maxtime_seconds_str, string nof_threads_str)
+{
+	cout << "start solveAliasInstance()" << endl;
+	string base_path = Addit_func::exec("echo $PWD");
+	base_path.erase(remove(base_path.begin(), base_path.end(), '\r'), base_path.end());
+	base_path.erase(remove(base_path.begin(), base_path.end(), '\n'), base_path.end());
+	cout << "base path " << base_path << endl;
+	
+	// launch the script to create a folder for ALIAS and copy files to it
+	string system_str = base_path + "/alias.sh " + 
+		 solvers_dir + "/" + solver_name + " " +
+		 cnfs_dir + "/" + cnf_name;
+	if (pcs_name != "")
+		system_str += " " + pcs_name;
+	cout << "alias.sh command string " << system_str << endl;
+
+	string result_str = Addit_func::exec(system_str);
+	cout << "result_str " << result_str << endl;
+	
+	string alias_launch_path = base_path + "/tmp_" + solver_name + "_" + cnf_name;
+	system_str = alias_launch_path + "/igbfs" +
+		" -solver " + alias_launch_path + "/" + solver_name +
+		" -cnf " + alias_launch_path + "/" + cnf_name +
+		" -estimation_script " + alias_launch_path + "/runtime_estimation.py" +
+		" -solver_script " + alias_launch_path + "/alias_solve2.py" +
+		" -time " + maxtime_seconds_str;
+	if (pcs_name != "")
+		system_str += " -pcs " + alias_launch_path + "/" + pcs_name;
+	cout << "igbfs command string " << system_str << endl;
+	
+	string out_name = base_path + "/out_" + solver_name + "_" + cnf_name;
+	fstream out_file;
+	out_file.open(out_name, ios_base::out);
+	out_file << Addit_func::exec(system_str);
+	out_file.close();
+	out_file.clear();
+	
+	return UNKNOWN;
+}
+
+int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, string cnf_name, 
+	              string maxtime_seconds_str, string nof_threads_str)
 {
 	string system_str, current_out_name, str;
 	unsigned copy_from, copy_to;
@@ -314,7 +372,7 @@ int solveInstance(string solvers_dir, string cnfs_dir, string solver_name, strin
 	int result = UNKNOWN;
 	double cur_time = 0.0;
 	while (getline(current_out, str)) {
-		if (str.find("SATISFIABLE") != string::npos) {
+		if (str.find("c SATISFIABLE") != string::npos) {
 			result = SAT;
 			//sat_count_vec[i]++;
 			//cout << "SAT found" << endl;
@@ -677,7 +735,13 @@ int callMultithreadSolver( int rank,
 	sstream << cores_per_node;
 	string nof_threads_str = sstream.str();
 	sstream.str(""); sstream.clear();
-	int result = solveInstance(solvers_dir, cnfs_dir, solver_name_str, cnf_name_str, maxtime_seconds_str, nof_threads_str);
+	int result;
+
+	if (isAlias)
+		result = solveAliasInstance(solvers_dir, cnfs_dir, solver_name_str, cnf_name_str, maxtime_seconds_str, nof_threads_str);
+	else
+		result = solveInstance(solvers_dir, cnfs_dir, solver_name_str, cnf_name_str, maxtime_seconds_str, nof_threads_str);
+
 	return result;
 }
 
