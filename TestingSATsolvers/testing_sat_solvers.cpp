@@ -294,7 +294,7 @@ int solveAliasInstance(string solvers_dir, string cnfs_dir, string solver_name, 
 		 cnfs_dir + "/" + cnf_name;
 	if (pcs_name != "")
 		system_str += " " + pcs_name;
-	cout << "alias.sh command string " << system_str << endl;
+	cout << "alias_prepare_dir.sh command string " << system_str << endl;
 
 	string result_str = Addit_func::exec(system_str);
 	cout << "result_str " << result_str << endl;
@@ -303,8 +303,7 @@ int solveAliasInstance(string solvers_dir, string cnfs_dir, string solver_name, 
 	system_str = alias_launch_path + "/alias_ls" +
 		" -solver " + alias_launch_path + "/" + solver_name +
 		" -cnf " + alias_launch_path + "/" + cnf_name +
-		" -estimation_script " + alias_launch_path + "/runtime_estimation.py" +
-		" -solver_script " + alias_launch_path + "/alias_solve2.py" +
+		" -script " + alias_launch_path + "/ALIAS.py" +
 		" -time " + maxtime_seconds_str;
 	if (pcs_name != "")
 		system_str += " -pcs " + alias_launch_path + "/" + pcs_name;
