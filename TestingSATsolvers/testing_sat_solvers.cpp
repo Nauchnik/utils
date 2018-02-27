@@ -289,7 +289,7 @@ int solveAliasInstance(string solvers_dir, string cnfs_dir, string solver_name, 
 	cout << "base path " << base_path << endl;
 	
 	// launch the script to create a folder for ALIAS and copy files to it
-	string system_str = base_path + "/alias.sh " + 
+	string system_str = base_path + "/alias_prepare_dir.sh " + 
 		 solvers_dir + "/" + solver_name + " " +
 		 cnfs_dir + "/" + cnf_name;
 	if (pcs_name != "")
