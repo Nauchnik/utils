@@ -300,7 +300,7 @@ int solveAliasInstance(string solvers_dir, string cnfs_dir, string solver_name, 
 	cout << "result_str " << result_str << endl;
 	
 	string alias_launch_path = base_path + "/tmp_" + solver_name + "_" + cnf_name;
-	system_str = alias_launch_path + "/igbfs" +
+	system_str = alias_launch_path + "/alias_ls" +
 		" -solver " + alias_launch_path + "/" + solver_name +
 		" -cnf " + alias_launch_path + "/" + cnf_name +
 		" -estimation_script " + alias_launch_path + "/runtime_estimation.py" +
@@ -308,7 +308,7 @@ int solveAliasInstance(string solvers_dir, string cnfs_dir, string solver_name, 
 		" -time " + maxtime_seconds_str;
 	if (pcs_name != "")
 		system_str += " -pcs " + alias_launch_path + "/" + pcs_name;
-	cout << "igbfs command string " << system_str << endl;
+	cout << "alias_ls command string " << system_str << endl;
 	
 	string out_name = base_path + "/out_" + solver_name + "_" + cnf_name;
 	fstream out_file;
