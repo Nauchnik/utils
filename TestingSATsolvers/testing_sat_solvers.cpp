@@ -55,10 +55,12 @@ int solveAliasInstance(string solvers_dir, string instances_dir, string solver_n
 string get_pre_cnf_solver_params_str(string solvers_dir, string solver_name,
 	string maxtime_seconds_str, string nof_threads_str);
 string get_post_cnf_solver_params_str(string solver_name, string maxtime_seconds_str);
-bool controlProcess(int corecount, string solvers_dir, string instances_dir, double maxtime_seconds);
+bool controlProcess(const int corecount, const string solvers_dir, const string instances_dir, 
+	const unsigned threads_count, const double maxtime_seconds, const double max_memory_mb);
 void SendString(string string_to_send, int computing_process);
-bool computingProcess(int rank, string solvers_dir, string instances_dir, double maxtime_seconds);
-int callMultithreadSolver(int rank, double maxtime_seconds, string solvers_dir, string instances_dir, string solver_name_str, string cnf_name_str);
+bool computingProcess(const int rank);
+int callMultithreadSolver(const int rank, const unsigned threads_count, const double maxtime_seconds, const double max_memory_mb, 
+	const string solvers_dir, const string instances_dir, const string solver_name_str, const string cnf_name_str);
 bool isSkipUnusefulSolver(string solver_name);
 
 int main( int argc, char **argv )
@@ -141,9 +143,9 @@ int main( int argc, char **argv )
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	
 	if (rank == 0)
-		controlProcess(corecount, solvers_dir, instances_dir, maxtime_seconds);
+		controlProcess(corecount, solvers_dir, instances_dir, threads_count, maxtime_seconds, max_memory_mb);
 	else
-		computingProcess(rank, solvers_dir, instances_dir, maxtime_seconds, threads_count);
+		computingProcess(rank);
 #else
 	cout << "Conseq mode " << endl;
 	cout << "solvers_dir " << solvers_dir << endl;
@@ -438,13 +440,11 @@ int solveInstance(string solvers_dir, string instances_dir, string solver_name, 
 	return result;
 }
 
-bool controlProcess(int corecount, string solvers_dir, string instances_dir, double maxtime_seconds)
+bool controlProcess(const int corecount, const string solvers_dir, const string instances_dir,
+	const unsigned threads_count, const double maxtime_seconds, const double max_memory_mb)
 {
 #ifdef _MPI
 	cout << "control MPI process" << endl;
-	cout << "solvers_dir " << solvers_dir << endl;
-	cout << "instances_dir " << instances_dir << endl;
-	cout << "maxtime_seconds " << maxtime_seconds << endl;
 
 	cout << "*** Stage 1. Collect hosts names." << endl;
 
@@ -532,6 +532,11 @@ bool controlProcess(int corecount, string solvers_dir, string instances_dir, dou
 		else
 			message = SLEEP_MESSAGE;
 		MPI_Send(&message, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+		if (message == WORK_MESSAGE) {
+			MPI_Send(&threads_count,   1, MPI_UNSIGNED, i, 0, MPI_COMM_WORLD);
+			MPI_Send(&maxtime_seconds, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+			MPI_Send(&max_memory_mb,   1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+		}
 	}
 	
 	// send first part of tasks
@@ -647,7 +652,7 @@ bool controlProcess(int corecount, string solvers_dir, string instances_dir, dou
 	return true;
 }
 
-bool computingProcess(int rank, string solvers_dir, string instances_dir)
+bool computingProcess(const int rank)
 {
 #ifdef _MPI
 	int hostNameLength = 0;
@@ -688,6 +693,21 @@ bool computingProcess(int rank, string solvers_dir, string instances_dir)
 			}
 		}
 	}
+
+	unsigned threads_count = 0;
+	double maxtime_seconds = 0;
+	double max_memory_mb = 0;
+	if (!isFinalize) {
+		MPI_Recv(&threads_count,   1, MPI_UNSIGNED, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		MPI_Recv(&maxtime_seconds, 1, MPI_DOUBLE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		MPI_Recv(&max_memory_mb,   1, MPI_DOUBLE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+		if (rank == 1) {
+			cout << "received threads_count " << threads_count << endl;
+			cout << "received maxtime_seconds " << maxtime_seconds << endl;
+			cout << "received max_memory_mb " << max_memory_mb << endl;
+		}
+	}
 	
 	int result;
 	
@@ -724,7 +744,8 @@ bool computingProcess(int rank, string solvers_dir, string instances_dir)
 		
 		process_solving_time = MPI_Wtime();
 		// solving with received Tfact
-		result = callMultithreadSolver(rank, maxtime_seconds, solvers_dir, instances_dir, solver_name_str, cnf_name_str);
+		result = callMultithreadSolver(rank, threads_count, maxtime_seconds, max_memory_mb, solvers_dir, 
+			instances_dir, solver_name_str, cnf_name_str);
 		process_solving_time = MPI_Wtime() - process_solving_time;
 
 		MPI_Send(&process_task_index,   1, MPI_INT,    0, 0, MPI_COMM_WORLD);
@@ -736,8 +757,10 @@ bool computingProcess(int rank, string solvers_dir, string instances_dir)
 	return true;
 }
 
-int callMultithreadSolver( int rank, 
-	                       double maxtime_seconds, 
+int callMultithreadSolver( const int rank, 
+						   const unsigned threads_count,
+	                       const double maxtime_seconds, 
+						   const double max_memory_mb,
 	                       string solvers_dir, 
 	                       string instances_dir, 
 	                       string solver_name_str, 
@@ -748,7 +771,11 @@ int callMultithreadSolver( int rank,
 	sstream << maxtime_seconds;
 	maxtime_seconds_str = sstream.str();
 	sstream.str(""); sstream.clear();
-	int cores_per_node = std::thread::hardware_concurrency();
+	int cores_per_node;
+	if (threads_count > 0)
+		cores_per_node = threads_count;
+	else
+		cores_per_node = std::thread::hardware_concurrency();
 	//cout << "cores_per_node " << cores_per_node << endl;
 	sstream << cores_per_node;
 	string nof_threads_str = sstream.str();
