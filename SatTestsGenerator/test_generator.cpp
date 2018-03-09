@@ -44,9 +44,10 @@ int main( int argc, char **argv )
 		make_s.makeRandomSatSample();
 	else if (make_s.launchType == ASSUMPTIONS_SAMPLE)
 		make_s.makeSampleFromAssumptions();
+	else if (make_s.launchType == INPUT_ASSUMPTIONS_SAMPLE)
+		make_s.makeSampleFromInputs();
 	else if ( make_s.launchType == INPUT_OUTPUT_ASSUMPTIONS_SAMPLE )
 		make_s.makeSampleFromInputOutputAssumptions();
 	
-	//system("pause");
 	return 0;
 }

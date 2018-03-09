@@ -12,6 +12,7 @@
 #define RANDOM_SAT_SAMPLE 1
 #define ASSUMPTIONS_SAMPLE 2
 #define INPUT_OUTPUT_ASSUMPTIONS_SAMPLE 3
+#define INPUT_ASSUMPTIONS_SAMPLE 4
 
 class makeSample
 {
@@ -23,27 +24,28 @@ public:
 	void makeRandomSatSample();
 	void makeSampleFromAssumptions();
 	void makeSampleFromInputOutputAssumptions();
+	void makeSampleFromInputs();
 	boost::random::mt19937 gen;
 	short int launchType;
 private:
 	unsigned tests_count;
-	std::string cnf_file_name;
-	std::string cut_cnf_file_name;
-	std::string decomp_set_file_name;
-	std::string assumptions_file_name;
-	std::string cnf_name_common_part;
-	std::vector<std::ofstream*> test_cnf_files;
-	std::vector<unsigned> decomp_set;
-	std::vector<unsigned> decomp_set_indexes;
-	std::vector<unsigned> input_variables;
-	std::vector<unsigned> output_variables;
-	std::ifstream cnf_file;
-	std::ifstream decomp_set_file;
-	std::stringstream comment_cnf_sstream;
-	std::stringstream head_cnf_sstream;
-	std::stringstream main_cnf_sstream;
-	std::vector<std::vector<bool>> state_vec_vec, stream_vec_vec;
-	std::string input_output_folder_name;
+	string cnf_file_name;
+	string cut_cnf_file_name;
+	string decomp_set_file_name;
+	string assumptions_file_name;
+	string cnf_name_common_part;
+	vector<ofstream*> test_cnf_files;
+	vector<unsigned> decomp_set;
+	vector<unsigned> decomp_set_indexes;
+	vector<unsigned> input_variables;
+	vector<unsigned> output_variables;
+	ifstream cnf_file;
+	ifstream decomp_set_file;
+	stringstream comment_cnf_sstream;
+	stringstream head_cnf_sstream;
+	stringstream main_cnf_sstream;
+	vector<vector<bool>> state_vec_vec, stream_vec_vec;
+	string input_output_folder_name;
 	MPI_Base mpi_b;
 };
 
