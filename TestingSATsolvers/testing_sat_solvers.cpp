@@ -452,6 +452,9 @@ bool computingProcess(const int rank)
 
 int callMultithreadSolver(const int rank, const string solver_name, const string cnf_name)
 {
+	if ((solver_name == "") || (cnf_name == ""))
+		return 0;
+
 	if (nof_threads_str == "") {
 		int cores_per_node = thread::hardware_concurrency();
 		stringstream sstream;
@@ -710,12 +713,13 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 	
 	string alias_launch_path = base_path + "/tmp_" + solver_name + "_" + cnf_name;
 	system_str = alias_launch_path + "/alias_ls" +
-		" -solver " + alias_launch_path + "/" + solver_name +
-		" -cnf " + alias_launch_path + "/" + cnf_name +
-		" -script " + alias_launch_path + "/ALIAS.py" +
-		" -time " + maxtime_seconds_str;
+		" -solver=" + alias_launch_path + "/" + solver_name +
+		" -cnf=" + alias_launch_path + "/" + cnf_name +
+		" -script=" + alias_launch_path + "/ALIAS.py" +
+		" -cpu-lim=" + maxtime_seconds_str +
+		" -verb=2 --solve";
 	if (pcs_name != "")
-		system_str += " -pcs " + alias_launch_path + "/" + pcs_name;
+		system_str += " -pcs=" + alias_launch_path + "/" + pcs_name;
 	cout << "alias_ls command string " << system_str << endl;
 	
 	string out_name = base_path + "/out_" + solver_name + "_" + cnf_name;
