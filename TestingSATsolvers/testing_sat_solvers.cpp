@@ -714,9 +714,9 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 	string alias_launch_path = base_path + "/tmp_" + solver_name + "_" + cnf_name;
 	system_str = alias_launch_path + "/alias_ls" +
 		" -solver=" + alias_launch_path + "/" + solver_name +
-		" -cnf=" + alias_launch_path + "/" + cnf_name +
 		" -script=" + alias_launch_path + "/ALIAS.py" +
 		" -cpu-lim=" + maxtime_seconds_str +
+		" " + alias_launch_path + "/" + cnf_name +
 		" -verb=2 --solve";
 	if (pcs_name != "")
 		system_str += " -pcs=" + alias_launch_path + "/" + pcs_name;
