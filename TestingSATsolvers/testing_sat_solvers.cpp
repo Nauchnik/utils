@@ -49,6 +49,8 @@ string maxtime_seconds_str = "600";
 string max_memory_mb_str = "4096";
 string pcs_name = "";
 bool isAlias = false;
+string rand_from_str = "";
+string rand_to_str = "";
 
 bool conseqProcessing();
 int solveInstance(const string solver_name, const string cnf_name);
@@ -71,7 +73,8 @@ int main( int argc, char **argv )
 #endif
 	
 	if ( argc < 3 ) {
-		cout << "Usage: prog -solvers_dir [path] -instances_dir [path] -maxseconds [seconds] -maxthreads [threads] -maxmb [mb] -pcs [pcs_name]" << endl;
+		cout << "Usage: prog -solvers_dir [path] -instances_dir [path] -maxseconds [seconds] " <<
+			"-maxthreads [threads] -maxmb [mb] -pcs [pcs_name] -rand-from [val] -rand-to [val]" << endl;
 		return 1;
 	}
 
@@ -102,6 +105,14 @@ int main( int argc, char **argv )
 			if (i < argc - 1)
 				pcs_name = argv[i + 1];
 		}
+		if (str == "-rand-from") {
+			if (i < argc - 1)
+				rand_from_str = argv[i + 1];
+		}
+		if (str == "-rand-to") {
+			if (i < argc - 1)
+				rand_to_str = argv[i + 1];
+		}
 	}
 	
 	cout << "solvers_dir " << solvers_dir << endl;
@@ -112,6 +123,8 @@ int main( int argc, char **argv )
 	if (pcs_name != "") {
 		cout << "ALIAS mode" << endl;
 		cout << "pcs_name " << pcs_name << endl;
+		cout << "rand_from_str " << rand_from_str << endl;
+		cout << "rand_to_str " << rand_to_str << endl;
 	}
 	
 	string str_to_remove = "./";
@@ -717,6 +730,8 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 		" -script=" + alias_launch_path + "/ALIAS.py" +
 		" -cpu-lim=" + maxtime_seconds_str +
 		" " + alias_launch_path + "/" + cnf_name +
+		" -rand-from=" + rand_from_str +
+		" -rand-to=" + rand_to_str +
 		" -verb=2 --solve";
 	if (pcs_name != "")
 		system_str += " -pcs=" + alias_launch_path + "/" + pcs_name;
