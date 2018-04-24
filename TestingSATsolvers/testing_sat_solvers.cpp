@@ -51,6 +51,7 @@ string pcs_name = "";
 bool isAlias = false;
 string rand_from_str = "";
 string rand_to_str = "";
+bool nojump = false;
 
 bool conseqProcessing();
 int solveInstance(const string solver_name, const string cnf_name);
@@ -113,6 +114,8 @@ int main( int argc, char **argv )
 			if (i < argc - 1)
 				rand_to_str = argv[i + 1];
 		}
+		if (str == "--nojump")
+			nojump = true;
 	}
 	
 	cout << "solvers_dir " << solvers_dir << endl;
@@ -730,9 +733,13 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 		" -script=" + alias_launch_path + "/ALIAS.py" +
 		" -cpu-lim=" + maxtime_seconds_str +
 		" " + alias_launch_path + "/" + cnf_name +
-		" -rand-from=" + rand_from_str +
-		" -rand-to=" + rand_to_str +
-		" -verb=2 --solve";
+		" -verb=0 --solve";
+		if (rand_from_str != "")
+			system_str += " -rand-from=" + rand_from_str;
+		if (rand_to_str != "")
+			system_str += " -rand-to=" + rand_to_str;
+		if (nojump)
+			system_str += " --nojump";
 	if (pcs_name != "")
 		system_str += " -pcs=" + alias_launch_path + "/" + pcs_name;
 	cout << "alias_ls command string " << system_str << endl;
