@@ -733,7 +733,7 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 		" -script=" + alias_launch_path + "/ALIAS.py" +
 		" -cpu-lim=" + maxtime_seconds_str +
 		" " + alias_launch_path + "/" + cnf_name +
-		" -verb=0 --solve";
+		" -verb=1 --solve";
 		if (rand_from_str != "")
 			system_str += " -rand-from=" + rand_from_str;
 		if (rand_to_str != "")
