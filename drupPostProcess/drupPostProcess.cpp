@@ -15,7 +15,6 @@ bool compareBySize(const clause &a, const clause &b)
 	return a.size() < b.size();
 }
 
-
 int main() {
 	string drup_name = "proof_geffe.out";
 	ifstream ifile(drup_name);
@@ -70,9 +69,9 @@ int main() {
 			diff_clauses.clear();
 		}
 	}
-	cout << "final good_clauses size " << good_clauses.size() << endl;
 	sort(good_clauses.begin(), good_clauses.end(), compareBySize);
 	sort(bad_clauses.begin(), bad_clauses.end(), compareBySize);
+	cout << "final good_clauses size " << good_clauses.size() << endl;
 	ofstream good_clauses_file("good_clauses");
 	ofstream bad_clauses_file("bad_clauses");
 	for (auto x : good_clauses) {

@@ -139,7 +139,7 @@ int main( int argc, char **argv )
 		assumptions_var_set.push_back( first_out_varible + i );
 	
 	// write clauses A == B -> (A or not(B)) and ( not(A) or B ) where A is a new variable
-	// if here B, for example, is ( x1 or (notx2) ) then A == (x1 or not(x2) ) =>
+	// for example, if B is ( x1 or not(x2) ) then A == ( x1 or not(x2) ) =>
 	// (A or not(x1) or x2) and (not(A) or x1) and (not(A) or not(x2))
 	// the last two clauses were made with the help of distributive rule
 	for ( unsigned i=0; i < values_vec.size(); i++ ) {
