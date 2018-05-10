@@ -225,6 +225,13 @@ bool controlProcess(const int corecount)
 	sort(solver_files_names.begin(), solver_files_names.end());
 	sort(cnf_files_names.begin(), cnf_files_names.end());
 
+	vector<string> tmp_names;
+	for (auto &x : solver_files_names) {
+		if (x != "svmsat")
+			tmp_names.push_back(x);
+	}
+	solver_files_names = tmp_names;
+
 	cout << endl << "solver_files_names :" << endl;
 	for (vector<string> ::iterator it = solver_files_names.begin(); it != solver_files_names.end(); it++)
 		cout << *it << endl;
