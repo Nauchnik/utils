@@ -36,6 +36,10 @@ int main(int argc, char** argv)
 	//argv[3] = "NailSAT";
 	argv[3] = "minisat_rand";
 #endif
+	if (argc < 3) {
+		cerr << "Usage: prog input-file output-file\n";
+		exit(-1);
+	}
 	string file_name = argv[1];
 	string ofile_name = argv[2];
 

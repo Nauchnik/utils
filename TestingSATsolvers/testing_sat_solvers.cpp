@@ -337,9 +337,8 @@ bool controlProcess(const int corecount)
 		ofile << "instance result time" << endl;
 		for (int i = 0; i < tasks_vec.size(); i++)
 			ofile << tasks_vec[i].solver_name << " "
-			<< tasks_vec[i].cnf_name << " "
-			<< result_vec[i] << " "
-			<< process_solving_time_vec[i] << endl;
+			      << tasks_vec[i].cnf_name << " "
+			      << process_solving_time_vec[i] << endl;
 		ofile.close(); ofile.clear();
 	}
 
