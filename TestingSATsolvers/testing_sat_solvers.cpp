@@ -498,8 +498,10 @@ int callMultithreadSolver(const int rank, const string solver_name, const string
 
 string get_pre_cnf_solver_params_str(const string solver_name)
 {
-	string solver_params_str = "-cpu-lim=" + maxtime_seconds_str;
-
+	string solver_params_str;
+	if (solver_name.find(".sh") == string::npos)
+		solver_params_str = "-cpu-lim=" + maxtime_seconds_str;
+	
 	if ((solver_name.find("plingeling") != string::npos) ||
 		(solver_name.find("treengeling") != string::npos))
 		solver_params_str += " -t " + nof_threads_str;
