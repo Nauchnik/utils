@@ -213,15 +213,15 @@ bool controlProcess(const int corecount)
 	vector<string> cnf_files_names = vector<string>();
 
 	vector<string> solved_instances;
-	string cur_path = Addit_func::exec("echo $PWD");
+	string cur_path = exec("echo $PWD");
 	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
 	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\n'), cur_path.end());
 	solvers_dir = cur_path + "/" + solvers_dir;
 	cout << "full solvers_dir " << solvers_dir << endl;
 	instances_dir = cur_path + "/" + instances_dir;
 	cout << "full instances_dir " << instances_dir << endl;
-	if (!Addit_func::getdir(instances_dir, cnf_files_names)) { return false; };
-	if (!Addit_func::getdir(solvers_dir, solver_files_names)) { return false; }
+	if (!getdir(instances_dir, cnf_files_names)) { return false; };
+	if (!getdir(solvers_dir, solver_files_names)) { return false; }
 	sort(solver_files_names.begin(), solver_files_names.end());
 	sort(cnf_files_names.begin(), cnf_files_names.end());
 
@@ -498,18 +498,7 @@ int callMultithreadSolver(const int rank, const string solver_name, const string
 
 string get_pre_cnf_solver_params_str(const string solver_name)
 {
-	string solver_params_str;
-	string result_str;
-	bool isTimeLimit = false;
-
-	if (((solver_name.find("minisat") != string::npos) ||
-		(solver_name.find("rokk") != string::npos)) &&
-		(solver_name.find("cryptominisat") == string::npos))
-	{
-		solver_params_str = "-cpu-lim=" + maxtime_seconds_str;
-		isTimeLimit = true;
-	}
-	cout << "isTimeLimit " << isTimeLimit << endl;
+	string solver_params_str = "-cpu-lim=" + maxtime_seconds_str;
 
 	if ((solver_name.find("plingeling") != string::npos) ||
 		(solver_name.find("treengeling") != string::npos))
@@ -540,20 +529,16 @@ string get_pre_cnf_solver_params_str(const string solver_name)
 		(solver_name.find("treengeling") != string::npos))
 		solver_params_str += " -m " + max_memory_mb_str;
 
+	string result_str;
 #ifdef _MPI
-	string cur_path = Addit_func::exec("echo $PWD");
+	string cur_path = exec("echo $PWD");
 	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
 	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\n'), cur_path.end());
 	result_str = cur_path + "/timelimit -t " + maxtime_seconds_str + " -T 1 " + cur_path + "/" +
 		solvers_dir + "/" + solver_name + " " + solver_params_str;
 #else
-	if (!isTimeLimit) {
-		result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" +
-			solvers_dir + "/" + solver_name;
-	}
-	else {
-		result_str = "./" + solvers_dir + "/" + solver_name + " " + solver_params_str;
-	}
+	result_str = "./timelimit -t " + maxtime_seconds_str + " -T 1 " + "./" +
+		solvers_dir + "/" + solver_name;
 #endif
 
 	return result_str;
@@ -614,8 +599,8 @@ bool conseqProcessing()
 	vector<string> solver_files_names = vector<string>();
 	vector<string> cnf_files_names = vector<string>();
 
-	if (!Addit_func::getdir(solvers_dir, solver_files_names)) { return false; }
-	if (!Addit_func::getdir(instances_dir, cnf_files_names)) { return false; };
+	if (!getdir(solvers_dir, solver_files_names)) { return false; }
+	if (!getdir(instances_dir, cnf_files_names)) { return false; };
 	sort(solver_files_names.begin(), solver_files_names.end());
 	sort(cnf_files_names.begin(), cnf_files_names.end());
 
@@ -717,7 +702,7 @@ bool conseqProcessing()
 int solveAliasInstance(const string solver_name, const string cnf_name)
 {
 	cout << "start solveAliasInstance()" << endl;
-	string base_path = Addit_func::exec("echo $PWD");
+	string base_path = exec("echo $PWD");
 	base_path.erase(remove(base_path.begin(), base_path.end(), '\r'), base_path.end());
 	base_path.erase(remove(base_path.begin(), base_path.end(), '\n'), base_path.end());
 	cout << "base path " << base_path << endl;
@@ -730,7 +715,7 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 		system_str += " " + pcs_name;
 	cout << "alias_prepare_dir.sh command string " << system_str << endl;
 
-	string result_str = Addit_func::exec(system_str);
+	string result_str = exec(system_str);
 	cout << "result_str " << result_str << endl;
 	
 	string alias_launch_path = base_path + "/tmp_" + solver_name + "_" + cnf_name;
@@ -753,7 +738,7 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 	string out_name = base_path + "/out_" + solver_name + "_" + cnf_name;
 	fstream out_file;
 	out_file.open(out_name, ios_base::out);
-	out_file << Addit_func::exec(system_str);
+	out_file << exec(system_str);
 	out_file.close();
 	out_file.clear();
 	
@@ -766,7 +751,7 @@ int solveInstance(const string solver_name, const string cnf_name)
 	unsigned copy_from, copy_to;
 	
 #ifdef _MPI
-	string cur_path = Addit_func::exec("echo $PWD");
+	string cur_path = exec("echo $PWD");
 	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
 	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\n'), cur_path.end());
 	current_out_name = cur_path + "/out_" + solver_name + "_" + cnf_name;
@@ -797,7 +782,7 @@ int solveInstance(const string solver_name, const string cnf_name)
 	}
 	cout << "created out file " << current_out_name << endl;
 	chrono::high_resolution_clock::time_point t1 = chrono::high_resolution_clock::now();
-	current_out << Addit_func::exec(system_str);
+	current_out << exec(system_str);
 	current_out.clear();
 	current_out.close();
 	
