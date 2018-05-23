@@ -47,8 +47,10 @@ string instances_dir = "";
 string nof_threads_str = "";
 string maxtime_seconds_str = "600";
 string max_memory_mb_str = "4096";
-string pcs_name = "";
+string alias_pcs_name = "";
+string svm_pcs_name = "";
 bool isAlias = false;
+bool isSvm = false;
 string rand_from_str = "";
 string rand_to_str = "";
 bool nojump = false;
@@ -56,6 +58,7 @@ bool nojump = false;
 bool conseqProcessing();
 int solveInstance(const string solver_name, const string cnf_name);
 int solveAliasInstance(string solver_name, string cnf_name);
+int solveSvmInstance(string solver_name, string cnf_name);
 string get_pre_cnf_solver_params_str(const string solver_name);
 string get_post_cnf_solver_params_str(string solver_name);
 bool controlProcess(const int corecount);
@@ -104,7 +107,12 @@ int main( int argc, char **argv )
 		if (str == "-pcs") {
 			isAlias = true;
 			if (i < argc - 1)
-				pcs_name = argv[i + 1];
+				alias_pcs_name = argv[i + 1];
+		}
+		if (str == "-svm") {
+			isSvm = true;
+			if (i < argc - 1)
+				svm_pcs_name = argv[i + 1];
 		}
 		if (str == "-rand-from") {
 			if (i < argc - 1)
@@ -123,11 +131,15 @@ int main( int argc, char **argv )
 	cout << "maxtime_seconds_str " << maxtime_seconds_str << endl;
 	cout << "max_memory_mb_str " << max_memory_mb_str << endl;
 	cout << "nof_threads_str " << nof_threads_str << endl;
-	if (pcs_name != "") {
+	if (alias_pcs_name != "") {
 		cout << "ALIAS mode" << endl;
-		cout << "pcs_name " << pcs_name << endl;
+		cout << "alias_pcs_name " << alias_pcs_name << endl;
 		cout << "rand_from_str " << rand_from_str << endl;
 		cout << "rand_to_str " << rand_to_str << endl;
+	}
+	if (svm_pcs_name != "") {
+		cout << "SVM mode" << endl;
+		cout << "svm_pcs_name " << svm_pcs_name << endl;
 	}
 	
 	string str_to_remove = "./";
@@ -490,6 +502,8 @@ int callMultithreadSolver(const int rank, const string solver_name, const string
 
 	if (isAlias)
 		result = solveAliasInstance(solver_name, cnf_name);
+	if (isSvm)
+		result = solveSvmInstance(solver_name, cnf_name);
 	else
 		result = solveInstance(solver_name, cnf_name);
 
@@ -713,8 +727,8 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 	string system_str = base_path + "/alias_prepare_dir.sh " + 
 		 solvers_dir + "/" + solver_name + " " +
 		 instances_dir + "/" + cnf_name;
-	if (pcs_name != "")
-		system_str += " " + pcs_name;
+	if (alias_pcs_name != "")
+		system_str += " " + alias_pcs_name;
 	cout << "alias_prepare_dir.sh command string " << system_str << endl;
 
 	string result_str = exec(system_str);
@@ -733,8 +747,8 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 			system_str += " -rand-to=" + rand_to_str;
 		if (nojump)
 			system_str += " --nojump";
-	if (pcs_name != "")
-		system_str += " -pcs=" + alias_launch_path + "/" + pcs_name;
+	if (alias_pcs_name != "")
+		system_str += " -pcs=" + alias_launch_path + "/" + alias_pcs_name;
 	cout << "alias_ls command string " << system_str << endl;
 	
 	string out_name = base_path + "/out_" + solver_name + "_" + cnf_name;
@@ -744,6 +758,40 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 	out_file.close();
 	out_file.clear();
 	
+	return UNKNOWN;
+}
+
+int solveSvmInstance(const string solver_name, const string cnf_name)
+{
+	cout << "start solveSvmInstance()" << endl;
+	string base_path = exec("echo $PWD");
+	base_path.erase(remove(base_path.begin(), base_path.end(), '\r'), base_path.end());
+	base_path.erase(remove(base_path.begin(), base_path.end(), '\n'), base_path.end());
+	cout << "base path " << base_path << endl;
+
+	// launch the script to create a folder for ALIAS and copy files to it
+	string system_str = base_path + "/svm_prepare_dir.sh " +
+		solvers_dir + "/" + solver_name + " " +
+		instances_dir + "/" + cnf_name;
+	cout << "svm_prepare_dir.sh command string " << system_str << endl;
+
+	string result_str = exec(system_str);
+	cout << "result_str " << result_str << endl;
+
+	string svm_launch_path = base_path + "/tmp_" + solver_name + "_" + cnf_name + "/";
+	system_str = svm_launch_path + "svmsat " +
+		svm_launch_path + solver_name + " " +
+		svm_launch_path + cnf_name +
+		" -cpu-lim=" + maxtime_seconds_str;
+	cout << "svmsat command string " << system_str << endl;
+
+	string out_name = base_path + "/out_" + solver_name + "_" + cnf_name;
+	fstream out_file;
+	out_file.open(out_name, ios_base::out);
+	out_file << exec(system_str);
+	out_file.close();
+	out_file.clear();
+
 	return UNKNOWN;
 }
 
