@@ -42,6 +42,12 @@ struct mpi_task_solver_cnf
 	string cnf_name;
 };
 
+struct svm_parameter
+{
+	string name;
+	vector<double> values;
+};
+
 string solvers_dir = "";
 string instances_dir = "";
 string nof_threads_str = "";
@@ -54,6 +60,7 @@ bool isSvm = false;
 string rand_from_str = "";
 string rand_to_str = "";
 bool nojump = false;
+vector<svm_parameter> svm_parameters;
 
 bool conseqProcessing();
 int solveInstance(const string solver_name, const string cnf_name);
@@ -65,10 +72,15 @@ bool controlProcess(const int corecount);
 void SendString(const string string_to_send, const int computing_process);
 bool computingProcess(const int rank);
 int callMultithreadSolver(const int rank, const string solver_name, const string cnf_name);
+void makeSvmSolverNames(vector<string> &solver_files_names);
 
 int main( int argc, char **argv )
 {
 #ifdef _DEBUG
+	svm_pcs_name = "svm.pcs";
+	vector<string> solver_files_names;
+	solver_files_names.push_back("glucose");
+	makeSvmSolverNames(solver_files_names);
 	argc = 5;
 	argv[1] = "solvers";
 	argv[2] = "cnfs";
@@ -244,6 +256,9 @@ bool controlProcess(const int corecount)
 	}
 	solver_files_names = tmp_names;
 
+	if (isSVM)
+		makeSvmSolverNames(solver_files_names);
+
 	cout << endl << "solver_files_names :" << endl;
 	for (vector<string> ::iterator it = solver_files_names.begin(); it != solver_files_names.end(); it++)
 		cout << *it << endl;
@@ -389,6 +404,30 @@ bool controlProcess(const int corecount)
 	MPI_Finalize();
 #endif
 	return true;
+}
+
+void makeSvmSolverNames(vector<string> &solver_files_names)
+{
+	// parse paremeters and their values
+	ifstream ifile(svm_pcs_name.c_str());
+	string str, parameter_name, parameter_values_str;
+	while (getline(ifile, str)) {
+		svm_parameter svm_p;
+		stringstream sstream;
+		sstream << str;
+		sstream >> svm_p.name;
+		sstream >> parameter_values_str;
+		for (auto &x : parameter_values_str)
+			if ((x == '{') || (x == '}') || (x == ','))
+				x = ' ';
+		sstream.clear(); sstream.str("");
+		sstream << parameter_values_str;
+		double dval;
+		while (sstream >> dval)
+			svm_p.values.push_back(dval);
+		svm_parameters.push_back(svm_p);
+	}
+	ifile.close();
 }
 
 bool computingProcess(const int rank)
