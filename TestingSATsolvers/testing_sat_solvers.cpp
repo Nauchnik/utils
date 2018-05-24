@@ -428,6 +428,26 @@ void makeSvmSolverNames(vector<string> &solver_files_names)
 		svm_parameters.push_back(svm_p);
 	}
 	ifile.close();
+
+	vector<vector<double>> parameters_values_vec, whole_parameters_values_vec;
+	for (auto &x : svm_parameters)
+		parameters_values_vec.push_back(x.values);
+
+	vector<int> index_arr;
+	vector<double> cur_values_vec;
+	while (next_cartesian(parameters_values_vec, index_arr, cur_values_vec))
+		whole_parameters_values_vec.push_back(cur_values_vec);
+
+	vector<string> new_names;
+	for (auto &x : solver_files_names)
+		for (auto &y : whole_parameters_values_vec) {
+			string name = x;
+			for (auto &z : y)
+				name += "_" + doubletostr(z);
+			new_names.push_back(name);
+		}
+	for (auto &x : new_names)
+		solver_files_names.push_back(x);
 }
 
 bool computingProcess(const int rank)
