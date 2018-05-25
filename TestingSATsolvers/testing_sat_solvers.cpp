@@ -28,17 +28,18 @@ const int SLEEP_MESSAGE = -2;
 
 using namespace Addit_func;
 
-struct solver_info
+struct solver
 {
 	string name;
 	double avg_time;
 	double min_time;
 	double max_time;
+	vector<double> svm_parameter_values;
 };
 
 struct mpi_task_solver_cnf
 {
-	string solver_name;
+	solver s;
 	string cnf_name;
 };
 
@@ -72,7 +73,7 @@ bool controlProcess(const int corecount);
 void SendString(const string string_to_send, const int computing_process);
 bool computingProcess(const int rank);
 int callMultithreadSolver(const int rank, const string solver_name, const string cnf_name);
-void makeSvmSolverNames(vector<string> &solver_files_names);
+void makeSvmParameters(vector<vector<double>> &search_space_svm_parameters);
 
 int main( int argc, char **argv )
 {
@@ -80,7 +81,8 @@ int main( int argc, char **argv )
 	svm_pcs_name = "svm.pcs";
 	vector<string> solver_files_names;
 	solver_files_names.push_back("glucose");
-	makeSvmSolverNames(solver_files_names);
+	vector<vector<double>> search_space_svm_parameters;
+	makeSvmParameters(search_space_svm_parameters);
 	argc = 5;
 	argv[1] = "solvers";
 	argv[2] = "cnfs";
@@ -161,7 +163,7 @@ int main( int argc, char **argv )
 	pos = instances_dir.find(str_to_remove);
 	if (pos != string::npos)
 		instances_dir.erase(pos, str_to_remove.length());
-	
+
 #ifdef _MPI
 	cout << "MPI mode " << endl;
 	int rank, corecount;
@@ -256,9 +258,6 @@ bool controlProcess(const int corecount)
 	}
 	solver_files_names = tmp_names;
 
-	if (isSVM)
-		makeSvmSolverNames(solver_files_names);
-
 	cout << endl << "solver_files_names :" << endl;
 	for (vector<string> ::iterator it = solver_files_names.begin(); it != solver_files_names.end(); it++)
 		cout << *it << endl;
@@ -266,14 +265,42 @@ bool controlProcess(const int corecount)
 	for (vector<string> ::iterator it = cnf_files_names.begin(); it != cnf_files_names.end(); it++)
 		cout << *it << endl;
 
-	vector<mpi_task_solver_cnf> tasks_vec;
+	vector<solver> solver_vec;
+	if (isSVM) {
+		for (auto &x : solver_files_names) {
+			solver s;
+			s.name = x;
+			solver_vec.push_back(s);
+			for (auto &y : search_space_svm_parameters) {
+				string name = x;
+				for (auto &z : y)
+					name += "_" + doubletostr(z);
+				solver s;
+				s.name = name;
+				s.svm_parameter_values = y;
+				solver_vec.push_back(s);
+			}
+			tmp_solver_files_names.push_back();
+		}
+		solver_files_names = tmp_solver_files_names;
+		cout << "new solver_files_names size " << solver_files_names.size() << endl;
+		cout << "the first 10 names : \n";
+		for (unaigned i = 0; i < solver_files_names.size(); i += ) {
+			if (i == 10)
+				break;
+			cout << solver_files_names[i] << endl;
+		}
+	}
+	
 	mpi_task_solver_cnf cur_task;
+	vector<mpi_task_solver_cnf> tasks_vec;
 	for (auto &x : solver_files_names)
 		for (auto &y : cnf_files_names) {
 			cur_task.solver_name = x;
 			cur_task.cnf_name = y;
 			tasks_vec.push_back(cur_task);
 		}
+
 	cout << "tasks_vec.size() " << tasks_vec.size() << endl;
 
 	double maxtime_seconds;
@@ -406,7 +433,7 @@ bool controlProcess(const int corecount)
 	return true;
 }
 
-void makeSvmSolverNames(vector<string> &solver_files_names)
+void makeSvmParameters(vector<vector<double>> &search_space_svm_parameters)
 {
 	// parse paremeters and their values
 	ifstream ifile(svm_pcs_name.c_str());
@@ -429,25 +456,14 @@ void makeSvmSolverNames(vector<string> &solver_files_names)
 	}
 	ifile.close();
 
-	vector<vector<double>> parameters_values_vec, whole_parameters_values_vec;
+	vector<vector<double>> parameters_values_vec;
 	for (auto &x : svm_parameters)
 		parameters_values_vec.push_back(x.values);
 
 	vector<int> index_arr;
 	vector<double> cur_values_vec;
 	while (next_cartesian(parameters_values_vec, index_arr, cur_values_vec))
-		whole_parameters_values_vec.push_back(cur_values_vec);
-
-	vector<string> new_names;
-	for (auto &x : solver_files_names)
-		for (auto &y : whole_parameters_values_vec) {
-			string name = x;
-			for (auto &z : y)
-				name += "_" + doubletostr(z);
-			new_names.push_back(name);
-		}
-	for (auto &x : new_names)
-		solver_files_names.push_back(x);
+		search_space_svm_parameters.push_back(cur_values_vec);
 }
 
 bool computingProcess(const int rank)
