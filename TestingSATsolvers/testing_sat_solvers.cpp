@@ -31,16 +31,19 @@ using namespace Addit_func;
 struct solver
 {
 	string name;
+	string base_name;
 	double avg_time;
 	double min_time;
 	double max_time;
 	vector<double> svm_parameter_values;
 };
 
-struct mpi_task_solver_cnf
+struct task
 {
 	solver s;
 	string cnf_name;
+	double solving_time;
+	int result;
 };
 
 struct svm_parameter
@@ -48,6 +51,7 @@ struct svm_parameter
 	string name;
 	vector<double> values;
 };
+
 
 string solvers_dir = "";
 string instances_dir = "";
@@ -66,14 +70,16 @@ vector<svm_parameter> svm_parameters;
 bool conseqProcessing();
 int solveInstance(const string solver_name, const string cnf_name);
 int solveAliasInstance(string solver_name, string cnf_name);
-int solveSvmInstance(string solver_name, string cnf_name);
+int solveSvmInstance(const string solver_base_name, const string solver_full_name, const string cnf_name, const vector<double> svm_parameters_values);
 string get_pre_cnf_solver_params_str(const string solver_name);
 string get_post_cnf_solver_params_str(string solver_name);
 bool controlProcess(const int corecount);
-void SendString(const string string_to_send, const int computing_process);
+void sendTask(const int task_index, const int computing_process, const task cur_task);
+void sendString(const string string_to_send, const int computing_process);
 bool computingProcess(const int rank);
-int callMultithreadSolver(const int rank, const string solver_name, const string cnf_name);
-void makeSvmParameters(vector<vector<double>> &search_space_svm_parameters);
+int callMultithreadSolver(const int rank, const string solver_base_name, const string solver_name, 
+	const string cnf_name, const vector<double> svm_parameters_values);
+void makeSvmParameters();
 
 int main( int argc, char **argv )
 {
@@ -81,8 +87,11 @@ int main( int argc, char **argv )
 	svm_pcs_name = "svm.pcs";
 	vector<string> solver_files_names;
 	solver_files_names.push_back("glucose");
+	isSvm = true;
+
 	vector<vector<double>> search_space_svm_parameters;
-	makeSvmParameters(search_space_svm_parameters);
+	makeSvmParameters();
+
 	argc = 5;
 	argv[1] = "solvers";
 	argv[2] = "cnfs";
@@ -140,22 +149,6 @@ int main( int argc, char **argv )
 			nojump = true;
 	}
 	
-	cout << "solvers_dir " << solvers_dir << endl;
-	cout << "instances_dir " << instances_dir << endl;
-	cout << "maxtime_seconds_str " << maxtime_seconds_str << endl;
-	cout << "max_memory_mb_str " << max_memory_mb_str << endl;
-	cout << "nof_threads_str " << nof_threads_str << endl;
-	if (alias_pcs_name != "") {
-		cout << "ALIAS mode" << endl;
-		cout << "alias_pcs_name " << alias_pcs_name << endl;
-		cout << "rand_from_str " << rand_from_str << endl;
-		cout << "rand_to_str " << rand_to_str << endl;
-	}
-	if (svm_pcs_name != "") {
-		cout << "SVM mode" << endl;
-		cout << "svm_pcs_name " << svm_pcs_name << endl;
-	}
-	
 	string str_to_remove = "./";
 	unsigned pos = solvers_dir.find(str_to_remove);
 	if (pos != string::npos)
@@ -170,10 +163,29 @@ int main( int argc, char **argv )
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &corecount);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	cout << "corecount " << corecount << endl;
 	
-	if (rank == 0)
+	if (isSvm)
+		makeSvmParameters();
+
+	if (rank == 0) {
+		cout << "corecount " << corecount << endl;
+		cout << "solvers_dir " << solvers_dir << endl;
+		cout << "instances_dir " << instances_dir << endl;
+		cout << "maxtime_seconds_str " << maxtime_seconds_str << endl;
+		cout << "max_memory_mb_str " << max_memory_mb_str << endl;
+		cout << "nof_threads_str " << nof_threads_str << endl;
+		if (alias_pcs_name != "") {
+			cout << "ALIAS mode" << endl;
+			cout << "alias_pcs_name " << alias_pcs_name << endl;
+			cout << "rand_from_str " << rand_from_str << endl;
+			cout << "rand_to_str " << rand_to_str << endl;
+		}
+		if (svm_pcs_name != "") {
+			cout << "SVM mode" << endl;
+			cout << "svm_pcs_name " << svm_pcs_name << endl;
+		}
 		controlProcess(corecount);
+	}
 	else
 		computingProcess(rank);
 #else
@@ -265,39 +277,57 @@ bool controlProcess(const int corecount)
 	for (vector<string> ::iterator it = cnf_files_names.begin(); it != cnf_files_names.end(); it++)
 		cout << *it << endl;
 
+	
+	vector<vector<double>> search_space_svm_parameters;
+	if (isSvm) {
+		vector<vector<double>> parameters_values_vec;
+		for (auto &x : svm_parameters)
+			parameters_values_vec.push_back(x.values);
+		vector<int> index_arr;
+		vector<double> cur_values_vec;
+		while (next_cartesian(parameters_values_vec, index_arr, cur_values_vec))
+			search_space_svm_parameters.push_back(cur_values_vec);
+	}
+
 	vector<solver> solver_vec;
-	if (isSVM) {
-		for (auto &x : solver_files_names) {
-			solver s;
-			s.name = x;
-			solver_vec.push_back(s);
+	for (auto &x : solver_files_names) {
+		solver s;
+		s.name = s.base_name = x;
+		s.avg_time = s.max_time = s.min_time = 0;
+		s.svm_parameter_values.resize(svm_parameters.size());
+		for (auto &y : s.svm_parameter_values)
+			y = -1;
+		solver_vec.push_back(s);
+		if (isSvm) {
 			for (auto &y : search_space_svm_parameters) {
 				string name = x;
 				for (auto &z : y)
 					name += "_" + doubletostr(z);
 				solver s;
 				s.name = name;
+				s.base_name = x;
+				s.avg_time = s.max_time = s.min_time = 0;
 				s.svm_parameter_values = y;
 				solver_vec.push_back(s);
 			}
-			tmp_solver_files_names.push_back();
-		}
-		solver_files_names = tmp_solver_files_names;
-		cout << "new solver_files_names size " << solver_files_names.size() << endl;
-		cout << "the first 10 names : \n";
-		for (unaigned i = 0; i < solver_files_names.size(); i += ) {
-			if (i == 10)
-				break;
-			cout << solver_files_names[i] << endl;
 		}
 	}
+	cout << "solver_vec size " << solver_vec.size() << endl;
+	cout << "the first 10 names : \n";
+	for (unsigned i = 0; i < solver_vec.size(); i++) {
+		if (i == 10)
+			break;
+		cout << solver_vec[i].name << endl;
+	}
 	
-	mpi_task_solver_cnf cur_task;
-	vector<mpi_task_solver_cnf> tasks_vec;
-	for (auto &x : solver_files_names)
+	task cur_task;
+	vector<task> tasks_vec;
+	for (auto &x : solver_vec)
 		for (auto &y : cnf_files_names) {
-			cur_task.solver_name = x;
+			cur_task.s = x;
 			cur_task.cnf_name = y;
+			cur_task.result = UNKNOWN;
+			cur_task.solving_time = -1;
 			tasks_vec.push_back(cur_task);
 		}
 
@@ -322,26 +352,12 @@ bool controlProcess(const int corecount)
 	}
 
 	// send first part of tasks
-	for (int i = 0; i < first_send_tasks; i++) {
-		cout << "Sending task " << i << endl;
-		MPI_Send(&i, 1, MPI_INT, computing_process_vec[i], 0, MPI_COMM_WORLD);
-		cout << "Sending solver_name " << tasks_vec[i].solver_name << endl;
-		SendString(tasks_vec[i].solver_name, computing_process_vec[i]);
-		cout << "Sending cnf_name " << tasks_vec[i].cnf_name << endl;
-		SendString(tasks_vec[i].cnf_name, computing_process_vec[i]);
-	}
+	for (int i = 0; i < first_send_tasks; i++)
+		sendTask(i, computing_process_vec[i], tasks_vec[i]);
 	sent_tasks = first_send_tasks;
 
 	double process_solving_time;
 	int process_task_index;
-	vector<double> process_solving_time_vec;
-	vector<int> result_vec;
-	process_solving_time_vec.resize(tasks_vec.size());
-	result_vec.resize(tasks_vec.size());
-	for (auto &x : process_solving_time_vec)
-		x = -1;
-	for (auto &x : result_vec)
-		x = UNKNOWN;
 	ofstream ofile;
 	int result = 0;
 	int iprobe_message = 0;
@@ -361,8 +377,8 @@ bool controlProcess(const int corecount)
 		cout << "Recieved process_solving_time " << process_solving_time << endl;
 		MPI_Recv(&result, 1, MPI_INT, status.MPI_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		cout << "Recieved result " << result << endl;
-		process_solving_time_vec[process_task_index] = process_solving_time;
-		result_vec[process_task_index] = result;
+		tasks_vec[process_task_index].result = result;
+		tasks_vec[process_task_index].solving_time = process_solving_time;
 		if (process_solving_time >= maxtime_seconds)
 			interrupted++;
 		solved_tasks++;
@@ -371,13 +387,7 @@ bool controlProcess(const int corecount)
 			cout << "interrupted " << solved_tasks << endl;
 
 		if (sent_tasks < tasks_vec.size()) {
-			// send a new task if one exists
-			cout << "Sending task " << sent_tasks << endl;
-			MPI_Send(&sent_tasks, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
-			cout << "Sending solver_name " << tasks_vec[sent_tasks].solver_name << endl;
-			SendString(tasks_vec[sent_tasks].solver_name, status.MPI_SOURCE);
-			cout << "Sending cnf_name " << tasks_vec[sent_tasks].cnf_name << endl;
-			SendString(tasks_vec[sent_tasks].cnf_name, status.MPI_SOURCE);
+			sendTask(sent_tasks, status.MPI_SOURCE, tasks_vec[sent_tasks]);
 			sent_tasks++;
 			cout << "sent_tasks " << sent_tasks << endl;
 		}
@@ -390,12 +400,12 @@ bool controlProcess(const int corecount)
 		ofile.open("testing_sat_solvers_out", ios_base::out);
 		ofile << "instance result time" << endl;
 		for (int i = 0; i < tasks_vec.size(); i++)
-			ofile << tasks_vec[i].solver_name << " "
+			ofile << tasks_vec[i].s.name << " "
 			      << tasks_vec[i].cnf_name << " "
-			      << process_solving_time_vec[i] << endl;
+			      << tasks_vec[i].solving_time << endl;
 		ofile.close(); ofile.clear();
 	}
-
+	
 	cout << "End of the control process" << endl;
 	control_process_solving_time = MPI_Wtime() - control_process_solving_time;
 	cout << "control_process_solving_time " << control_process_solving_time << endl;
@@ -406,22 +416,24 @@ bool controlProcess(const int corecount)
 		MPI_Isend(&STOP_MESSAGE, 1, MPI_INT, i, 0, MPI_COMM_WORLD, &mpi_request);
 
 	double min = 1e50, max = 0, med = -1, sum = 0;
-	for (auto &x : process_solving_time_vec) {
-		sum += x;
-		min = x < min ? x : min;
-		max = x > max ? x : max;
+	for (auto &x : tasks_vec) {
+		if (x.solving_time == -1)
+			continue;
+		sum += x.solving_time;
+		min = x.solving_time < min ? x.solving_time : min;
+		max = x.solving_time > max ? x.solving_time : max;
 	}
-	med = sum / process_solving_time_vec.size();
+	med = sum / tasks_vec.size();
 	cout << "min time " << min << endl;
 	cout << "max time " << max << endl;
 	cout << "med time " << med << endl;
 	unsigned sat_count = 0, unsat_count = 0, unknown_count = 0;
-	for (auto &x : result_vec) {
-		if (x == SAT)
+	for (auto &x : tasks_vec) {
+		if (x.result == SAT)
 			sat_count++;
-		else if (x == UNSAT)
+		else if (x.result == UNSAT)
 			unsat_count++;
-		else if (x == UNKNOWN)
+		else if (x.result == UNKNOWN)
 			unknown_count++;
 	}
 	cout << "sat_count " << sat_count << endl;
@@ -433,7 +445,7 @@ bool controlProcess(const int corecount)
 	return true;
 }
 
-void makeSvmParameters(vector<vector<double>> &search_space_svm_parameters)
+void makeSvmParameters()
 {
 	// parse paremeters and their values
 	ifstream ifile(svm_pcs_name.c_str());
@@ -454,16 +466,33 @@ void makeSvmParameters(vector<vector<double>> &search_space_svm_parameters)
 			svm_p.values.push_back(dval);
 		svm_parameters.push_back(svm_p);
 	}
+	cout << "svm_parameters size " << svm_parameters.size() << endl;
 	ifile.close();
+}
 
-	vector<vector<double>> parameters_values_vec;
-	for (auto &x : svm_parameters)
-		parameters_values_vec.push_back(x.values);
-
-	vector<int> index_arr;
-	vector<double> cur_values_vec;
-	while (next_cartesian(parameters_values_vec, index_arr, cur_values_vec))
-		search_space_svm_parameters.push_back(cur_values_vec);
+void sendTask(const int task_index, const int computing_process, const task cur_task)
+{
+#ifdef _MPI
+	cout << "Sending task " << task_index << endl;
+	MPI_Send(&task_index, 1, MPI_INT, computing_process, 0, MPI_COMM_WORLD);
+	cout << "Sending solver base name " << cur_task.s.base_name << endl;
+	sendString(cur_task.s.base_name, computing_process);
+	cout << "Sending solver full name " << cur_task.s.name << endl;
+	sendString(cur_task.s.name, computing_process);
+	cout << "Sending cnf_name " << cur_task.cnf_name << endl;
+	sendString(cur_task.cnf_name, computing_process);
+	if (isSvm) {
+		cout << "sending " << cur_task.s.svm_parameter_values.size() << " parameters values : \n";
+		for (auto &x : cur_task.s.svm_parameter_values)
+			cout << x << " ";
+		cout << endl;
+		double *arr = new double[cur_task.s.svm_parameter_values.size()];
+		for (unsigned i = 0; i < cur_task.s.svm_parameter_values.size(); i++)
+			arr[i] = cur_task.s.svm_parameter_values[i];
+		MPI_Send(arr, cur_task.s.svm_parameter_values.size(), MPI_DOUBLE, computing_process, 0, MPI_COMM_WORLD);
+		delete[] arr;
+	}
+#endif
 }
 
 bool computingProcess(const int rank)
@@ -483,7 +512,9 @@ bool computingProcess(const int rank)
 	int cnf_name_char_arr_len = 0;
 	char *cnf_name_char_arr;
 	int solver_name_char_arr_len = 0;
+	int solver_base_name_char_arr_len = 0;
 	char *solver_name_char_arr;
+	char *solver_base_name_char_arr;
 	int first_message;
 
 	unsigned nof_threads = 0;
@@ -524,6 +555,14 @@ bool computingProcess(const int rank)
 			cout << "Received stop message on computing process " << rank << endl;
 			break;
 		}
+		MPI_Recv(&solver_base_name_char_arr_len, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		if (rank == 1)
+			cout << "solver_base_name_char_arr_len " << solver_base_name_char_arr_len << endl;
+		solver_base_name_char_arr = new char[solver_base_name_char_arr_len + 1];
+		MPI_Recv(solver_base_name_char_arr, solver_base_name_char_arr_len + 1,
+			MPI_CHAR, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		string solver_base_name = solver_base_name_char_arr;
+		delete[] solver_base_name_char_arr;
 		MPI_Recv(&solver_name_char_arr_len, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 		if (rank == 1)
 			cout << "solver_name_char_arr_len " << solver_name_char_arr_len << endl;
@@ -541,15 +580,36 @@ bool computingProcess(const int rank)
 		string cnf_name = cnf_name_char_arr;
 		delete[] cnf_name_char_arr;
 		if (rank == 1) {
-			cout << "Received solver_name" << solver_name << endl;
+			cout << "Received solver_base_name " << solver_base_name << endl;
+			cout << "Received solver_name " << solver_name << endl;
 			cout << "Received cnf_name " << cnf_name << endl;
 		}
 
+		vector<double> svm_parameters_values;
+		if (isSvm) {
+			cout << "recv svm parameters values \n";
+			cout << "svm_parameters size " << svm_parameters.size() << endl;
+			double *svm_parameters_arr = new double[svm_parameters.size()];
+			MPI_Recv(svm_parameters_arr, svm_parameters.size(), MPI_DOUBLE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+			cout << "recv done \n";
+			for (unsigned i = 0; i < svm_parameters.size(); i++) {
+				svm_parameters_values.push_back(svm_parameters_arr[i]);
+				cout << svm_parameters_values[i] << " ";
+			}
+			delete[] svm_parameters_arr;
+		}
+		
 		process_solving_time = MPI_Wtime();
 		// solving with received Tfact
-		result = callMultithreadSolver(rank, solver_name, cnf_name);
+		result = callMultithreadSolver(rank, solver_base_name, solver_name, cnf_name, svm_parameters_values);
 		process_solving_time = MPI_Wtime() - process_solving_time;
-
+		if (rank == 1) {
+			cout << "rank 1\n";
+			cout << "sending process_task_index " << process_task_index << endl;
+			cout << "sending " << process_solving_time << endl;
+			cout << "result " << result << endl;
+		}
+		
 		MPI_Send(&process_task_index, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
 		MPI_Send(&process_solving_time, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 		MPI_Send(&result, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
@@ -559,7 +619,8 @@ bool computingProcess(const int rank)
 	return true;
 }
 
-int callMultithreadSolver(const int rank, const string solver_name, const string cnf_name)
+int callMultithreadSolver(const int rank, const string solver_base_name, const string solver_name,
+						  const string cnf_name, const vector<double> svm_parameters_values)
 {
 	if ((solver_name == "") || (cnf_name == ""))
 		return 0;
@@ -577,8 +638,8 @@ int callMultithreadSolver(const int rank, const string solver_name, const string
 
 	if (isAlias)
 		result = solveAliasInstance(solver_name, cnf_name);
-	if (isSvm)
-		result = solveSvmInstance(solver_name, cnf_name);
+	else if ( (isSvm) && (solver_base_name != solver_name) )
+		result = solveSvmInstance(solver_base_name, solver_name, cnf_name, svm_parameters_values);
 	else
 		result = solveInstance(solver_name, cnf_name);
 
@@ -654,7 +715,7 @@ string get_post_cnf_solver_params_str(const string solver_name)
 	return result_str;
 }
 
-void SendString(const string string_to_send, const int computing_process)
+void sendString(const string string_to_send, const int computing_process)
 {
 #ifdef _MPI
 	int char_arr_len = string_to_send.size();
@@ -674,7 +735,7 @@ void SendString(const string string_to_send, const int computing_process)
 
 bool conseqProcessing()
 {
-	fstream current_out;
+	/*fstream current_out;
 	double cur_time, avg_time = 0;
 	stringstream sstream;
 	
@@ -702,8 +763,8 @@ bool conseqProcessing()
 	for (vector<string> ::iterator it = cnf_files_names.begin(); it != cnf_files_names.end(); it++)
 		cout << *it << endl;
 
-	vector<solver_info> solver_info_vec;
-	solver_info cur_solver_info;
+	vector<solver> solver_vec;
+	solver cur_solver_info;
 	vector<unsigned> sat_count_vec;
 	sat_count_vec.resize(solver_files_names.size());
 	for (vector<unsigned> ::iterator it = sat_count_vec.begin(); it != sat_count_vec.end(); it++)
@@ -772,7 +833,7 @@ bool conseqProcessing()
 		cur_solver_info.avg_time = avg_time;
 		cur_solver_info.min_time = min_time;
 		cur_solver_info.max_time = max_time;
-		solver_info_vec.push_back(cur_solver_info);
+		solver_vec.push_back(cur_solver_info);
 
 		cout << solver_files_names[i] << " : " << sat_count_vec[i] << " sat from " <<
 			cnf_files_names.size() << endl;
@@ -786,6 +847,7 @@ bool conseqProcessing()
 		cout << "  min_time " << (*it).min_time << " s" << endl;
 		cout << "  max_time " << (*it).max_time << " s" << endl;
 	}
+	*/
 
 	return true;
 }
@@ -836,7 +898,7 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 	return UNKNOWN;
 }
 
-int solveSvmInstance(const string solver_name, const string cnf_name)
+int solveSvmInstance(const string solver_base_name, const string solver_full_name, const string cnf_name, const vector<double> svm_parameters_values)
 {
 	cout << "start solveSvmInstance()" << endl;
 	string base_path = exec("echo $PWD");
@@ -846,21 +908,27 @@ int solveSvmInstance(const string solver_name, const string cnf_name)
 
 	// launch the script to create a folder for ALIAS and copy files to it
 	string system_str = base_path + "/svm_prepare_dir.sh " +
-		solvers_dir + "/" + solver_name + " " +
+		solvers_dir + "/" + solver_base_name + " " +
+		solver_full_name + " " +
 		instances_dir + "/" + cnf_name;
 	cout << "svm_prepare_dir.sh command string " << system_str << endl;
 
 	string result_str = exec(system_str);
 	cout << "result_str " << result_str << endl;
 
-	string svm_launch_path = base_path + "/tmp_" + solver_name + "_" + cnf_name + "/";
+	string svm_launch_path = base_path + "/tmp_" + solver_full_name + "_" + cnf_name + "/";
 	system_str = svm_launch_path + "svmsat " +
-		svm_launch_path + solver_name + " " +
+		svm_launch_path + solver_base_name + " " +
 		svm_launch_path + cnf_name +
 		" -cpu-lim=" + maxtime_seconds_str;
+	if (svm_parameters_values.size() == svm_parameters.size())
+		for (unsigned i = 0; i < svm_parameters.size(); i++) {
+			if (svm_parameters_values[i] != -1)
+				system_str += " -" + svm_parameters[i].name + "=" + doubletostr(svm_parameters_values[i]);
+		}
 	cout << "svmsat command string " << system_str << endl;
 
-	string out_name = base_path + "/out_" + solver_name + "_" + cnf_name;
+	string out_name = base_path + "/out_" + solver_full_name + "_" + cnf_name;
 	fstream out_file;
 	out_file.open(out_name, ios_base::out);
 	out_file << exec(system_str);
