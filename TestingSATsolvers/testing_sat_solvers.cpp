@@ -80,6 +80,7 @@ bool computingProcess(const int rank);
 int callMultithreadSolver(const int rank, const string solver_base_name, const string solver_name, 
 	const string cnf_name, const vector<double> svm_parameters_values);
 void makeSvmParameters();
+int getResultFromFile(string out_name);
 
 int main( int argc, char **argv )
 {
@@ -603,6 +604,10 @@ bool computingProcess(const int rank)
 		// solving with received Tfact
 		result = callMultithreadSolver(rank, solver_base_name, solver_name, cnf_name, svm_parameters_values);
 		process_solving_time = MPI_Wtime() - process_solving_time;
+		if (result == UNKNOWN) {
+			cout << "unknown result, set huge solving time value \n";
+			process_solving_time = 1e100;
+		}
 		if (rank == 1) {
 			cout << "rank 1\n";
 			cout << "sending process_task_index " << process_task_index << endl;
@@ -935,7 +940,14 @@ int solveSvmInstance(const string solver_base_name, const string solver_full_nam
 	out_file.close();
 	out_file.clear();
 
-	return UNKNOWN;
+	// get result from the out file
+	int result = getResultFromFile(out_name);
+
+	cout << "remove temp folder " << svm_launch_path << endl;
+	system_str = "rm -rf " + svm_launch_path;
+	exec(system_str);
+	
+	return result;
 }
 
 int solveInstance(const string solver_name, const string cnf_name)
@@ -979,7 +991,7 @@ int solveInstance(const string solver_name, const string cnf_name)
 	current_out.clear();
 	current_out.close();
 	
-	current_out.open(current_out_name, ios_base::in);
+	/*current_out.open(current_out_name, ios_base::in);
 	if (!current_out.is_open()) {
 		cerr << "couldn't open file " << current_out_name << endl;
 		exit(1);
@@ -1038,5 +1050,28 @@ int solveInstance(const string solver_name, const string cnf_name)
 		}
 	}
 	current_out.close();
+	*/
+
+	int result = getResultFromFile(current_out_name);
+
+	return result;
+}
+
+int getResultFromFile(string out_name)
+{
+	ifstream out_file(out_name.c_str());
+	string str;
+	int result = UNKNOWN;
+	while (getline(out_file, str)) {
+		if (str.find("s SATISFIABLE") != string::npos) {
+			result = SAT;
+			break;
+		}
+		else if (str.find("s UNSATISFIABLE") != string::npos) {
+			result = UNSAT;
+			break;
+		}
+	}
+	out_file.close();
 	return result;
 }
