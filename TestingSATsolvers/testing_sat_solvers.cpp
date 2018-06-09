@@ -52,7 +52,6 @@ struct svm_parameter
 	vector<double> values;
 };
 
-
 string solvers_dir = "";
 string instances_dir = "";
 string nof_threads_str = "";
@@ -60,8 +59,10 @@ string maxtime_seconds_str = "600";
 string max_memory_mb_str = "4096";
 string alias_pcs_name = "";
 string svm_pcs_name = "";
+string smac_name = "";
 bool isAlias = false;
 bool isSvm = false;
+bool isSmac = false;
 string rand_from_str = "";
 string rand_to_str = "";
 bool nojump = false;
@@ -69,6 +70,7 @@ vector<svm_parameter> svm_parameters;
 
 bool conseqProcessing();
 int solveInstance(const string solver_name, const string cnf_name);
+void solveSmacInstance(const string solver_name, const string scenario_name);
 int solveAliasInstance(string solver_name, string cnf_name);
 int solveSvmInstance(const string solver_base_name, const string solver_full_name, const string cnf_name, const vector<double> svm_parameters_values);
 string get_pre_cnf_solver_params_str(const string solver_name);
@@ -90,6 +92,12 @@ int main( int argc, char **argv )
 	solver_files_names.push_back("glucose");
 	isSvm = true;
 
+	string solvers_dir1 = "";
+	string str_to_remove1 = "./";
+	unsigned pos1 = solvers_dir1.find(str_to_remove1);
+	if (pos1 != string::npos)
+		solvers_dir.erase(pos1, str_to_remove1.length());
+
 	vector<vector<double>> search_space_svm_parameters;
 	makeSvmParameters();
 
@@ -102,7 +110,8 @@ int main( int argc, char **argv )
 	
 	if ( argc < 3 ) {
 		cout << "Usage: prog -solvers_dir [path] -instances_dir [path] -maxseconds [seconds] " <<
-			"-maxthreads [threads] -maxmb [mb] -pcs [pcs_name] -rand-from [val] -rand-to [val]" << endl;
+			    "-maxthreads [threads] -maxmb [mb] -pcs [pcs_name] -rand-from [val] -rand-to [val] " << 
+			    "--nojump -svm [svm_name] -smac [smac_name]" << endl;
 		return 1;
 	}
 
@@ -138,6 +147,11 @@ int main( int argc, char **argv )
 			if (i < argc - 1)
 				svm_pcs_name = argv[i + 1];
 		}
+		if (str == "-smac") {
+			isSmac = true;
+			if (i < argc - 1)
+				smac_name = argv[i + 1];
+		}
 		if (str == "-rand-from") {
 			if (i < argc - 1)
 				rand_from_str = argv[i + 1];
@@ -151,9 +165,12 @@ int main( int argc, char **argv )
 	}
 	
 	string str_to_remove = "./";
-	unsigned pos = solvers_dir.find(str_to_remove);
-	if (pos != string::npos)
-		solvers_dir.erase(pos, str_to_remove.length());
+	unsigned pos; 
+	if (solvers_dir != "") {
+		solvers_dir.find(str_to_remove);
+		if (pos != string::npos)
+			solvers_dir.erase(pos, str_to_remove.length());
+	}
 	pos = instances_dir.find(str_to_remove);
 	if (pos != string::npos)
 		instances_dir.erase(pos, str_to_remove.length());
@@ -184,6 +201,10 @@ int main( int argc, char **argv )
 		if (svm_pcs_name != "") {
 			cout << "SVM mode" << endl;
 			cout << "svm_pcs_name " << svm_pcs_name << endl;
+		}
+		if (smac_name != "") {
+			cout << "SMAC mode \n";
+			cout << "smac_name " << smac_name << endl;
 		}
 		controlProcess(corecount);
 	}
@@ -246,21 +267,24 @@ bool controlProcess(const int corecount)
 	cout << "*** Stage 2. Solve all instances." << endl;
 
 	string system_str, cur_process_dir_name;
-
 	double control_process_solving_time = MPI_Wtime();
-	vector<string> solver_files_names = vector<string>();
+	vector<string> solver_files_names = vector<string>();;
 	vector<string> cnf_files_names = vector<string>();
-
 	vector<string> solved_instances;
 	string cur_path = exec("echo $PWD");
 	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
 	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\n'), cur_path.end());
+	if (isSmac) {
+		solvers_dir = "";
+		solver_files_names.push_back(smac_name);
+	} else {
+		if (!getdir(solvers_dir, solver_files_names)) { return false; }
+	}
 	solvers_dir = cur_path + "/" + solvers_dir;
 	cout << "full solvers_dir " << solvers_dir << endl;
 	instances_dir = cur_path + "/" + instances_dir;
 	cout << "full instances_dir " << instances_dir << endl;
 	if (!getdir(instances_dir, cnf_files_names)) { return false; };
-	if (!getdir(solvers_dir, solver_files_names)) { return false; }
 	sort(solver_files_names.begin(), solver_files_names.end());
 	sort(cnf_files_names.begin(), cnf_files_names.end());
 
@@ -278,7 +302,6 @@ bool controlProcess(const int corecount)
 	for (vector<string> ::iterator it = cnf_files_names.begin(); it != cnf_files_names.end(); it++)
 		cout << *it << endl;
 
-	
 	vector<vector<double>> search_space_svm_parameters;
 	if (isSvm) {
 		vector<vector<double>> parameters_values_vec;
@@ -639,12 +662,14 @@ int callMultithreadSolver(const int rank, const string solver_base_name, const s
 		cout << "new nof_threads_str " << nof_threads_str << endl;
 	}
 
-	int result;
+	int result = 0;
 
 	if (isAlias)
 		result = solveAliasInstance(solver_name, cnf_name);
 	else if ( (isSvm) && (solver_base_name != solver_name) )
 		result = solveSvmInstance(solver_base_name, solver_name, cnf_name, svm_parameters_values);
+	else if (isSmac)
+		solveSmacInstance(solver_name, cnf_name);
 	else
 		result = solveInstance(solver_name, cnf_name);
 
@@ -950,10 +975,22 @@ int solveSvmInstance(const string solver_base_name, const string solver_full_nam
 	return result;
 }
 
+void solveSmacInstance(const string solver_name, const string scenario_name)
+{
+	cout << "start solveSmacInstance() \n";
+	string cur_path = exec("echo $PWD");
+	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\r'), cur_path.end());
+	cur_path.erase(remove(cur_path.begin(), cur_path.end(), '\n'), cur_path.end());
+	cout << "cur_path " << cur_path << endl;
+	string system_str = cur_path + "/" + solver_name + " " + cur_path + "/" + instances_dir +
+		"/" + scenario_name + " out_" + solver_name + "_" + scenario_name;
+	cout << "system_str " << system_str << endl;
+	exec(system_str);
+}
+
 int solveInstance(const string solver_name, const string cnf_name)
 {
 	string system_str, current_out_name, str;
-	unsigned copy_from, copy_to;
 	
 #ifdef _MPI
 	string cur_path = exec("echo $PWD");
@@ -997,6 +1034,7 @@ int solveInstance(const string solver_name, const string cnf_name)
 		exit(1);
 	}
 	
+	unsigned copy_from, copy_to;
 	stringstream sstream;
 	int result = UNKNOWN;
 	double cur_time = 0.0;
