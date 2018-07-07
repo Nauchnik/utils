@@ -680,11 +680,11 @@ string get_pre_cnf_solver_params_str(const string solver_name)
 {
 	string solver_params_str;
 	if (solver_name.find(".sh") == string::npos)
-		solver_params_str = "-cpu-lim=" + maxtime_seconds_str;
-	
+		solver_params_str = "-cpu-lim=" + maxtime_seconds_str + " ";
+		
 	if ((solver_name.find("plingeling") != string::npos) ||
 		(solver_name.find("treengeling") != string::npos))
-		solver_params_str += " -t " + nof_threads_str;
+		solver_params_str += "-t " + nof_threads_str;
 	else if (solver_name.find("cryptominisat") != string::npos)
 		solver_params_str += "--threads=" + nof_threads_str;
 	else if (solver_name.find("syrup") != string::npos)
