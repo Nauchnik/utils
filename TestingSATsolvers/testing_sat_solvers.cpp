@@ -165,7 +165,7 @@ int main( int argc, char **argv )
 	}
 	
 	string str_to_remove = "./";
-	unsigned pos; 
+	unsigned pos = 0; 
 	if (solvers_dir != "") {
 		solvers_dir.find(str_to_remove);
 		if (pos != string::npos)
@@ -679,9 +679,11 @@ int callMultithreadSolver(const int rank, const string solver_base_name, const s
 string get_pre_cnf_solver_params_str(const string solver_name)
 {
 	string solver_params_str;
-	if (solver_name.find(".sh") == string::npos)
+	if ( (solver_name.find(".sh") == string::npos) &&
+		 (solver_name.find("plingeling") == string::npos) && 
+		 (solver_name.find("treengeling") == string::npos) )
 		solver_params_str = "-cpu-lim=" + maxtime_seconds_str + " ";
-		
+	
 	if ((solver_name.find("plingeling") != string::npos) ||
 		(solver_name.find("treengeling") != string::npos))
 		solver_params_str += "-t " + nof_threads_str;
