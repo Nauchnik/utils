@@ -48,9 +48,9 @@ final -- final mixing of 3 32-bit values (a,b,c) into c
 
 //-------------------------------------------------------------------------------
 uint32_t  Hash_process :: hashvec(
-vector<short> k,                   /* the key, an vector of int values */
-size_t        length,               /* the length of the key, in uint32_ts */
-uint32_t      initval)         /* the previous hash, or an arbitrary value */
+vector<short> k,       /* the key, a vector of int values */
+size_t        length,  /* the length of the key, in uint32_ts */
+uint32_t      initval) /* the previous hash, or an arbitrary value */
 {
 // analog of Bob Jenkins' hashword
 	uint32_t a,b,c;
@@ -331,7 +331,7 @@ vector<short> Hash_process :: GetVecFromString( string clause_string )
 //-------------------------------------------------------------------------------
 void Hash_process :: MakeHashTabFromFile( string file_name )
 {
-// file_name can differs from input_file_name - in case of file splitting
+// file_name can differ from input_file_name - in the case of file splitting
 	ifstream input_file;
 	string clause_string;
 	vector<short> lit_vec;
@@ -565,7 +565,7 @@ bool Hash_process :: ReadInpFile( )
 	for( int i = 0; i < freq_arr_len; i++ )
 		freq_arr[i] = 0;
 
-	if ( SplitInpFileMode == 3 ) { // if files exists
+	if ( SplitInpFileMode == 3 ) { // if files exist
 		ifstream str_len_file( str_len_file_name.c_str( ) );
 		getline( str_len_file, clause_string );
 		clauses_count = atoi( clause_string.c_str( ) );
@@ -575,7 +575,7 @@ bool Hash_process :: ReadInpFile( )
 		return true;
 	}
 
-	// delete zplit files if such exists
+	// delete zplit files if such exist
 	#ifdef _WIN32
 		system_str = "del zplit*";
 	#else
@@ -587,8 +587,8 @@ bool Hash_process :: ReadInpFile( )
 
 	input_file.open( input_file_name.c_str( ) );
 
-	if ( SplitInpFileMode == 1 ) { // fast way - only count of strings
-		// read max len of strin for allocation of arrays
+	if ( SplitInpFileMode == 1 ) { // fast way - only count strings
+		// read max len to allocate arrays
 		while( getline( input_file, clause_string ) ) {
 			clauses_count++;
 			if ( max_str_len < ( int )clause_string.length( ) ) {
