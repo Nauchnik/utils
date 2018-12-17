@@ -561,7 +561,7 @@ bool computingProcess(const int rank)
 			MPI_Iprobe(0, MPI_ANY_TAG, MPI_COMM_WORLD, &iprobe_message, &status);
 			if (iprobe_message) {
 				isFinalize = true;
-				cout << "Received stop message on computing process " << rank << endl;
+				//cout << "Received stop message on computing process " << rank << endl;
 				break; // if any message from computing processes, catch it
 			}
 		}
@@ -681,7 +681,9 @@ string get_pre_cnf_solver_params_str(const string solver_name)
 	string solver_params_str;
 	if ( (solver_name.find(".sh") == string::npos) &&
 		 (solver_name.find("plingeling") == string::npos) && 
-		 (solver_name.find("treengeling") == string::npos) )
+		 (solver_name.find("treengeling") == string::npos) &&
+		 (solver_name.find("lingeling") == string::npos)
+	   )
 		solver_params_str = "-cpu-lim=" + maxtime_seconds_str + " ";
 	
 	if ((solver_name.find("plingeling") != string::npos) ||
@@ -1103,11 +1105,11 @@ int getResultFromFile(string out_name)
 	string str;
 	int result = UNKNOWN;
 	while (getline(out_file, str)) {
-		if (str.find("s SATISFIABLE") != string::npos) {
+		if ((str.find("s SATISFIABLE") != string::npos) || (str.find("SATISFIABLE") == 0)) {
 			result = SAT;
 			break;
 		}
-		else if (str.find("s UNSATISFIABLE") != string::npos) {
+		else if ((str.find("s UNSATISFIABLE") != string::npos) || (str.find("UNSATISFIABLE") == 0)) {
 			result = UNSAT;
 			break;
 		}
