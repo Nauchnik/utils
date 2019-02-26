@@ -57,15 +57,15 @@ string instances_dir = "";
 string nof_threads_str = "";
 string maxtime_seconds_str = "600";
 string max_memory_mb_str = "4096";
-string alias_pcs_name = "";
 string svm_pcs_name = "";
 string smac_name = "";
+// ALIAS params
+string alias_pcs_name = "";
+int alias_opt_alg = 0;
 bool isAlias = false;
+//
 bool isSvm = false;
 bool isSmac = false;
-string rand_from_str = "";
-string rand_to_str = "";
-bool nojump = false;
 vector<svm_parameter> svm_parameters;
 
 bool conseqProcessing();
@@ -110,8 +110,8 @@ int main( int argc, char **argv )
 	
 	if ( argc < 3 ) {
 		cout << "Usage: prog -solvers_dir [path] -instances_dir [path] -maxseconds [seconds] " <<
-			    "-maxthreads [threads] -maxmb [mb] -pcs [pcs_name] -rand-from [val] -rand-to [val] " << 
-			    "--nojump -svm [svm_name] -smac [smac_name]" << endl;
+			    "-maxthreads [threads] -maxmb [mb] -alias-pcs [pcs_name] -alias-opt-alg [0..5] " << 
+			    "-svm [svm_name] -smac [smac_name]" << endl;
 		return 1;
 	}
 
@@ -137,7 +137,7 @@ int main( int argc, char **argv )
 			if (i < argc - 1)
 				max_memory_mb_str = argv[i + 1];
 		}
-		if (str == "-pcs") {
+		if (str == "-alias-pcs") {
 			isAlias = true;
 			if (i < argc - 1)
 				alias_pcs_name = argv[i + 1];
@@ -152,16 +152,10 @@ int main( int argc, char **argv )
 			if (i < argc - 1)
 				smac_name = argv[i + 1];
 		}
-		if (str == "-rand-from") {
+		if (str == "-alias-opt-alg") {
 			if (i < argc - 1)
-				rand_from_str = argv[i + 1];
+				alias_opt_alg = atoi(argv[i + 1]);
 		}
-		if (str == "-rand-to") {
-			if (i < argc - 1)
-				rand_to_str = argv[i + 1];
-		}
-		if (str == "--nojump")
-			nojump = true;
 	}
 	
 	string str_to_remove = "./";
@@ -195,8 +189,7 @@ int main( int argc, char **argv )
 		if (alias_pcs_name != "") {
 			cout << "ALIAS mode" << endl;
 			cout << "alias_pcs_name " << alias_pcs_name << endl;
-			cout << "rand_from_str " << rand_from_str << endl;
-			cout << "rand_to_str " << rand_to_str << endl;
+			cout << "alias_opt_als " << alias_opt_alg << endl;
 		}
 		if (svm_pcs_name != "") {
 			cout << "SVM mode" << endl;
@@ -627,10 +620,10 @@ bool computingProcess(const int rank)
 		// solving with received Tfact
 		result = callMultithreadSolver(rank, solver_base_name, solver_name, cnf_name, svm_parameters_values);
 		process_solving_time = MPI_Wtime() - process_solving_time;
-		if (result == UNKNOWN) {
+		/*if (result == UNKNOWN) {
 			cout << "unknown result, set huge solving time value \n";
 			process_solving_time = 1e100;
-		}
+		}*/
 		if (rank == 1) {
 			cout << "rank 1\n";
 			cout << "sending process_task_index " << process_task_index << endl;
@@ -911,13 +904,8 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 		" -script=" + alias_launch_path + "/ALIAS.py" +
 		" -cpu-lim=" + maxtime_seconds_str +
 		" " + alias_launch_path + "/" + cnf_name +
-		" -verb=1 --solve";
-		if (rand_from_str != "")
-			system_str += " -rand-from=" + rand_from_str;
-		if (rand_to_str != "")
-			system_str += " -rand-to=" + rand_to_str;
-		if (nojump)
-			system_str += " --nojump";
+		" -opt-alg=" + to_string((long long)alias_opt_alg) +
+		" -verb=0 --solve";
 	if (alias_pcs_name != "")
 		system_str += " -pcs=" + alias_launch_path + "/" + alias_pcs_name;
 	cout << "alias_ls command string " << system_str << endl;
@@ -1031,68 +1019,6 @@ int solveInstance(const string solver_name, const string cnf_name)
 	current_out << exec(system_str);
 	current_out.clear();
 	current_out.close();
-	
-	/*current_out.open(current_out_name, ios_base::in);
-	if (!current_out.is_open()) {
-		cerr << "couldn't open file " << current_out_name << endl;
-		exit(1);
-	}
-	
-	unsigned copy_from, copy_to;
-	stringstream sstream;
-	int result = UNKNOWN;
-	double cur_time = 0.0;
-	while (getline(current_out, str)) {
-		if (str.find("c SATISFIABLE") != string::npos) {
-			result = SAT;
-			//sat_count_vec[i]++;
-			//cout << "SAT found" << endl;
-			//cout << "current_out_name " << current_out_name << endl;
-		}
-		else if (str.find("UNSAT") != string::npos)
-			result = UNSAT;
-		bool isTimeStr = true;
-		if (str.find("CPU time") != string::npos) {
-			copy_from = str.find(":") + 2;
-			copy_to = str.find(" s") - 1;
-		}
-		else if ((str.find("wall clock time, ") != string::npos) && // treengeling format
-			(str.find("process time") != string::npos))
-		{
-			copy_from = str.find("wall clock time, ") + 17;
-			copy_to = str.find(" process time") - 1;
-		}
-		else if (str.find("process time") != string::npos) { // plingeling format
-			copy_from = str.find("c ") + 2;
-			copy_to = str.find(" process time") - 1;
-		}
-		else if ((str.find("seconds") != string::npos) && // lingeling format
-			(str.find("MB") != string::npos) &&
-			(str.size() < 30)) {
-			copy_from = str.find("c ") + 2;
-			copy_to = str.find(" seconds") - 1;
-		}
-		else if (str.find("c Running time=") != string::npos) { // glueSplit_clasp format
-			copy_from = str.find("c Running time=") + 15;
-			copy_to = str.size() - 1;
-		}
-		else if (str.find(" fault") != string::npos) {
-			cerr << "fault detected" << endl;
-			exit(-1);
-		}
-		else
-			isTimeStr = false;
-		if (isTimeStr) {
-			cout << "time str " << str << endl;
-			str = str.substr(copy_from, (copy_to - copy_from + 1));
-			sstream << str;
-			sstream >> cur_time;
-			sstream.str(""); sstream.clear();
-			break;
-		}
-	}
-	current_out.close();
-	*/
 
 	int result = getResultFromFile(current_out_name);
 
