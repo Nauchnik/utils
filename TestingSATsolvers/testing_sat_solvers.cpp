@@ -62,6 +62,7 @@ string smac_name = "";
 // ALIAS params
 string alias_pcs_name = "";
 int alias_opt_alg = 0;
+bool is_alias_solve = false;
 bool isAlias = false;
 //
 bool isSvm = false;
@@ -110,7 +111,7 @@ int main( int argc, char **argv )
 	
 	if ( argc < 3 ) {
 		cout << "Usage: prog -solvers_dir [path] -instances_dir [path] -maxseconds [seconds] " <<
-			    "-maxthreads [threads] -maxmb [mb] -alias-pcs [pcs_name] -alias-opt-alg [0..5] " << 
+			    "-maxthreads [threads] -maxmb [mb] -alias-pcs [pcs_name] -alias-opt-alg [0..5] --alias-solve " << 
 			    "-svm [svm_name] -smac [smac_name]" << endl;
 		return 1;
 	}
@@ -156,6 +157,9 @@ int main( int argc, char **argv )
 			if (i < argc - 1)
 				alias_opt_alg = atoi(argv[i + 1]);
 		}
+		if (str == "--alias-solve") {
+			is_alias_solve = true;
+		}
 	}
 	
 	string str_to_remove = "./";
@@ -190,6 +194,7 @@ int main( int argc, char **argv )
 			cout << "ALIAS mode" << endl;
 			cout << "alias_pcs_name " << alias_pcs_name << endl;
 			cout << "alias_opt_als " << alias_opt_alg << endl;
+			cout << "is_alias_solve " << is_alias_solve << endl;
 		}
 		if (svm_pcs_name != "") {
 			cout << "SVM mode" << endl;
@@ -905,9 +910,11 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 		" -cpu-lim=" + maxtime_seconds_str +
 		" " + alias_launch_path + "/" + cnf_name +
 		" -opt-alg=" + to_string((long long)alias_opt_alg) +
-		" -verb=0 --solve";
+		" -verb=0";
 	if (alias_pcs_name != "")
 		system_str += " -pcs=" + alias_launch_path + "/" + alias_pcs_name;
+	if (is_alias_solve)
+		system_str += " --solve";
 	cout << "alias_ls command string " << system_str << endl;
 	
 	string out_name = base_path + "/out_" + solver_name + "_" + cnf_name;
