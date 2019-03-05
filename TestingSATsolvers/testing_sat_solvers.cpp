@@ -420,7 +420,7 @@ bool controlProcess(const int corecount)
 		//}  send stop-message on all processes including sleeping ones
 
 		ofile.open("testing_sat_solvers_out", ios_base::out);
-		ofile << "instance result time" << endl;
+		ofile << "solver instance time" << endl;
 		for (int i = 0; i < tasks_vec.size(); i++)
 			ofile << tasks_vec[i].s.name << " "
 			      << tasks_vec[i].cnf_name << " "
