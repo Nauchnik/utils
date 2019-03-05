@@ -83,7 +83,7 @@ int main(int argc, char** argv)
 		double dval;
 		sstream >> dval;
 		if (dval <= 0)
-			dval = HUGE_VAL; // if a solver launch is not completed, runtime can be -1
+			dval = 1e+100; // if a solver launch is not completed, runtime can be -1
 		if (values_vec_vec.size() < cnf_index + 1)
 			values_vec_vec.resize(cnf_index + 1);
 		if (values_vec_vec[cnf_index].size() < solver_index + 1)
