@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 	argv[3] = "minisat_rand";
 #endif
 	if (argc < 3) {
-		cerr << "Usage: prog input-file output-file\n";
+		cerr << "Usage: prog input-file output-file [ext_solver_name]\n";
 		exit(-1);
 	}
 	string file_name = argv[1];
@@ -82,6 +82,8 @@ int main(int argc, char** argv)
 			}
 		double dval;
 		sstream >> dval;
+		if (dval <= 0)
+			dval = HUGE_VAL; // if a solver launch is not completed, runtime can be -1
 		if (values_vec_vec.size() < cnf_index + 1)
 			values_vec_vec.resize(cnf_index + 1);
 		if (values_vec_vec[cnf_index].size() < solver_index + 1)
@@ -126,6 +128,22 @@ int main(int argc, char** argv)
 	}
 	
 	return 0;
+}
+
+void writeValuesToCsvFile(string ofile_name, vector<string> local_cnfs_names, vector<vector<double>> local_values_v_v)
+{
+	string head_str = "Instance";
+	for (auto &x : solvers_names)
+		head_str += " " + x;
+	ofstream ofile(ofile_name);
+	ofile << head_str << std::endl;
+	for (unsigned i = 0; i < local_values_v_v.size(); i++) {
+		ofile << local_cnfs_names[i];
+		for (unsigned j = 0; j < local_values_v_v[i].size(); j++)
+			ofile << " " << local_values_v_v[i][j];
+		ofile << std::endl;
+	}
+	ofile.close();
 }
 
 bool isNumber(string str)
@@ -182,22 +200,6 @@ double getReducedTimeValueParallelMode(const unsigned reduced_cnf_index, const u
 		dval += CLAUSES_COLLECT_TIME;
 	
 	return dval;
-}
-
-void writeValuesToCsvFile(string ofile_name, vector<string> local_cnfs_names, vector<vector<double>> local_values_v_v)
-{
-	string head_str = "Instance";
-	for (auto &x : solvers_names)
-		head_str += " " + x;
-	ofstream ofile(ofile_name);
-	ofile << head_str << std::endl;
-	for (unsigned i = 0; i < local_values_v_v.size(); i++) {
-		ofile << local_cnfs_names[i];
-		for (unsigned j = 0; j < local_values_v_v[i].size(); j++)
-			ofile << " " << local_values_v_v[i][j];
-		ofile << std::endl;
-	}
-	ofile.close();
 }
 
 void writeValuesToSimpleFile(string ofile_name, vector<string> local_cnfs_names, vector<vector<double>> local_values_v_v)
