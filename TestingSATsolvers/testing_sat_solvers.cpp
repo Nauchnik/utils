@@ -694,6 +694,8 @@ string get_pre_cnf_solver_params_str(const string solver_name)
 	else if ((solver_name.find("hordesat") != string::npos) ||
 		(solver_name.find("painless") != string::npos))
 		solver_params_str += "-c=" + nof_threads_str;
+	else if (solver_name.find("abcdsat_p") != string::npos)
+		solver_params_str += "-maxnbthreads=" + nof_threads_str;
 	else if (solver_name.find("cvc4") != string::npos)
 		solver_params_str += "--lang smtlib2";
 	else if (solver_name.find("z3") != string::npos)
