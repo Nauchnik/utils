@@ -23,18 +23,26 @@ unsat = 0
 #duplicates_min_lst = []
 duplicates_lst = []
 conflicts_lst = []
+instances = []
 
 for f in outs:
+    if f not in instances:
+        instances.append(f)
+    else:
+        print("Error. Duplicate instance " + f)
+        exit()
     with open(f, 'r') as ifile:
         added_duplicates = 0
         isHugeDuplVal = False
+        isSAT = False
+        isUNSAT = False
         for line in ifile:
             if "c conflicts             : " in line:
                 conflicts = int(line.split("c conflicts             : ")[1].split()[0])
             elif "s SATISFIABLE" in line:
-                sat = sat + 1
+                isSAT = True
             elif "s UNSATISFIABLE" in line:
-                unsat = unsat + 1
+                isUNSAT = True
             elif "c duplicate learnts_cnf : " in line:
                 tmp = int(line.split("c duplicate learnts_cnf : ")[1])
                 if tmp > 0:
@@ -55,8 +63,10 @@ for f in outs:
                 if len(lst) > 1:
                     tmp = lst[1].split(" s")[0]
                     solving_times.append(float(tmp))
-        #if added_duplicates == 214754103960:
-        #    print(f)
+        if isSAT:
+            sat = sat + 1
+        elif isUNSAT:
+            unsat = unsat + 1
         if not isHugeDuplVal and added_duplicates > 0:
             duplicates_lst.append(added_duplicates)
             if conflicts == 0:
@@ -70,7 +80,7 @@ if len(conflicts_lst) != len(duplicates_lst):
     print("len(conflicts_lst) != len(duplicates_lst)")
     exit()
 
-print("conflicts_lst len %d" % len(conflicts_lst))
+#print("conflicts_lst len %d" % len(conflicts_lst))
 
 if len(solving_times) + unsolved_count != len(outs):
     print("Error. solved+unsolved!=total")
