@@ -62,6 +62,7 @@ string smac_name = "";
 // ALIAS params
 string alias_pcs_name = "";
 int alias_opt_alg = 0;
+string alias_backdoor_name = "";
 bool is_alias_solve = false;
 bool isAlias = false;
 //
@@ -111,7 +112,7 @@ int main( int argc, char **argv )
 	
 	if ( argc < 3 ) {
 		cout << "Usage: prog -solvers_dir [path] -instances_dir [path] -maxseconds [seconds] " <<
-			    "-maxthreads [threads] -maxmb [mb] -alias-pcs [pcs_name] -alias-opt-alg [0..5] --alias-solve " << 
+			    "-maxthreads [threads] -maxmb [mb] -alias-pcs [pcs_name] -alias-opt-alg [0..5] -alias-backdoor [backdoor_name] --alias-solve " << 
 			    "-svm [svm_name] -smac [smac_name]" << endl;
 		return 1;
 	}
@@ -138,11 +139,6 @@ int main( int argc, char **argv )
 			if (i < argc - 1)
 				max_memory_mb_str = argv[i + 1];
 		}
-		if (str == "-alias-pcs") {
-			isAlias = true;
-			if (i < argc - 1)
-				alias_pcs_name = argv[i + 1];
-		}
 		if (str == "-svm") {
 			isSvm = true;
 			if (i < argc - 1)
@@ -153,9 +149,20 @@ int main( int argc, char **argv )
 			if (i < argc - 1)
 				smac_name = argv[i + 1];
 		}
+		if (str == "-alias-pcs") {
+			isAlias = true;
+			if (i < argc - 1)
+				alias_pcs_name = argv[i + 1];
+		}
 		if (str == "-alias-opt-alg") {
 			if (i < argc - 1)
 				alias_opt_alg = atoi(argv[i + 1]);
+		}
+		if (str == "-alias-backdoor") {
+			if (i < argc - 1) {
+				alias_backdoor_name = argv[i + 1];
+				is_alias_solve = true;
+			}
 		}
 		if (str == "--alias-solve") {
 			is_alias_solve = true;
@@ -195,6 +202,7 @@ int main( int argc, char **argv )
 			cout << "alias_pcs_name " << alias_pcs_name << endl;
 			cout << "alias_opt_als " << alias_opt_alg << endl;
 			cout << "is_alias_solve " << is_alias_solve << endl;
+			cout << "alias_backdoor_name " << alias_backdoor_name << endl;
 		}
 		if (svm_pcs_name != "") {
 			cout << "SVM mode" << endl;
@@ -910,13 +918,20 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 		" -solver=" + alias_launch_path + "/" + solver_name +
 		" -script=" + alias_launch_path + "/ALIAS.py" +
 		" -cpu-lim=" + maxtime_seconds_str +
-		" " + alias_launch_path + "/" + cnf_name +
-		" -opt-alg=" + to_string((long long)alias_opt_alg) +
-		" -verb=0";
+		" " + alias_launch_path + "/" + cnf_name;
 	if (alias_pcs_name != "")
 		system_str += " -pcs=" + alias_launch_path + "/" + alias_pcs_name;
 	if (is_alias_solve)
 		system_str += " --solve";
+	if (alias_backdoor_name != "") {
+		system_str += " -backdoor=" + alias_backdoor_name;
+		system_str += " -verb=1";
+	}
+	else {
+		system_str += " -opt-alg=" + to_string((long long)alias_opt_alg);
+		system_str += " -verb=0";
+	}
+	
 	cout << "alias_ls command string " << system_str << endl;
 	
 	string out_name = base_path + "/out_" + solver_name + "_" + cnf_name;
