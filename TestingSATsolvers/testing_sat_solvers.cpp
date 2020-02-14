@@ -918,19 +918,16 @@ int solveAliasInstance(const string solver_name, const string cnf_name)
 		" -solver=" + alias_launch_path + "/" + solver_name +
 		" -script=" + alias_launch_path + "/ALIAS.py" +
 		" -cpu-lim=" + maxtime_seconds_str +
+		" -verb=1" +
 		" " + alias_launch_path + "/" + cnf_name;
 	if (alias_pcs_name != "")
 		system_str += " -pcs=" + alias_launch_path + "/" + alias_pcs_name;
 	if (is_alias_solve)
 		system_str += " --solve";
-	if (alias_backdoor_name != "") {
+	if (alias_backdoor_name != "")
 		system_str += " -backdoor=" + alias_backdoor_name;
-		system_str += " -verb=1";
-	}
-	else {
+	else
 		system_str += " -opt-alg=" + to_string((long long)alias_opt_alg);
-		system_str += " -verb=0";
-	}
 	
 	cout << "alias_ls command string " << system_str << endl;
 	
