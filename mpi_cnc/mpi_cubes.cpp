@@ -384,7 +384,7 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 		}
 		
 		string wu_id_str = intToStr(wu_id);
-		string tmp_cnf_file_name = "cnf_wuid_" + wu_id_str;
+		string tmp_cnf_file_name = "cnf_id_" + wu_id_str;
 
 		stringstream cube_sstream;
 		for (auto x : wu_vec[wu_id].cube)
@@ -421,6 +421,15 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 		// if solver not a script, find solving time in the our file
 		if (solver_file_name.find(".sh")==string::npos)
 			elapsed_solving_time = log_solving_time;
+		// remove the temporary cnf file
+		if (res == SAT) {
+			system_str = "cp " + out_name + " ./!sat_out_id_" + wu_id_str;
+			exec(system_str);
+		}
+		else {
+			system_str = "rm ./*id-" + wu_id_str + "-*";
+			exec(system_str);
+		}
 		// send calculated result to the control process
 		//cout << "sending wu_id " << wu_id << endl;
 		//cout << "sending res " << res << endl;
