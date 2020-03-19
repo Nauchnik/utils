@@ -2,9 +2,9 @@ CNF=$1
 id=$2
 CPULIM=$3
 DIR=.
-mincnf = $DIR/id-$id-mincnf
-cubes = $DIR/id-$id-cubes
-formula = $DIR/id-$id-formula.icnf
+mincnf=$DIR/id-$id-mincnf
+cubes=$DIR/id-$id-cubes
+formula=$DIR/id-$id-formula.icnf
 $DIR/lingeling $CNF -s -o $mincnf -T 60
 $DIR/march_cu $mincnf -o $cubes
 echo "p inccnf" > $formula

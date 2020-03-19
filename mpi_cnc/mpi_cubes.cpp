@@ -384,8 +384,8 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 		}
 		
 		string wu_id_str = intToStr(wu_id);
-		string tmp_cnf_file_name = "cnf_id_" + wu_id_str;
-
+		string tmp_cnf_file_name = "id-" + wu_id_str + "-cnf";
+		
 		stringstream cube_sstream;
 		for (auto x : wu_vec[wu_id].cube)
 			cube_sstream << x << " 0" << endl;
