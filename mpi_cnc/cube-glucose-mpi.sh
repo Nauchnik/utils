@@ -8,12 +8,12 @@ res1=$(date +%s.%N)
 mincnf=$DIR/id-$id-mincnf
 cubes=$DIR/id-$id-cubes
 formula=$DIR/id-$id-formula.icnf
-$DIR/lingeling $CNF -s -o $mincnf -T 60
+$DIR/lingeling $CNF -s -o $mincnf -T 2
 res2=$(date +%s.%N)
 elapsed=$(echo "$res2 - $res1" | bc)
 elapsed=${elapsed%.*}
 printf "elapsed : %02.4f\n" $elapsed
-let "rem = $CPULIM - $elapsed"
+rem=$((CPULIM-elapsed))
 printf "remaining time after minimization : %02.4f\n" $rem
 if [[ $rem -le 0 ]] ; then
     exit 1
@@ -23,7 +23,7 @@ res3=$(date +%s.%N)
 elapsed=$(echo "$res3 - $res1" | bc)
 elapsed=${elapsed%.*}
 printf "elapsed : %02.4f\n" $elapsed
-let "rem = $CPULIM - $elapsed"
+rem=$((CPULIM-elapsed))
 printf "remaining time after cube phase : %02.4f\n" $rem
 if [[ $rem -le 0 ]] ; then
     exit 1
