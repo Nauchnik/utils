@@ -202,7 +202,7 @@ void controlProcess(const int corecount, const string cubes_file_name)
 	for (auto &cur_wu : wu_vec) {
 		if (cur_wu.status != PROCESSED) {
 			cerr << "cur_wu.status != PROCESSED" << endl;
-			exit(-1);
+			MPI_Abort(MPI_COMM_WORLD, 0);
 		}
 		if (cur_wu.result == INDET) {
 			inter_cubes_file << "a ";
@@ -267,6 +267,7 @@ void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec
 	if (k != total_processed_wus) {
 		cerr << "k != total_processed_wus" << endl;
 		cerr << k << " != " << total_processed_wus << endl;
+		MPI_Abort(MPI_COMM_WORLD, 0);
 		exit(-1);
 	}
 	if (sum_time_unsat > 0)
@@ -333,12 +334,19 @@ void getResultFromFile(const string out_name, int &result, double &time)
 				vec.push_back(word);
 			if (vec.size() < 5) {
 				cerr << "error : vec size " << vec.size() << endl;
+				MPI_Abort(MPI_COMM_WORLD, 0);
 				exit(-1);
 			}
 			istringstream(vec[4]) >> time;
 		}
 	}
 	out_file.close();
+	/*if (time == -1) {
+		cerr << "solving time == -1" << endl;
+		cerr << endl;
+		MPI_Abort(MPI_COMM_WORLD, 0);
+		exit(-1);
+	}*/
 }
 
 void computingProcess(const int rank, const string solver_file_name, const string cnf_file_name, 
@@ -418,6 +426,8 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 		int res = INDET;
 		double log_solving_time = -1;
 		getResultFromFile(out_name, res, log_solving_time);
+		double cube_cpu_lim = -1.0;
+		istringstream(cube_cpu_lim_str) >> cube_cpu_lim;
 		// if solver not a script, find solving time in the our file
 		if (solver_file_name.find(".sh")==string::npos)
 			elapsed_solving_time = log_solving_time;
@@ -426,10 +436,20 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			system_str = "cp " + out_name + " ./!sat_out_id_" + wu_id_str;
 			exec(system_str);
 		}
-		else {
+		else if ((res == INDET) && (elapsed_solving_time < cube_cpu_lim) && (elapsed_solving_time > 0)) {
+			system_str = "cp " + out_name + " ./!indet_out_id_" + wu_id_str;
+			exec(system_str);
+		}
+		else 
+			/*if (
+				(res == UNSAT) || 
+			    ((res == INDET) && (elapsed_solving_time >= cube_cpu_lim))
+				)*/
+		{
 			system_str = "rm ./*id-" + wu_id_str + "-*";
 			exec(system_str);
 		}
+
 		// send calculated result to the control process
 		//cout << "sending wu_id " << wu_id << endl;
 		//cout << "sending res " << res << endl;
