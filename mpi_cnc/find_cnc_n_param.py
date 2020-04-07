@@ -1,7 +1,7 @@
 import sys
 import os
 
-MIN_REFUTED_CUBES = 1000
+MIN_REFUTED_CUBES = 100
 
 if len(sys.argv) < 2:
 	print('Usage : prog cnf-name')
@@ -36,8 +36,9 @@ perc_rec = 0
 statname = 'stat_' + cnfname
 statname = statname.replace('.','')
 statname = statname.replace('/','')
-ofile = open(statname,'w')
-ofile.write('n cubes non-refuted-cubes refuted-cubes %-refuted-cubes time\n')
+#ofile = open(statname,'w')
+#ofile.write('n cubes non-refuted-cubes refuted-cubes %-refuted-cubes time\n')
+res_str = 'n cubes non-refuted-cubes refuted-cubes %-refuted-cubes time\n'
 while not is_exit:
 	n_val = n_val - 10
 	print('n_val : %d' % n_val)
@@ -65,12 +66,17 @@ while not is_exit:
 			print('refuted cubes : %d' % refuted)
 			if cubes > 0:
 				perc = refuted*100/cubes
-				ofile.write('%d %d %d %d %.2f %.2f \n' % (n_val, cubes, non_refuted, refuted, perc, t))
+				#ofile.write('%d %d %d %d %.2f %.2f \n' % (n_val, cubes, non_refuted, refuted, perc, t))
+				res_str += '%d %d %d %d %.2f %.2f \n' % (n_val, cubes, non_refuted, refuted, perc, t)
 				print('perc : %f' % perc)
-				if refuted >= MIN_REFUTED_CUBES:
+				if non_refuted > 1000000:
+					is_exit = True
+					break
+				elif refuted >= MIN_REFUTED_CUBES:
 					if perc > perc_rec:
 						perc_rec = perc
 						print('new perc rec : %f' % perc_rec)
 					elif perc < perc_rec and perc_rec > 0:
 						is_exit = True
-ofile.close
+#ofile.close
+print(res_str)

@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 from random import randint
 
 input_vars_number = 512
@@ -51,6 +52,11 @@ def make_cnf_known_values(template_cnf_name : str, cur_cnf_name : str, known_var
 			s += str(var) + ' 0\n'
 			cnf.write(s)
 
+def remove_file(file_name):
+	sys_str = 'rm ' + file_name
+	print('start system command : ' + sys_str)
+	o = os.popen(sys_str).read()
+
 def find_sat_log(o):
 	res = False
 	lines = o.split('\n')
@@ -94,6 +100,8 @@ def get_sat_cube(cubes_name, values_all_vars):
 										match_number += 1
 						if match_number == len(lst):
 								sat_cubes.append(lst)
+		# remove cubes file
+		remove_file(cubes_name)
 		return sat_cubes
 
 def add_cube(old_cnf_name : str, new_cnf_name : str, it : int, cube : list):
@@ -116,6 +124,9 @@ def add_cube(old_cnf_name : str, new_cnf_name : str, it : int, cube : list):
 						cnf_file.write(cl)
 				for c in cube:
 						cnf_file.write(c + ' 0\n')
+
+start_time = time.time()
+
 
 # generete a random 512-bit input that feets given constraints
 #values_input_vars = [randint(0, 1) for p in range(len(input_vars))]
@@ -146,7 +157,7 @@ min_cur_cnf_name = ''
 while not isSat:
 	print('')
 	print('*** iteration : %d' % it)
-	cur_cnf_name = 'rand_cnfid_' + str(cnf_id) + '_it_' + str(it) + '_' + template_cnf_name.replace('./','')
+	cur_cnf_name = 'rand_' + template_cnf_name.replace('./','').split('.')[0] + '_cnfid_' + str(cnf_id) + '_it_' + str(it) + '.cnf'
 	if it == 0:
 			# make CNF with known output
 			make_cnf_known_values(template_cnf_name, cur_cnf_name, output_vars)
@@ -158,6 +169,8 @@ while not isSat:
 	sys_str = './lingeling/lingeling -s -T 60 -o ' + min_cur_cnf_name + ' ' + cur_cnf_name
 	print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
+	# remove current cnf after its minimization
+	remove_file(cur_cnf_name)
 	isSat = find_sat_log(o)
 	if isSat:
 		print('*** SAT found by lingeling')
@@ -167,7 +180,14 @@ while not isSat:
 	sys_str = 'python3 ./find_cnc_n_param.py ./' + min_cur_cnf_name
 	print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
-	print(o)
+	isPrint = False
+	# print only csv-like date
+	lst = o.split('\n')
+	for line in lst:
+		if 'n cubes non-refuted-cubes refuted-cubes' in line:
+			isPrint = True
+		if isPrint and len(line) > 1:
+			print(line)
 	n_param_march = find_n_param(o)
 	if n_param_march == -1:
 		print('error: n_param_march is -1')
@@ -189,3 +209,6 @@ while not isSat:
 		exit(1)
 	print(sat_cubes)
 	it += 1
+
+elapsed_time = time.time() - start_time
+print('elapsed_time : ' + str(elapsed_time))
