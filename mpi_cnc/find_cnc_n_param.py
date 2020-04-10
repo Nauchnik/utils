@@ -76,7 +76,7 @@ while not is_exit:
 					if perc > perc_rec:
 						perc_rec = perc
 						print('new perc rec : %f' % perc_rec)
-					elif perc < perc_rec and perc_rec > 0:
-						is_exit = True
+					#elif perc < perc_rec and perc_rec > 0:
+					#	is_exit = True
 #ofile.close
 print(res_str)

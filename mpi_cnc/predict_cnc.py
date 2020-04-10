@@ -3,9 +3,6 @@ import os
 import time
 from random import randint
 
-input_vars_number = 512
-output_vars_number = 128 # last variables in a CNF
-
 def generate_random_values(template_cnf_name : str, cnf_id : int):
 	values = dict()
 	sys_str = './lingeling/lingeling --seed=' + str(cnf_id) + ' ' + template_cnf_name
@@ -25,7 +22,7 @@ def generate_random_values(template_cnf_name : str, cnf_id : int):
 					values[abs(iv)] = 1 if iv>0 else 0
 	return values
 
-def make_cnf_known_values(template_cnf_name : str, cur_cnf_name : str, known_vars_values : dict):
+def make_cnf_known_values(template_cnf_name : str, cnf_name : str, known_vars_values : dict):
 	cnf_vars_number = -1
 	template_cnf_clauses = []
 	with open(template_cnf_name, 'r') as ifile:
@@ -41,7 +38,7 @@ def make_cnf_known_values(template_cnf_name : str, cur_cnf_name : str, known_var
 	#
 	cnf_clauses_number = len(template_cnf_clauses) + len(known_vars_values)
 	print('cnf_clauses_number : %d' % cnf_clauses_number)
-	with open(cur_cnf_name, 'w') as cnf:
+	with open(cnf_name, 'w') as cnf:
 		cnf.write('p cnf ' + str(cnf_vars_number) + ' ' + str(cnf_clauses_number) + '\n')
 		for clause in template_cnf_clauses:
 			cnf.write(clause)
@@ -67,10 +64,6 @@ def find_sat_log(o):
 			res = True
 			break
 	return res
-
-template_cnf_name = sys.argv[1]
-#template_cnf_name = "md4_40_zero_hash_with_constr.cnf"
-print('template_cnf_name : ' + template_cnf_name)
 
 def find_n_param(o):
 	n = -1
@@ -104,7 +97,7 @@ def get_sat_cube(cubes_name, values_all_vars):
 		remove_file(cubes_name)
 		return sat_cubes
 
-def add_cube(old_cnf_name : str, new_cnf_name : str, it : int, cube : list):
+def add_cube(old_cnf_name : str, new_cnf_name : str, cube : list):
 		cnf_var_number = 0
 		clauses = []
 		with open(old_cnf_name, 'r') as cnf_file:
@@ -125,90 +118,72 @@ def add_cube(old_cnf_name : str, new_cnf_name : str, it : int, cube : list):
 				for c in cube:
 						cnf_file.write(c + ' 0\n')
 
-start_time = time.time()
-
-
-# generete a random 512-bit input that feets given constraints
-#values_input_vars = [randint(0, 1) for p in range(len(input_vars))]
-cnf_id = 0
-values_all_vars = generate_random_values(template_cnf_name, cnf_id)
-print('%d values_all_vars : ' % len(values_all_vars))
-#print(values_all_vars)
-
-input_vars = dict()
-for i in range(input_vars_number):
-	v = i+1
-	input_vars[v] = values_all_vars[v]
-print('%d input vars values :' % len(input_vars))
-#print(input_vars)
-
-output_vars = dict()
-for i in range(len(values_all_vars)-output_vars_number,len(values_all_vars)):
-	v = i+1
-	output_vars[v] = values_all_vars[v]
-
-print('%d output vars :' % len(output_vars))
-print(output_vars)
-
-isSat = False
-it = 0
-sat_cubes = []
-min_cur_cnf_name = ''
-while not isSat:
-	print('')
-	print('*** iteration : %d' % it)
-	cur_cnf_name = 'rand_' + template_cnf_name.replace('./','').split('.')[0] + '_cnfid_' + str(cnf_id) + '_it_' + str(it) + '.cnf'
-	if it == 0:
-			# make CNF with known output
-			make_cnf_known_values(template_cnf_name, cur_cnf_name, output_vars)
-	elif it > 0:
-			print('adding cube to a CNF')
-			add_cube(min_cur_cnf_name, cur_cnf_name, it, sat_cubes[0])
-
-	min_cur_cnf_name = 'min_' + cur_cnf_name
-	sys_str = './lingeling/lingeling -s -T 60 -o ' + min_cur_cnf_name + ' ' + cur_cnf_name
+def make_cnf_known_sat_cube(n: int, cnf_name : str, values_all_vars : list):
+	min_cnf_name = 'min_' + cnf_name
+	sys_str = './lingeling/lingeling -s -T 60 -o ' + min_cnf_name + ' ' + cnf_name
 	print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
-	# remove current cnf after its minimization
-	remove_file(cur_cnf_name)
 	isSat = find_sat_log(o)
 	if isSat:
 		print('*** SAT found by lingeling')
 		print(o)
-		break
-	#print(o)
-	sys_str = 'python3 ./find_cnc_n_param.py ./' + min_cur_cnf_name
-	print('start system command : ' + sys_str)
-	o = os.popen(sys_str).read()
-	isPrint = False
-	# print only csv-like date
-	lst = o.split('\n')
-	for line in lst:
-		if 'n cubes non-refuted-cubes refuted-cubes' in line:
-			isPrint = True
-		if isPrint and len(line) > 1:
-			print(line)
-	n_param_march = find_n_param(o)
-	if n_param_march == -1:
-		print('error: n_param_march is -1')
-		break
-	print('n_param_march : %d' % n_param_march)
-	cubes_name = 'cubes_n_' + str(n_param_march) + '_' + min_cur_cnf_name
-	sys_str = './march_cu/march_cu ' + min_cur_cnf_name + ' -n ' + str(n_param_march) + ' -o ' + cubes_name 
+		exit(1)
+	remove_file(cnf_name)
+	cubes_name = 'cubes_' + min_cnf_name
+	sys_str = './march_cu/march_cu ' + min_cnf_name + ' -n ' + str(n) + ' -o ' + cubes_name
 	print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
 	isSat = find_sat_log(o)
 	if isSat:
 		print('*** SAT found by march_cu')
 		print(o)
-		break
-	#print(o)
+		exit(1)
+	print(o)
 	sat_cubes = get_sat_cube(cubes_name, values_all_vars)
 	print('%d sat_cubes :' % len(sat_cubes))
 	if len(sat_cubes) == 0:
 		exit(1)
 	print(sat_cubes)
-	it += 1
+	cnf_known_sat_cube_name = 'known_sat_cube_' + min_cnf_name
+	add_cube(min_cnf_name, cnf_known_sat_cube_name, sat_cubes[0])
+	remove_file(min_cnf_name)
+	return cnf_known_sat_cube_name
+
+#template_cnf_name = sys.argv[1]
+template_cnf_name = 'md4_40_with_constr_template.cnf'
+print('template_cnf_name : ' + template_cnf_name)
+
+input_vars_number = 512
+output_vars_number = 128 # last variables in a CNF
+n = 2710
+random_sample_size = 3
+solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019']
+
+start_time = time.time()
+
+print('solvers :')
+print(solvers)
+
+# generete a random 512-bit input that feets given constraints
+for cnf_id in range(random_sample_size):
+	print('cnf_id : %d' % cnf_id)
+	values_all_vars = generate_random_values(template_cnf_name, cnf_id)
+	print('%d values_all_vars : ' % len(values_all_vars))
+	#print(values_all_vars)
+	output_vars = dict()
+	for i in range(len(values_all_vars)-output_vars_number,len(values_all_vars)):
+		v = i+1
+		output_vars[v] = values_all_vars[v]
+	print('%d output vars :' % len(output_vars))
+	cnf_name = 'rand_' + template_cnf_name.replace('./','').split('.')[0] + '_cnfid_' + str(cnf_id) + '.cnf'
+	make_cnf_known_values(template_cnf_name, cnf_name, output_vars)
+	cnf_known_sat_cube_name = make_cnf_known_sat_cube(n, cnf_name, values_all_vars)
+	for solver in solvers:
+		sys_str = solver + ' ' + cnf_known_sat_cube_name
+		print('start system command : ' + sys_str)
+		o = os.popen(sys_str).read()
+		print(o)
+	remove_file(cnf_known_sat_cube_name)
 
 elapsed_time = time.time() - start_time
 print('elapsed_time : ' + str(elapsed_time))
