@@ -8,7 +8,7 @@ res1=$(date +%s.%N)
 mincnf=$DIR/id-$id-mincnf
 cubes=$DIR/id-$id-cubes
 formula=$DIR/id-$id-formula.icnf
-$DIR/lingeling $CNF -s -o $mincnf -T 2
+$DIR/lingeling $CNF -s -o $mincnf -T 60
 res2=$(date +%s.%N)
 elapsed=$(echo "$res2 - $res1" | bc)
 elapsed=${elapsed%.*}
