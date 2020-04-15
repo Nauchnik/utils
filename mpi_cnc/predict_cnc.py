@@ -142,25 +142,29 @@ def make_cnf_known_sat_cube(n: int, cnf_name : str, values_all_vars : list):
 		exit(1)
 	remove_file(cnf_name)
 	cubes_name = 'cubes_' + min_cnf_name
-	sys_str = './march_cu ' + min_cnf_name + ' -n ' + str(n) + ' -o ' + cubes_name
+	sys_str = './timelimit -T 1 -t ' + str(march_limit_sec) + ' ./march_cu ' + min_cnf_name + ' -n ' + str(n) + ' -o ' + cubes_name
 	print('start system command : ' + sys_str)
+	march_time = time.time()
 	o = os.popen(sys_str).read()
+	march_time = time.time() - march_time
 	isSat = find_sat_log(o)
 	if isSat:
 		print('*** SAT found by march_cu')
 		print(o)
 		exit(1)
 	march_data = find_refuted(o)
-	print(o)
-	sat_cubes = get_sat_cube(cubes_name, values_all_vars)
-	print('%d sat_cubes :' % len(sat_cubes))
-	if len(sat_cubes) == 0:
-		exit(1)
-	print(sat_cubes)
 	cnf_known_sat_cube_name = 'known_sat_cube_' + min_cnf_name
-	add_cube(min_cnf_name, cnf_known_sat_cube_name, sat_cubes[0])
+	cubes = march_data[0]
+	if cubes > 0:
+		print(o)
+		sat_cubes = get_sat_cube(cubes_name, values_all_vars)
+		print('%d sat_cubes :' % len(sat_cubes))
+		if len(sat_cubes) == 0:
+			exit(1)
+		print(sat_cubes)
+		add_cube(min_cnf_name, cnf_known_sat_cube_name, sat_cubes[0])
 	remove_file(min_cnf_name)
-	return cnf_known_sat_cube_name, march_data[0], march_data[1]
+	return cnf_known_sat_cube_name, march_time, march_data[0], march_data[1]
 
 def get_solving_time(o):
 	#cadical - c total real time since initialization: 
@@ -188,24 +192,38 @@ def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int):
 	print('%d output vars :' % len(output_vars))
 	cnf_name = 'rand_' + template_cnf_name.replace('./','').split('.')[0] + '_cnfid_' + str(cnf_id) + '.cnf'
 	make_cnf_known_values(template_cnf_name, cnf_name, output_vars)
-	data = make_cnf_known_sat_cube(n, cnf_name, values_all_vars)
-	cnf_known_sat_cube_name = data[0]
-	cubes = data[1]
-	refuted = data[2]
 	solvers_times = dict()
-	for solver in solvers:
-		sys_str = solver + ' ' + cnf_known_sat_cube_name
-		print('start system command : ' + sys_str)
-		o = os.popen(sys_str).read()
-		print(o)
-		solvers_times[solver] = get_solving_time(o)
-	remove_file(cnf_known_sat_cube_name)
-	return cubes, refuted, solvers_times
+	for solver in solvers_times:
+		solver[times] = -1
+	data = make_cnf_known_sat_cube(n, cnf_name, values_all_vars)
+	#print(data)
+	cnf_known_sat_cube_name = data[0]
+	march_seconds = float(data[1])
+	print('march_seconds : %f' % march_seconds)
+	cubes = data[2]
+	refuted = data[3]
+	if cubes > 0:
+		for solver in solvers:
+			sys_str = './timelimit -T 1 -t ' + str(solver_limit_sec) + ' ' + solver + ' ' + cnf_known_sat_cube_name
+			print('start system command : ' + sys_str)
+			elapsed_time = time.time()
+			o = os.popen(sys_str).read()
+			elapsed_time = time.time() - elapsed_time
+			print(o)
+			#solvers_times[solver] = get_solving_time(o)
+			solvers_times[solver] = float(elapsed_time)
+		remove_file(cnf_known_sat_cube_name)
+	return cnf_id, march_seconds, cubes, refuted, solvers_times
 
 def collect_result(result):
-    global results
-    results.append(result)
-
+	global results
+	global interrupted_march
+	march_time = result[1]
+	if march_time < march_limit_sec:
+		results.append(result)
+	else:
+		interrupted_march += 1
+	
 #template_cnf_name = sys.argv[1]
 template_cnf_name = 'md4_40_with_constr_template.cnf'
 print('template_cnf_name : ' + template_cnf_name)
@@ -215,27 +233,85 @@ output_vars_number = 128 # last variables in a CNF
 n = 2710
 random_sample_size = 100
 solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019']
+#solvers = ['./MapleLCMDistChrBt-DL-v3']
 cpu_number = 12
+march_limit_sec = 600
+solver_limit_sec = 5000
 
-start_time = time.time()
+#result = solve_cnf_id(solvers,template_cnf_name,0)
+#results.append(result)
 
-print('solvers :')
-print(solvers)
-print('random sample size : %d' % random_sample_size)
-print('cpu_number : %d' % cpu_number)
+if __name__ == '__main__':
 
-import multiprocessing as mp
-#print("Number of processors: ", mp.cpu_count())
+	#result = solve_cnf_id(solvers, template_cnf_name, 0)
+	#print(result)
+	#exit(1)
 
-pool = mp.Pool(cpu_number)
-results = []
-for cnf_id in range(random_sample_size):
-	pool.apply_async(solve_cnf_id, args=(solvers, template_cnf_name, cnf_id), callback=collect_result)
-pool.close()
-pool.join()
-print('results: ')
-for r in results:
-	print(r)
+	start_time = time.time()
 
-elapsed_time = time.time() - start_time
-print('elapsed_time : ' + str(elapsed_time))
+	print('solvers :')
+	print(solvers)
+	print('random sample size : %d' % random_sample_size)
+	print('cpu_number : %d' % cpu_number)
+
+	import multiprocessing as mp
+	#print("Number of processors: ", mp.cpu_count())
+
+	pool = mp.Pool(cpu_number)
+	results = []
+	cnf_id = 0
+	interrupted_march = 0
+	while len(results) < random_sample_size:
+		pool.apply_async(solve_cnf_id, args=(solvers, template_cnf_name, cnf_id), callback=collect_result)
+		while len(pool._cache) >= cpu_number: # wait until any cpu is free
+    			time.sleep(2)
+		if len(results) >= random_sample_size:
+			print('terminating pool')
+			pool.terminate()
+		cnf_id += 1
+	
+	pool.close()
+	pool.join()
+
+	if len(results) > random_sample_size:
+		results = results[:random_sample_size]
+		
+	print('results len : %d' % len(results))
+	for r in results:
+		print(r)
+	print('interrupted_march : %d' % interrupted_march)
+	
+	csv_file_name = 'stat_' + template_cnf_name.replace('./','').split('.')[0] + '_n_' + str(n) + '.csv'
+	with open(csv_file_name, 'w') as csv_file:
+		csv_file.write('cnf_id march_cu_time total_cubes refuted_cubes')
+		solvers_lst = []
+		for solver in results[0][4]: # get names of solvers from the first result
+			solvers_lst.append(solver)
+			csv_file.write(' ' + solver.replace('./',''))
+		csv_file.write('\n')
+		for result in results:
+			csv_file.write('%d %d %d %d' % (result[0], int(result[1]), result[2], result[3]))
+			for solver in solvers_lst:
+				csv_file.write(' ' + str(int(result[4][solver])))
+			csv_file.write('\n')
+
+	elapsed_time = time.time() - start_time
+	print('elapsed_time : ' + str(elapsed_time))
+	
+	print('killing march_cu')
+	sys_str = 'pkill -9 march_cu'
+	o = os.popen(sys_str).read()
+	print('killing solvers')
+	for solver in solvers:
+		solver_name = solver.replace('./','')
+		sys_str = 'pkill -9 ' + solver_name
+		print(sys_str)
+		o = os.popen(sys_str).read()
+	print('removing temporary files')
+	sys_str = 'rm rand_*'
+	print('start system command : ' + sys_str)
+	o = os.popen(sys_str).read()
+	sys_str = 'rm min_rand*'
+	print('start system command : ' + sys_str)
+	o = os.popen(sys_str).read()
+	
