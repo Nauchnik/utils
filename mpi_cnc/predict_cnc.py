@@ -228,15 +228,19 @@ def collect_result(result):
 template_cnf_name = 'md4_40_with_constr_template.cnf'
 print('template_cnf_name : ' + template_cnf_name)
 
-input_vars_number = 512
-output_vars_number = 128 # last variables in a CNF
-n = 2710
-random_sample_size = 100
 solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019']
 #solvers = ['./MapleLCMDistChrBt-DL-v3']
 cpu_number = 12
-march_limit_sec = 600
+#
+#n = 2710
+#march_limit_sec = 600
+#
+n = 2730
+march_limit_sec = 200
 solver_limit_sec = 5000
+input_vars_number = 512
+output_vars_number = 128 # last variables in a CNF
+random_sample_size = 100
 
 #result = solve_cnf_id(solvers,template_cnf_name,0)
 #results.append(result)
@@ -314,4 +318,6 @@ if __name__ == '__main__':
 	sys_str = 'rm min_rand*'
 	print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
-	
+	sys_str = 'rm known_sat_cube_**'
+	print('start system command : ' + sys_str)
+	o = os.popen(sys_str).read()	
