@@ -2,6 +2,7 @@ import sys
 import os
 import time
 from random import randint
+import multiprocessing as mp
 
 def generate_random_values(template_cnf_name : str, cnf_id : int):
 	values = dict()
@@ -230,7 +231,7 @@ print('template_cnf_name : ' + template_cnf_name)
 
 solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019']
 #solvers = ['./MapleLCMDistChrBt-DL-v3']
-cpu_number = 12
+#cpu_number = 12
 #
 #n = 2710
 #march_limit_sec = 600
@@ -253,13 +254,13 @@ if __name__ == '__main__':
 
 	start_time = time.time()
 
+	print("Total number of processors: ", mp.cpu_count())
+	cpu_number = mp.cpu_count()
+
 	print('solvers :')
 	print(solvers)
 	print('random sample size : %d' % random_sample_size)
 	print('cpu_number : %d' % cpu_number)
-
-	import multiprocessing as mp
-	#print("Number of processors: ", mp.cpu_count())
 
 	pool = mp.Pool(cpu_number)
 	results = []
