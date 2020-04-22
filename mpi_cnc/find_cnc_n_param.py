@@ -34,13 +34,13 @@ def process_n(n : int, cnfname : str):
 			if cubes > 0:
 				perc_refuted = refuted*100/cubes
 
-	return n, cubes, refuted, non_refuted, perc_refuted, elapsed_time
+	return n, cubes, refuted, non_refuted, perc_refuted, int(elapsed_time)
 
 def collect_result(res):
 	results.append(res)
 	if res[2] >= MIN_REFUTED_CUBES:
 		ofile = open(statname,'a')
-		ofile.write('%d %d %d %d %f %f\n' % (res[0], res[1], res[2], res[3], res[4], res[5]))
+		ofile.write('%d %d %d %d %f %d\n' % (res[0], res[1], res[2], res[3], res[4], res[5]))
 		ofile.close()
 	global is_exit
 	if res[3] > MAX_NON_REFUTED_CUBES or res[5] > MAX_MARCH_TIME:
@@ -105,5 +105,11 @@ if __name__ == '__main__':
 
 	elapsed_time = time.time() - start_time
 	print('elapsed_time : ' + str(elapsed_time))
-
 	print(results)
+
+	# kill processes
+	system_str = 'killall -9 march_cu'
+	print('system_str : ' + system_str)
+	o = os.popen(system_str).read()
+	time.sleep(2)
+	o = os.popen(system_str).read()
