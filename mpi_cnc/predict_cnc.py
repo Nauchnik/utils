@@ -14,7 +14,7 @@ TIME_BOARD_FRAC = 0.25
 solvers = ['./MapleLCMDistChrBt-DL-v3', './cube-glucose-mpi.sh']
 LING_MIN_LIMIT_SEC = 3600
 #RANDOM_SAMPLE_SIZE = 30
-RANDOM_SAMPLE_SIZE = 2
+RANDOM_SAMPLE_SIZE = 30
 
 # Debug
 #solvers = ['./MapleLCMDistChrBt-DL-v3']
@@ -28,7 +28,7 @@ template_cnf_name = 'md4_40_with_constr_template.cnf'
 print('template_cnf_name : ' + template_cnf_name)
 stat_name = sys.argv[1]
 print('stat_name : ' + stat_name)
-df = pd.read_csv(f_name, delimiter = ' ')
+df = pd.read_csv(stat_name, delimiter = ' ')
 n_zero_time_dict = dict()
 for index, row in df.iterrows():
 	if int(row['non-refuted-cubes']) < find_cnc_n_param.MAX_NON_REFUTED_CUBES:
@@ -262,18 +262,38 @@ def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original
 	return cnf_id, march_time_sec, cubes, refuted, solvers_times
 
 def clean_garbage():
-	print('killing march_cu')
-	sys_str = 'pkill -9 march_cu'
-	o = os.popen(sys_str).read()
-	time.sleep(1)
-	o = os.popen(sys_str).read()
 	print('killing solvers')
 	for solver in solvers:
-		sys_str = 'pkill -9 ' + solver_name
+		sys_str = 'pkill -9 ' + solver
 		print(sys_str)
 		o = os.popen(sys_str).read()
 		time.sleep(1)
 		o = os.popen(sys_str).read()
+	print('killing lingeling')
+	sys_str = 'pkill -9 ./lingeling'
+	print(sys_str)
+	o = os.popen(sys_str).read()
+	time.sleep(1)
+	o = os.popen(sys_str).read()
+	print('killing march_cu')
+	sys_str = 'pkill -9 ./march_cu'
+	print(sys_str)
+	o = os.popen(sys_str).read()
+	time.sleep(1)
+	o = os.popen(sys_str).read()
+	print('killing ilingeling')
+	print(sys_str)
+	sys_str = 'pkill -9 ./ilingeling'
+	o = os.popen(sys_str).read()
+	time.sleep(1)
+	o = os.popen(sys_str).read()
+	print('killing iglucose')
+	print(sys_str)
+	sys_str = 'pkill -9 ./iglucose'
+	o = os.popen(sys_str).read()
+	time.sleep(1)
+	o = os.popen(sys_str).read()
+	#
 	print('removing temporary files')
 	sys_str = 'rm ./rand_*'
 	print('start system command : ' + sys_str)
@@ -311,7 +331,7 @@ if __name__ == '__main__':
 	print('random sample size : %d' % RANDOM_SAMPLE_SIZE)
 	print('cpu_number : %d' % cpu_number)
 
-	cnf_ids_prev_runs = set()
+	cnf_ids_prev_runs = []
 	last_checked_cnf_id = -1
 
 	for n in n_zero_time_dict:
@@ -330,12 +350,12 @@ if __name__ == '__main__':
 				cnf_id = cnf_ids_prev_runs[index_cnf_ids_prev_runs]
 				index_cnf_ids_prev_runs += 1
 			pool.apply_async(solve_cnf_id, args=(solvers, template_cnf_name, cnf_id, n_zero_time_dict[n]), callback=collect_result)
+			while len(pool._cache) >= cpu_number and len(results) < RANDOM_SAMPLE_SIZE: # wait until any cpu is free
+				time.sleep(2)
 			if len(results) >= RANDOM_SAMPLE_SIZE:
 				print('terminating pool')
 				pool.terminate()
 				break
-			while len(pool._cache) >= cpu_number: # wait until any cpu is free
-				time.sleep(2)
 		pool.close()
 		pool.join()
 		clean_garbage()
@@ -344,7 +364,8 @@ if __name__ == '__main__':
 		print('last_checked_cnf_id : %d' % last_checked_cnf_id)
 		# add cnf ids to use them in next runs
 		for res in results:
-			cnf_ids_prev_runs.add(res[0])
+			if res[0] not in cnf_ids_prev_runs:
+				cnf_ids_prev_runs.append(res[0])
 		print('cnf_ids_prev_runs len : %d' % len(cnf_ids_prev_runs))
 		print('interrupted_march : %d' % interrupted_march)
 		print('results len : %d' % len(results))
