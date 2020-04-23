@@ -12,7 +12,19 @@ SOLVER_LIMIT_SEC = 5000
 TIME_BOARD_FRAC = 0.25
 solvers = ['./MapleLCMDistChrBt-DL-v3', 'cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh', ]
 LING_MIN_LIMIT_SEC = 3600
+<<<<<<< HEAD
 RANDOM_SAMPLE_SIZE = 20
+=======
+#RANDOM_SAMPLE_SIZE = 30
+RANDOM_SAMPLE_SIZE = 30
+
+# Debug
+#solvers = ['./MapleLCMDistChrBt-DL-v3']
+#RANDOM_SAMPLE_SIZE = 5
+#LING_MIN_LIMIT_SEC = 60
+#n_zero_time_dict = {2750: 43.0, 2740: 80.0}
+#
+>>>>>>> 574716774000cda1c5d829a62c1658dc1842d65a
 
 #template_cnf_name = sys.argv[1]
 template_cnf_name = 'md4_40_with_constr_template.cnf'
@@ -255,6 +267,7 @@ def clean_garbage():
 	print('killing solvers')
 	for solver in solvers:
 		sys_str = 'pkill -9 ' + solver
+<<<<<<< HEAD
 		#print(sys_str)
 		o = os.popen(sys_str).read()
 	print('killing lingeling')
@@ -273,6 +286,36 @@ def clean_garbage():
 	#print(sys_str)
 	sys_str = 'pkill -9 ./iglucose'
 	o = os.popen(sys_str).read()
+=======
+		print(sys_str)
+		o = os.popen(sys_str).read()
+		time.sleep(1)
+		o = os.popen(sys_str).read()
+	print('killing lingeling')
+	sys_str = 'pkill -9 ./lingeling'
+	print(sys_str)
+	o = os.popen(sys_str).read()
+	time.sleep(1)
+	o = os.popen(sys_str).read()
+	print('killing march_cu')
+	sys_str = 'pkill -9 ./march_cu'
+	print(sys_str)
+	o = os.popen(sys_str).read()
+	time.sleep(1)
+	o = os.popen(sys_str).read()
+	print('killing ilingeling')
+	print(sys_str)
+	sys_str = 'pkill -9 ./ilingeling'
+	o = os.popen(sys_str).read()
+	time.sleep(1)
+	o = os.popen(sys_str).read()
+	print('killing iglucose')
+	print(sys_str)
+	sys_str = 'pkill -9 ./iglucose'
+	o = os.popen(sys_str).read()
+	time.sleep(1)
+	o = os.popen(sys_str).read()
+>>>>>>> 574716774000cda1c5d829a62c1658dc1842d65a
 	#
 	print('removing temporary files')
 	sys_str = 'rm ./rand_*'
