@@ -1,3 +1,4 @@
+#!/bin/bash
 CNF=$1
 id=$2
 CPULIM=$3

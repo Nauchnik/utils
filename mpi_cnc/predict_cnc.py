@@ -10,7 +10,7 @@ input_vars_number = 512
 output_vars_number = 128 # last variables in a CNF
 SOLVER_LIMIT_SEC = 5000
 TIME_BOARD_FRAC = 0.25
-solvers = ['./MapleLCMDistChrBt-DL-v3', 'cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh', ]
+solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh', ]
 LING_MIN_LIMIT_SEC = 3600
 RANDOM_SAMPLE_SIZE = 20
 
@@ -26,6 +26,45 @@ for index, row in df.iterrows():
 		n_zero_time_dict[int(row['n'])] = float(row['time'])
 print('n_zero_time_dict : ')
 print(n_zero_time_dict)
+
+def clean_garbage():
+	print('killing solvers')
+	for solver in solvers:
+		sys_str = 'pkill -9 ' + solver
+		#print(sys_str)
+		o = os.popen(sys_str).read()
+	print('killing lingeling')
+	sys_str = 'pkill -9 ./lingeling'
+	#print(sys_str)
+	o = os.popen(sys_str).read()
+	print('killing march_cu')
+	sys_str = 'pkill -9 ./march_cu'
+	#print(sys_str)
+	o = os.popen(sys_str).read()
+	print('killing ilingeling')
+	#print(sys_str)
+	sys_str = 'pkill -9 ./ilingeling'
+	o = os.popen(sys_str).read()
+	print('killing iglucose')
+	#print(sys_str)
+	sys_str = 'pkill -9 ./iglucose'
+	o = os.popen(sys_str).read()
+	#
+	print('removing temporary files')
+	sys_str = 'rm ./rand_*'
+	#print('start system command : ' + sys_str)
+	o = os.popen(sys_str).read()
+	sys_str = 'rm ./min_rand_*'
+	#print('start system command : ' + sys_str)
+	o = os.popen(sys_str).read()
+	sys_str = 'rm ./known_sat_cube_*'
+	#print('start system command : ' + sys_str)
+	o = os.popen(sys_str).read()
+	sys_str = 'rm ./cubes_min_*'
+	#print('start system command : ' + sys_str)
+	o = os.popen(sys_str).read()
+	sys_str = 'rm ./id-*'
+	o = os.popen(sys_str).read()
 
 def generate_random_values(template_cnf_name : str, cnf_id : int):
 	values = dict()
@@ -56,7 +95,7 @@ def make_cnf_known_values(template_cnf_name : str, cnf_name : str, known_vars_va
 				continue
 			if 'p cnf' in line:
 				cnf_vars_number = int(line.split(' ')[2])
-				print('cnf_vars_number : %d' % cnf_vars_number)
+				#print('cnf_vars_number : %d' % cnf_vars_number)
 			else:
 			    template_cnf_clauses.append(line)
 	#
@@ -204,12 +243,19 @@ def get_solving_time(o):
 	lines = o.split('\n')
 	for line in lines:
 		if 'c total real time' in line:
-			#print(line)
 			solving_time = float(line.split()[6])
 		elif 'c CPU time' in line:
-			#print(line)
 			solving_time = float(line.split()[4])
 	return solving_time
+
+def get_solver_march_time(o):
+	lines = o.split('\n')
+	for line in lines:
+		if 'remaining time after cube phase : ' in line:
+			s = line.split()[6].replace(',','.')
+			t = float(s)
+			break
+	return float(SOLVER_LIMIT_SEC) - t - float(LING_MIN_LIMIT_SEC)
 	
 def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original_cnf_march_time_sec : float):
 	#print('cnf_id : %d' % cnf_id)
@@ -224,12 +270,14 @@ def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original
 	cnf_name = 'rand_' + template_cnf_name.replace('./','').split('.')[0] + '_cnfid_' + str(cnf_id) + '.cnf'
 	make_cnf_known_values(template_cnf_name, cnf_name, output_vars)
 	solvers_times = dict()
+	solvers_march_times_sec = dict()
 	for solver in solvers_times:
-		solver[times] = -1
+		solvers_times[solver] = -1
+		solvers_march_times_sec[solver] = -1
 	data = make_cnf_known_sat_cube(n, cnf_name, values_all_vars, original_cnf_march_time_sec)
 	#print(data)
 	cnf_known_sat_cube_name = data[0]
-	march_time_sec= float(data[1])
+	march_time_sec = data[1]
 	cubes = data[2]
 	refuted = data[3]
 	if cubes > 0:
@@ -242,53 +290,15 @@ def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original
 			elapsed_time = time.time()
 			o = os.popen(sys_str).read()
 			elapsed_time = time.time() - elapsed_time
-			#print(o)
+			print(o)
 			#solvers_times[solver] = get_solving_time(o)
 			solvers_times[solver] = float(elapsed_time)
 			# remove temp file for script-based solvers
 			if '.sh' in solver:
-				remove_file('./id-' + str(cnf_id) + '-')
+				solvers_march_times_sec[solver] = get_solver_march_time(o)
+				remove_file('./id-' + str(cnf_id) + '-*')
 		remove_file(cnf_known_sat_cube_name)
-	return cnf_id, march_time_sec, cubes, refuted, solvers_times
-
-def clean_garbage():
-	print('killing solvers')
-	for solver in solvers:
-		sys_str = 'pkill -9 ' + solver
-		#print(sys_str)
-		o = os.popen(sys_str).read()
-	print('killing lingeling')
-	sys_str = 'pkill -9 ./lingeling'
-	#print(sys_str)
-	o = os.popen(sys_str).read()
-	print('killing march_cu')
-	sys_str = 'pkill -9 ./march_cu'
-	#print(sys_str)
-	o = os.popen(sys_str).read()
-	print('killing ilingeling')
-	#print(sys_str)
-	sys_str = 'pkill -9 ./ilingeling'
-	o = os.popen(sys_str).read()
-	print('killing iglucose')
-	#print(sys_str)
-	sys_str = 'pkill -9 ./iglucose'
-	o = os.popen(sys_str).read()
-	#
-	print('removing temporary files')
-	sys_str = 'rm ./rand_*'
-	#print('start system command : ' + sys_str)
-	o = os.popen(sys_str).read()
-	sys_str = 'rm ./min_rand_*'
-	#print('start system command : ' + sys_str)
-	o = os.popen(sys_str).read()
-	sys_str = 'rm ./known_sat_cube_*'
-	#print('start system command : ' + sys_str)
-	o = os.popen(sys_str).read()
-	sys_str = 'rm ./cubes_min_*'
-	#print('start system command : ' + sys_str)
-	o = os.popen(sys_str).read()
-	sys_str = 'rm ./id-*'
-	o = os.popen(sys_str).read()
+	return cnf_id, march_time_sec, cubes, refuted, solvers_times, solvers_march_times_sec
 
 def collect_result(result):
 	global results
@@ -312,6 +322,8 @@ if __name__ == '__main__':
 
 	cnf_ids_prev_runs = []
 	last_checked_cnf_id = -1
+
+	clean_garbage()
 
 	for n in n_zero_time_dict:
 		print('\n*** n : %d ' % n)
@@ -355,16 +367,22 @@ if __name__ == '__main__':
 		csv_file_name = 'stat_' + template_cnf_name.replace('./','').split('.')[0] + '_n_' + str(n) + '.csv'
 		with open(csv_file_name, 'w') as csv_file:
 			csv_file.write('cnf_id march_cu_time total_cubes refuted_cubes')
+			# solvers times
 			for solver in solvers:
 				csv_file.write(' ' + solver.replace('./',''))
+			# solvers march times
+			for solver in solvers:
+				csv_file.write(' march_cu_time_' + solver.replace('./',''))
 			csv_file.write('\n')
 			for result in results:
-				csv_file.write('%d %d %d %d' % (result[0], int(result[1]), result[2], result[3]))
+				csv_file.write('%d %.2f %d %d' % (result[0], result[1], result[2], result[3]))
 				for solver in solvers:
-					csv_file.write(' ' + str(int(result[4][solver])))
+					csv_file.write(' %.2f' % result[4][solver])
+				for solver in solvers:
+					csv_file.write(' %.2f' % result[5][solver])
 				csv_file.write('\n')
 		n_time = time.time() - n_time
-		print('n time : ' + str(n_time))
+		print('n time : %.2f' % n_time)
 	
 	elapsed_time = time.time() - start_time
 	print('elapsed_time : ' + str(elapsed_time))

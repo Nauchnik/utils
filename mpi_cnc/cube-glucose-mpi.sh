@@ -1,3 +1,4 @@
+#!/bin/bash
 CNF=$1
 id=$2
 CPULIM=$3
@@ -31,4 +32,4 @@ fi
 echo "p inccnf" > $formula
 cat $mincnf | grep -v c >> $formula
 cat $cubes >> $formula
-./timelimit -t $rem -T 1 $DIR/iglucose $formula -verb=0 -cpu-lim=$CPULIM
+./timelimit -t $rem -T 1 $DIR/iglucose $formula -verb=0 -cpu-lim=$rem
