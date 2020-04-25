@@ -358,7 +358,11 @@ if __name__ == '__main__':
 		for res in results:
 			if res[0] not in cnf_ids_prev_runs:
 				cnf_ids_prev_runs.append(res[0])
+		# sort ids in descending order - to check the last ids first
+		cnf_ids_prev_runs = sorted(cnf_ids_prev_runs, reverse=True) 
 		print('cnf_ids_prev_runs len : %d' % len(cnf_ids_prev_runs))
+		print('cnf_ids_prev_runs : ')
+		print(cnf_ids_prev_runs)
 		print('interrupted_march : %d' % interrupted_march)
 		print('results len : %d' % len(results))
 		for r in results:
