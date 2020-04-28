@@ -5,7 +5,8 @@ import multiprocessing as mp
 
 MIN_REFUTED_CUBES = 1000
 MAX_NON_REFUTED_CUBES = 10000000
-MAX_MARCH_TIME = 86400
+MIN_MARCH_TIME = 60
+MAX_MARCH_TIME = 3600
 cnfname = ''
 statname = ''
 results = []
@@ -34,13 +35,13 @@ def process_n(n : int, cnfname : str):
 			if cubes > 0:
 				perc_refuted = refuted*100/cubes
 
-	return n, cubes, refuted, non_refuted, perc_refuted, int(elapsed_time)
+	return n, cubes, refuted, non_refuted, perc_refuted, float(elapsed_time)
 
 def collect_result(res):
 	results.append(res)
-	if res[2] >= MIN_REFUTED_CUBES:
+	if res[2] >= MIN_REFUTED_CUBES and res[5] >= MIN_MARCH_TIME:
 		ofile = open(statname,'a')
-		ofile.write('%d %d %d %d %f %d\n' % (res[0], res[1], res[2], res[3], res[4], res[5]))
+		ofile.write('%d %d %d %d %.2f %.2f\n' % (res[0], res[1], res[2], res[3], res[4], res[5]))
 		ofile.close()
 	global is_exit
 	if res[3] > MAX_NON_REFUTED_CUBES or res[5] > MAX_MARCH_TIME:

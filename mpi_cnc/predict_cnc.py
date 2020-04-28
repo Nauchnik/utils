@@ -9,7 +9,6 @@ import find_cnc_n_param
 input_vars_number = 512
 output_vars_number = 128 # last variables in a CNF
 SOLVER_LIMIT_SEC = 5000
-MARCH_CU_FROM_FILE_MIN_LIMIT_SEC = 60
 TIME_BOARD_FRAC = 0.25
 solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
@@ -239,14 +238,15 @@ def get_solving_time(o):
 	return solving_time
 
 def get_solver_march_time(o):
+	res = -1.0
 	lines = o.split('\n')
 	for line in lines:
 		if 'remaining time after cube phase : ' in line:
 			s = line.split()[6].replace(',','.')
-			t = float(s)
+			res = float(SOLVER_LIMIT_SEC) - float(s) - float(SECOND_LEVEL_LING_MIN_LIMIT_SEC)
 			break
-	return float(SOLVER_LIMIT_SEC) - t - float(SECOND_LEVEL_LING_MIN_LIMIT_SEC)
-	
+	return res
+
 def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original_cnf_march_time_sec : float):
 	#print('cnf_id : %d' % cnf_id)
 	values_all_vars = generate_random_values(template_cnf_name, cnf_id)
@@ -308,7 +308,7 @@ if __name__ == '__main__':
 	df = pd.read_csv(stat_name, delimiter = ' ')
 	n_zero_time_dict = dict()
 	for index, row in df.iterrows():
-		if int(row['non-refuted-cubes']) < find_cnc_n_param.MAX_NON_REFUTED_CUBES and float(row['time']) > MARCH_CU_FROM_FILE_MIN_LIMIT_SEC:
+		if int(row['non-refuted-cubes']) < find_cnc_n_param.MAX_NON_REFUTED_CUBES and float(row['time']) > find_cnc_n_param.MIN_MARCH_TIME:
 			n_zero_time_dict[int(row['n'])] = float(row['time'])
 	print('n_zero_time_dict : ')
 	print(n_zero_time_dict)
