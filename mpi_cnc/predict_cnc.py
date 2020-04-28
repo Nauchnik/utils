@@ -9,45 +9,35 @@ import find_cnc_n_param
 input_vars_number = 512
 output_vars_number = 128 # last variables in a CNF
 SOLVER_LIMIT_SEC = 5000
+MARCH_CU_FROM_FILE_MIN_LIMIT_SEC = 60
 TIME_BOARD_FRAC = 0.25
-solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh', ]
+solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
+sh_solvers = [s for s in solvers if '.sh' in s]
 LING_MIN_LIMIT_SEC = 3600
+SECOND_LEVEL_LING_MIN_LIMIT_SEC = 60
 RANDOM_SAMPLE_SIZE = 20
-
-#template_cnf_name = sys.argv[1]
-template_cnf_name = 'md4_40_with_constr_template.cnf'
-print('template_cnf_name : ' + template_cnf_name)
-stat_name = sys.argv[1]
-print('stat_name : ' + stat_name)
-df = pd.read_csv(stat_name, delimiter = ' ')
-n_zero_time_dict = dict()
-for index, row in df.iterrows():
-	if int(row['non-refuted-cubes']) < find_cnc_n_param.MAX_NON_REFUTED_CUBES:
-		n_zero_time_dict[int(row['n'])] = float(row['time'])
-print('n_zero_time_dict : ')
-print(n_zero_time_dict)
 
 def clean_garbage():
 	print('killing solvers')
 	for solver in solvers:
-		sys_str = 'pkill -9 ' + solver
+		sys_str = 'killall -9 ' + solver
 		#print(sys_str)
 		o = os.popen(sys_str).read()
 	print('killing lingeling')
-	sys_str = 'pkill -9 ./lingeling'
+	sys_str = 'killall -9 ./lingeling'
 	#print(sys_str)
 	o = os.popen(sys_str).read()
 	print('killing march_cu')
-	sys_str = 'pkill -9 ./march_cu'
+	sys_str = 'killall -9 ./march_cu'
 	#print(sys_str)
 	o = os.popen(sys_str).read()
 	print('killing ilingeling')
 	#print(sys_str)
-	sys_str = 'pkill -9 ./ilingeling'
+	sys_str = 'killall -9 ./ilingeling'
 	o = os.popen(sys_str).read()
 	print('killing iglucose')
 	#print(sys_str)
-	sys_str = 'pkill -9 ./iglucose'
+	sys_str = 'killall -9 ./iglucose'
 	o = os.popen(sys_str).read()
 	#
 	print('removing temporary files')
@@ -255,7 +245,7 @@ def get_solver_march_time(o):
 			s = line.split()[6].replace(',','.')
 			t = float(s)
 			break
-	return float(SOLVER_LIMIT_SEC) - t - float(LING_MIN_LIMIT_SEC)
+	return float(SOLVER_LIMIT_SEC) - t - float(SECOND_LEVEL_LING_MIN_LIMIT_SEC)
 	
 def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original_cnf_march_time_sec : float):
 	#print('cnf_id : %d' % cnf_id)
@@ -310,13 +300,28 @@ def collect_result(result):
 		interrupted_march += 1
 
 if __name__ == '__main__':
+	#template_cnf_name = sys.argv[1]
+	template_cnf_name = 'md4_40_with_constr_template.cnf'
+	print('template_cnf_name : ' + template_cnf_name)
+	stat_name = sys.argv[1]
+	print('stat_name : ' + stat_name)
+	df = pd.read_csv(stat_name, delimiter = ' ')
+	n_zero_time_dict = dict()
+	for index, row in df.iterrows():
+		if int(row['non-refuted-cubes']) < find_cnc_n_param.MAX_NON_REFUTED_CUBES and float(row['time']) > MARCH_CU_FROM_FILE_MIN_LIMIT_SEC:
+			n_zero_time_dict[int(row['n'])] = float(row['time'])
+	print('n_zero_time_dict : ')
+	print(n_zero_time_dict)
+
 	start_time = time.time()
 
 	print("Total number of processors: ", mp.cpu_count())
 	cpu_number = mp.cpu_count()
-
+	
 	print('solvers :')
 	print(solvers)
+	print('sh_solvers :')
+	print(sh_solvers)
 	print('random sample size : %d' % RANDOM_SAMPLE_SIZE)
 	print('cpu_number : %d' % cpu_number)
 
@@ -351,6 +356,7 @@ if __name__ == '__main__':
 		pool.close()
 		pool.join()
 		clean_garbage()
+		time.sleep(2) # wait for processes' termination
 		if len(results) > RANDOM_SAMPLE_SIZE:
 			results = results[:RANDOM_SAMPLE_SIZE]
 		print('last_checked_cnf_id : %d' % last_checked_cnf_id)
@@ -375,14 +381,14 @@ if __name__ == '__main__':
 			for solver in solvers:
 				csv_file.write(' ' + solver.replace('./',''))
 			# solvers march times
-			for solver in solvers:
+			for solver in sh_solvers:
 				csv_file.write(' march_cu_time_' + solver.replace('./',''))
 			csv_file.write('\n')
 			for result in results:
 				csv_file.write('%d %.2f %d %d' % (result[0], result[1], result[2], result[3]))
 				for solver in solvers:
 					csv_file.write(' %.2f' % result[4][solver])
-				for solver in solvers:
+				for solver in sh_solvers:
 					csv_file.write(' %.2f' % result[5][solver])
 				csv_file.write('\n')
 		n_time = time.time() - n_time
