@@ -6,10 +6,22 @@ import multiprocessing as mp
 MIN_REFUTED_CUBES = 1000
 MAX_NON_REFUTED_CUBES = 10000000
 MIN_MARCH_TIME = 60
-MAX_MARCH_TIME = 3600
+MAX_MARCH_TIME = 3600.0
 cnfname = ''
 statname = ''
 results = []
+
+def parse_march_log(o):
+	cubes = -1
+	refuted = -1
+	non_refuted = -1
+	lines = o.split('\n')
+	for line in lines:
+		if 'c number of cubes' in line: # in fact this is the number of non-refuted cubes
+			non_refuted = int(line.split('c number of cubes ')[1].split(',')[0])
+			refuted = int(line.split(' refuted leaves')[0].split(' ')[-1])
+			cubes = non_refuted + refuted
+	return cubes, refuted, non_refuted
 
 def process_n(n : int, cnfname : str):
 	print('n : %d' % n)
@@ -18,34 +30,26 @@ def process_n(n : int, cnfname : str):
 	#print('system_str : ' + system_str)
 	o = os.popen(system_str).read()
 	elapsed_time = time.time() - start_time
-	s = ''
-	for x in o:
-		s += x
-	lst = s.split('\n')
-	cubes = 0
-	refuted = 0
-	perc_refuted = 0.0
-	for x in lst:
-		if 'c number of cubes' in x:
-			non_refuted = int(x.split('c number of cubes ')[1].split(',')[0])
-			refuted = int(x.split(' refuted leaves')[0].split(' ')[-1])
-			cubes = non_refuted + refuted
-			print('non_refuted cubes : %d ' % non_refuted)
-			print('refuted cubes : %d' % refuted)
-			if cubes > 0:
-				perc_refuted = refuted*100/cubes
-
+	cubes = -1
+	refuted = -1
+	non_refuted = -1
+	perc_refuted = -1.0
+	cubes, refuted, non_refuted = parse_march_log(o)
+	if cubes > 0:
+		perc_refuted = refuted*100/cubes
+	print('elapsed_time : %.2f' % elapsed_time)
 	return n, cubes, refuted, non_refuted, perc_refuted, float(elapsed_time)
 
 def collect_result(res):
 	results.append(res)
-	if res[2] >= MIN_REFUTED_CUBES and res[5] >= MIN_MARCH_TIME:
+	if res[2] >= MIN_REFUTED_CUBES and res[5] > MIN_MARCH_TIME and res[5] < MAX_MARCH_TIME:
 		ofile = open(statname,'a')
 		ofile.write('%d %d %d %d %.2f %.2f\n' % (res[0], res[1], res[2], res[3], res[4], res[5]))
 		ofile.close()
 	global is_exit
-	if res[3] > MAX_NON_REFUTED_CUBES or res[5] > MAX_MARCH_TIME:
+	if res[3] > MAX_NON_REFUTED_CUBES or res[5] >= MAX_MARCH_TIME:
 		is_exit = True
+		print('is_exit : ' + str(is_exit))
 	
 if __name__ == '__main__':
 	print("total number of processors: ", mp.cpu_count())

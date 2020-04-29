@@ -9,11 +9,12 @@ import find_cnc_n_param
 input_vars_number = 512
 output_vars_number = 128 # last variables in a CNF
 SOLVER_LIMIT_SEC = 5000
-TIME_BOARD_FRAC = 0.25
+NON_REFUTED_BOARD_FRAC = 0.25
+MARCH_BOARD_FRAC = 0.30
 solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
-LING_MIN_LIMIT_SEC = 3600
-SECOND_LEVEL_LING_MIN_LIMIT_SEC = 60
+LING_MIN_LIMIT_SEC = 120
+SECOND_LEVEL_LING_MIN_LIMIT_SEC = 120
 RANDOM_SAMPLE_SIZE = 20
 
 def clean_garbage():
@@ -169,20 +170,8 @@ def add_cube(old_cnf_name : str, new_cnf_name : str, cube : list):
 						cnf_file.write(cl)
 				for c in cube:
 						cnf_file.write(c + ' 0\n')
-
-def find_refuted(o):
-	#c number of cubes 2635794, including 53902 refuted leaves
-	cubes = 0
-	refuted = 0
-	lines = o.split('\n')
-	for line in lines:
-		if 'c number of cubes' in line:
-			line = line.replace(',','')
-			cubes = int(line.split(' ')[4])
-			refuted = int(line.split(' ')[6])
-	return cubes, refuted
 	
-def make_cnf_known_sat_cube(n: int, cnf_name : str, values_all_vars : list, original_cnf_march_time_sec : float):
+def make_cnf_known_sat_cube(n: int, cnf_name : str, values_all_vars : list, original_data_val : tuple):
 	min_cnf_name = 'min_' + cnf_name
 	sys_str = './lingeling -s -T ' + str(LING_MIN_LIMIT_SEC) + ' -o ' + min_cnf_name + ' ' + cnf_name
 	#print('start system command : ' + sys_str)
@@ -194,17 +183,20 @@ def make_cnf_known_sat_cube(n: int, cnf_name : str, values_all_vars : list, orig
 		exit(1)
 	remove_file(cnf_name)
 	cubes_name = 'cubes_' + min_cnf_name
-	left_board = original_cnf_march_time_sec * (1.0 - TIME_BOARD_FRAC)
-	right_board = original_cnf_march_time_sec * (1.0 + TIME_BOARD_FRAC)
-	sys_str = './timelimit -T 1 -t ' + str(right_board) + ' ./march_cu ' + min_cnf_name + ' -n ' + str(n) + ' -o ' + cubes_name
+	original_cnf_march_time = float(original_data_val[0])
+	original_cnf_non_refuted = float(original_data_val[1])
+	left_board_non_refuted = int(original_cnf_non_refuted * (1.0 - NON_REFUTED_BOARD_FRAC))
+	right_board_non_refuted = int(original_cnf_non_refuted * (1.0 + NON_REFUTED_BOARD_FRAC))
+	right_board_march_time = float(original_cnf_march_time * (1.0 + MARCH_BOARD_FRAC))
+	sys_str = './timelimit -T 1 -t ' + str(int(right_board_march_time)) + ' ./march_cu ' + min_cnf_name + ' -n ' + str(n) + ' -o ' + cubes_name
 	#print('start system command : ' + sys_str)
-	march_time_sec = time.time()
+	march_time = time.time()
 	o = os.popen(sys_str).read()
-	march_time_sec = time.time() - march_time_sec
+	march_time = time.time() - march_time
+	cubes, refuted, non_refuted = find_cnc_n_param.parse_march_log(o)
 	cnf_known_sat_cube_name = ''
-	cubes = refuted = 0
 	# don't construct a cube_cnf for non matching march_cu time
-	if march_time_sec > left_board and march_time_sec < right_board:
+	if cubes > 0 and non_refuted > left_board_non_refuted and non_refuted < right_board_non_refuted:
 		#print('original_cnf_march_time_sec : %f' % original_cnf_march_time_sec)
 		#print('left_board : %f' % left_board)
 		#print('right_board : %f' % right_board)
@@ -213,17 +205,20 @@ def make_cnf_known_sat_cube(n: int, cnf_name : str, values_all_vars : list, orig
 			print('*** SAT found by march_cu')
 			print(o)
 			exit(1)
-		cubes, refuted = find_refuted(o)
-		if cubes > 0:
-			cnf_known_sat_cube_name = 'known_sat_cube_' + min_cnf_name
-			sat_cubes = get_sat_cube(cubes_name, values_all_vars)
-			#print('%d sat_cubes :' % len(sat_cubes))
-			if len(sat_cubes) == 0:
-				exit(1)
-			#print(sat_cubes)
-			add_cube(min_cnf_name, cnf_known_sat_cube_name, sat_cubes[0])
+		cnf_known_sat_cube_name = 'known_sat_cube_' + min_cnf_name
+		sat_cubes = get_sat_cube(cubes_name, values_all_vars)
+		#print('%d sat_cubes :' % len(sat_cubes))
+		if len(sat_cubes) == 0:
+			print('*** sat_cubes is empty')
+			exit(1)
+		#print(sat_cubes)
+		add_cube(min_cnf_name, cnf_known_sat_cube_name, sat_cubes[0])
+	elif cubes > 0 and march_time < right_board_march_time:
+		global non_match_non_refuted
+		non_match_non_refuted += 1
+		
 	remove_file(min_cnf_name)
-	return cnf_known_sat_cube_name, march_time_sec, cubes, refuted
+	return cnf_known_sat_cube_name, march_time, cubes, refuted
 
 def get_solving_time(o):
 	#cadical - c total real time since initialization: 
@@ -247,7 +242,7 @@ def get_solver_march_time(o):
 			break
 	return res
 
-def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original_cnf_march_time_sec : float):
+def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original_data_val : tuple):
 	#print('cnf_id : %d' % cnf_id)
 	values_all_vars = generate_random_values(template_cnf_name, cnf_id)
 	#print('%d values_all_vars : ' % len(values_all_vars))
@@ -264,7 +259,7 @@ def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original
 	for solver in solvers_times:
 		solvers_times[solver] = -1
 		solvers_march_times_sec[solver] = -1
-	data = make_cnf_known_sat_cube(n, cnf_name, values_all_vars, original_cnf_march_time_sec)
+	data = make_cnf_known_sat_cube(n, cnf_name, values_all_vars, original_data_val)
 	#print(data)
 	cnf_known_sat_cube_name = data[0]
 	march_time_sec = data[1]
@@ -306,12 +301,12 @@ if __name__ == '__main__':
 	stat_name = sys.argv[1]
 	print('stat_name : ' + stat_name)
 	df = pd.read_csv(stat_name, delimiter = ' ')
-	n_zero_time_dict = dict()
+	original_data_dict = dict()
 	for index, row in df.iterrows():
 		if int(row['non-refuted-cubes']) < find_cnc_n_param.MAX_NON_REFUTED_CUBES and float(row['time']) > find_cnc_n_param.MIN_MARCH_TIME:
-			n_zero_time_dict[int(row['n'])] = float(row['time'])
-	print('n_zero_time_dict : ')
-	print(n_zero_time_dict)
+			original_data_dict[int(row['n'])] = (float(row['time']),int(row['non-refuted-cubes']))
+	print('original_data_dict : ')
+	print(original_data_dict)
 
 	start_time = time.time()
 
@@ -330,13 +325,14 @@ if __name__ == '__main__':
 
 	clean_garbage()
 
-	for n in n_zero_time_dict:
+	for n in original_data_dict:
 		print('\n*** n : %d ' % n)
 		n_time = time.time()
 		pool = mp.Pool(cpu_number)
 		results = []
 		index_cnf_ids_prev_runs = 0
 		interrupted_march = 0
+		non_match_non_refuted = 0
 		while len(results) < RANDOM_SAMPLE_SIZE:
 			if len(cnf_ids_prev_runs) == 0 or index_cnf_ids_prev_runs == len(cnf_ids_prev_runs):
 				# if first run, i.e. there is no history of previously used ids
@@ -346,7 +342,7 @@ if __name__ == '__main__':
 			elif len(cnf_ids_prev_runs) > 0 and index_cnf_ids_prev_runs < len(cnf_ids_prev_runs):
 				cnf_id = cnf_ids_prev_runs[index_cnf_ids_prev_runs]
 				index_cnf_ids_prev_runs += 1
-			pool.apply_async(solve_cnf_id, args=(solvers, template_cnf_name, cnf_id, n_zero_time_dict[n]), callback=collect_result)
+			pool.apply_async(solve_cnf_id, args=(solvers, template_cnf_name, cnf_id, original_data_dict[n]), callback=collect_result)
 			while len(pool._cache) >= cpu_number and len(results) < RANDOM_SAMPLE_SIZE: # wait until any cpu is free
 				time.sleep(2)
 			if len(results) >= RANDOM_SAMPLE_SIZE:
@@ -370,6 +366,7 @@ if __name__ == '__main__':
 		print('cnf_ids_prev_runs : ')
 		print(cnf_ids_prev_runs)
 		print('interrupted_march : %d' % interrupted_march)
+		print('non_match_non_refuted : %d' % non_match_non_refuted)
 		print('results len : %d' % len(results))
 		for r in results:
 			print(r)

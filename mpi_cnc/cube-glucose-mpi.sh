@@ -3,7 +3,7 @@ CNF=$1
 id=$2
 CPULIM=$3
 DIR=.
-LINGTIMELIM=60
+LINGTIMELIM=120
 printf "id : %d\n" $id
 printf "CPULIM : %d\n" $CPULIM
 res1=$(date +%s.%N)
