@@ -83,7 +83,7 @@ if __name__ == '__main__':
 	statname = statname.replace('.','')
 	statname = statname.replace('/','')
 	ofile = open(statname,'w')
-	ofile.write('n cubes non-refuted-cubes refuted-cubes %-refuted-cubes time\n')
+	ofile.write('n cubes refuted-cubes non-refuted-cubes %-refuted-cubes time\n')
 	ofile.close()
 
 	n = len(free_vars)
