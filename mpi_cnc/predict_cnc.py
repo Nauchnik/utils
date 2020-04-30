@@ -10,7 +10,7 @@ input_vars_number = 512
 output_vars_number = 128 # last variables in a CNF
 SOLVER_LIMIT_SEC = 5000
 NON_REFUTED_BOARD_FRAC = 0.25
-MARCH_BOARD_FRAC = 0.30
+MARCH_BOARD_FRAC = 0.25
 solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
 LING_MIN_LIMIT_SEC = 120
@@ -349,7 +349,6 @@ if __name__ == '__main__':
 				print('terminating pool')
 				pool.terminate()
 				break
-		pool.close()
 		pool.join()
 		clean_garbage()
 		time.sleep(2) # wait for processes' termination
