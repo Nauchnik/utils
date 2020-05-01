@@ -39,7 +39,12 @@ def clean_garbage():
 	#print(sys_str)
 	sys_str = 'killall -9 ./iglucose'
 	o = os.popen(sys_str).read()
-	#
+	# kill solvers one more time to be sure
+	print('killing solvers')
+	for solver in solvers:
+		sys_str = 'killall -9 ' + solver
+		#print(sys_str)
+		o = os.popen(sys_str).read()
 	print('removing temporary files')
 	sys_str = 'rm ./rand_*'
 	#print('start system command : ' + sys_str)
@@ -171,7 +176,7 @@ def add_cube(old_cnf_name : str, new_cnf_name : str, cube : list):
 				for c in cube:
 						cnf_file.write(c + ' 0\n')
 	
-def make_cnf_known_sat_cube(n: int, cnf_name : str, values_all_vars : list, original_data_val : tuple):
+def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, original_data_val : tuple):
 	min_cnf_name = 'min_' + cnf_name
 	sys_str = './lingeling -s -T ' + str(LING_MIN_LIMIT_SEC) + ' -o ' + min_cnf_name + ' ' + cnf_name
 	#print('start system command : ' + sys_str)
@@ -242,7 +247,7 @@ def get_solver_march_time(o):
 			break
 	return res
 
-def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original_data_val : tuple):
+def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int, original_data_val : tuple):
 	#print('cnf_id : %d' % cnf_id)
 	values_all_vars = generate_random_values(template_cnf_name, cnf_id)
 	#print('%d values_all_vars : ' % len(values_all_vars))
@@ -283,14 +288,15 @@ def solve_cnf_id(solvers : list, template_cnf_name : str, cnf_id : int, original
 				solvers_march_times_sec[solver] = get_solver_march_time(o)
 				remove_file('./id-' + str(cnf_id) + '-*')
 		remove_file(cnf_known_sat_cube_name)
-	return cnf_id, march_time_sec, cubes, refuted, solvers_times, solvers_march_times_sec
+	return n, cnf_id, march_time_sec, cubes, refuted, solvers_times, solvers_march_times_sec
 
 def collect_result(result):
 	global results
 	global interrupted_march
-	cubes = result[2]
+	n = result[0]
+	cubes = result[3]
 	if cubes > 0:
-		results.append(result)
+		results[n].append(result)
 	else:
 		interrupted_march += 1
 
@@ -324,16 +330,17 @@ if __name__ == '__main__':
 	last_checked_cnf_id = -1
 
 	clean_garbage()
-
+	pool = mp.Pool(cpu_number)
+	results = dict()
+	
 	for n in original_data_dict:
 		print('\n*** n : %d ' % n)
 		n_time = time.time()
-		pool = mp.Pool(cpu_number)
-		results = []
 		index_cnf_ids_prev_runs = 0
 		interrupted_march = 0
 		non_match_non_refuted = 0
-		while len(results) < RANDOM_SAMPLE_SIZE:
+		results[n] = []
+		while len(results[n]) < RANDOM_SAMPLE_SIZE:
 			if len(cnf_ids_prev_runs) == 0 or index_cnf_ids_prev_runs == len(cnf_ids_prev_runs):
 				# if first run, i.e. there is no history of previously used ids
 				# or there are no more previous ids to check
@@ -342,21 +349,19 @@ if __name__ == '__main__':
 			elif len(cnf_ids_prev_runs) > 0 and index_cnf_ids_prev_runs < len(cnf_ids_prev_runs):
 				cnf_id = cnf_ids_prev_runs[index_cnf_ids_prev_runs]
 				index_cnf_ids_prev_runs += 1
-			pool.apply_async(solve_cnf_id, args=(solvers, template_cnf_name, cnf_id, original_data_dict[n]), callback=collect_result)
-			while len(pool._cache) >= cpu_number and len(results) < RANDOM_SAMPLE_SIZE: # wait until any cpu is free
+			pool.apply_async(solve_cnf_id, args=(n, solvers, template_cnf_name, cnf_id, original_data_dict[n]), callback=collect_result)
+			while len(pool._cache) >= cpu_number and len(results[n]) < RANDOM_SAMPLE_SIZE: # wait until any cpu is free
 				time.sleep(2)
-			if len(results) >= RANDOM_SAMPLE_SIZE:
-				print('terminating pool')
-				pool.terminate()
+			if len(results[n]) >= RANDOM_SAMPLE_SIZE:
+				clean_garbage()
+				time.sleep(2) # wait for processes' termination
 				break
-		pool.join()
-		clean_garbage()
-		time.sleep(2) # wait for processes' termination
-		if len(results) > RANDOM_SAMPLE_SIZE:
-			results = results[:RANDOM_SAMPLE_SIZE]
+		
+		if len(results[n]) > RANDOM_SAMPLE_SIZE:
+			results[n] = results[n][:RANDOM_SAMPLE_SIZE]
 		print('last_checked_cnf_id : %d' % last_checked_cnf_id)
 		# add cnf ids to use them in next runs
-		for res in results:
+		for res in results[n]:
 			if res[0] not in cnf_ids_prev_runs:
 				cnf_ids_prev_runs.append(res[0])
 		# sort ids in descending order - to check the last ids first
@@ -366,8 +371,8 @@ if __name__ == '__main__':
 		print(cnf_ids_prev_runs)
 		print('interrupted_march : %d' % interrupted_march)
 		print('non_match_non_refuted : %d' % non_match_non_refuted)
-		print('results len : %d' % len(results))
-		for r in results:
+		print('results[n] len : %d' % len(results[n]))
+		for r in results[n]:
 			print(r)
 		# write header to an output file
 		csv_file_name = 'stat_' + template_cnf_name.replace('./','').split('.')[0] + '_n_' + str(n) + '.csv'
@@ -380,15 +385,20 @@ if __name__ == '__main__':
 			for solver in sh_solvers:
 				csv_file.write(' march_cu_time_' + solver.replace('./',''))
 			csv_file.write('\n')
-			for result in results:
-				csv_file.write('%d %.2f %d %d' % (result[0], result[1], result[2], result[3]))
+			for result in results[n]:
+				csv_file.write('%d %.2f %d %d' % (result[1], result[2], result[3], result[4]))
 				for solver in solvers:
-					csv_file.write(' %.2f' % result[4][solver])
-				for solver in sh_solvers:
 					csv_file.write(' %.2f' % result[5][solver])
+				for solver in sh_solvers:
+					csv_file.write(' %.2f' % result[6][solver])
 				csv_file.write('\n')
 		n_time = time.time() - n_time
 		print('n time : %.2f' % n_time)
+
+	#print('terminating pool')
+	#pool.terminate()
+	pool.close()
+	pool.join()
 	
 	elapsed_time = time.time() - start_time
 	print('elapsed_time : ' + str(elapsed_time))
