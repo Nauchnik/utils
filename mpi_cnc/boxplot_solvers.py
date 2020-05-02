@@ -4,14 +4,16 @@ import numpy as np
 import sys
 
 timelimit = 5100
-solvers_names = ['MapleLCMDistChrBt-DL-v3', 'cadical_sr2019']
+solvers_names = ['MapleLCMDistChrBt-DL-v3', 'cadical_sr2019', 'cube-lingeling-mpi.sh', 'cube-glucose-mpi.sh']
+solvers_short_names = ['v3', 'cadical', 'cnc-lingeling', 'cnc-glucose']
 
 f_name = sys.argv[1]
 print('input file : ' + f_name)
 df= pd.read_csv(f_name, delimiter = ' ')
 print(df)
 
-df = df[['MapleLCMDistChrBt-DL-v3', 'cadical_sr2019']]
+df = df[solvers_names]
+df.columns = solvers_short_names
 print(df)
 
 myFig = plt.figure();
