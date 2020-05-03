@@ -4,17 +4,17 @@ import time
 from random import randint
 import multiprocessing as mp
 import pandas as pd
-import find_cnc_n_param
+import find_cnc_n_param as fcnp
 
 input_vars_number = 512
-output_vars_number = 128 # last variables in a CNF
-SOLVER_LIMIT_SEC = 5000
-NON_REFUTED_BOARD_FRAC = 0.25
+output_vars_number = 128 # last variable number in a CNF
+SOLVER_TIME_LIMIT = 5000
+CUBES_BOARD_FRAC = 0.25
 MARCH_BOARD_FRAC = 0.25
 solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
-LING_MIN_LIMIT_SEC = 120
-SECOND_LEVEL_LING_MIN_LIMIT_SEC = 120
+LING_MIN_TIME_LIMIT = 120
+SECOND_LEVEL_LING_MIN_TIME_LIMIT = 120
 RANDOM_SAMPLE_SIZE = 20
 
 def clean_garbage():
@@ -178,7 +178,7 @@ def add_cube(old_cnf_name : str, new_cnf_name : str, cube : list):
 	
 def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, original_data_val : tuple):
 	min_cnf_name = 'min_' + cnf_name
-	sys_str = './lingeling -s -T ' + str(LING_MIN_LIMIT_SEC) + ' -o ' + min_cnf_name + ' ' + cnf_name
+	sys_str = './lingeling -s -T ' + str(LING_MIN_TIME_LIMIT) + ' -o ' + min_cnf_name + ' ' + cnf_name
 	#print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
 	isSat = find_sat_log(o)
@@ -189,20 +189,20 @@ def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, ori
 	remove_file(cnf_name)
 	cubes_name = 'cubes_' + min_cnf_name
 	original_cnf_march_time = float(original_data_val[0])
-	original_cnf_non_refuted = float(original_data_val[1])
-	left_board_non_refuted = int(original_cnf_non_refuted * (1.0 - NON_REFUTED_BOARD_FRAC))
-	right_board_non_refuted = int(original_cnf_non_refuted * (1.0 + NON_REFUTED_BOARD_FRAC))
+	original_cnf_cubes = float(original_data_val[1])
+	left_board_cubes = int(original_cnf_cubes * (1.0 - CUBES_BOARD_FRAC))
+	right_board_cubes = int(original_cnf_cubes * (1.0 + CUBES_BOARD_FRAC))
 	right_board_march_time = float(original_cnf_march_time * (1.0 + MARCH_BOARD_FRAC))
 	sys_str = './timelimit -T 1 -t ' + str(int(right_board_march_time)) + ' ./march_cu ' + min_cnf_name + ' -n ' + str(n) + ' -o ' + cubes_name
 	#print('start system command : ' + sys_str)
 	march_time = time.time()
 	o = os.popen(sys_str).read()
 	march_time = time.time() - march_time
-	cubes, refuted, non_refuted = find_cnc_n_param.parse_march_log(o)
+	cubes, refuted_leaves = fcnp.parse_march_log(o)
 	cnf_known_sat_cube_name = ''
 	# don't construct a cube_cnf for non matching march_cu time
-	if cubes > 0 and non_refuted > left_board_non_refuted and non_refuted < right_board_non_refuted:
-		#print('original_cnf_march_time_sec : %f' % original_cnf_march_time_sec)
+	if cubes >= left_board_cubes and cubes <= right_board_cubes:
+		#print('original_cnf_march_time : %f' % original_cnf_march_time)
 		#print('left_board : %f' % left_board)
 		#print('right_board : %f' % right_board)
 		isSat = find_sat_log(o)
@@ -218,12 +218,12 @@ def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, ori
 			exit(1)
 		#print(sat_cubes)
 		add_cube(min_cnf_name, cnf_known_sat_cube_name, sat_cubes[0])
-	elif cubes > 0 and march_time < right_board_march_time:
-		global non_match_non_refuted
-		non_match_non_refuted += 1
-		
+	elif cubes > 0 and march_time <= right_board_march_time:
+		global non_match_cubes
+		non_match_cubes += 1
+	
 	remove_file(min_cnf_name)
-	return cnf_known_sat_cube_name, march_time, cubes, refuted
+	return cnf_known_sat_cube_name, march_time, cubes, refuted_leaves
 
 def get_solving_time(o):
 	#cadical - c total real time since initialization: 
@@ -243,7 +243,7 @@ def get_solver_march_time(o):
 	for line in lines:
 		if 'remaining time after cube phase : ' in line:
 			s = line.split()[6].replace(',','.')
-			res = float(SOLVER_LIMIT_SEC) - float(s) - float(SECOND_LEVEL_LING_MIN_LIMIT_SEC)
+			res = float(SOLVER_TIME_LIMIT) - float(s) - float(SECOND_LEVEL_LING_MIN_TIME_LIMIT)
 			break
 	return res
 
@@ -260,22 +260,22 @@ def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int,
 	cnf_name = 'rand_' + template_cnf_name.replace('./','').split('.')[0] + '_cnfid_' + str(cnf_id) + '.cnf'
 	make_cnf_known_values(template_cnf_name, cnf_name, output_vars)
 	solvers_times = dict()
-	solvers_march_times_sec = dict()
+	solvers_march_times = dict()
 	for solver in solvers_times:
 		solvers_times[solver] = -1
-		solvers_march_times_sec[solver] = -1
+		solvers_march_times[solver] = -1
 	data = make_cnf_known_sat_cube(n, cnf_name, values_all_vars, original_data_val)
 	#print(data)
 	cnf_known_sat_cube_name = data[0]
-	march_time_sec = data[1]
+	march_time = data[1]
 	cubes = data[2]
-	refuted = data[3]
+	refuted_leaves = data[3]
 	if cubes > 0:
 		for solver in solvers:
-			sys_str = './timelimit -T 1 -t ' + str(SOLVER_LIMIT_SEC) + ' ' + solver + ' ' + cnf_known_sat_cube_name
+			sys_str = './timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + cnf_known_sat_cube_name
 			# if script-based solver
 			if '.sh' in solver:
-				sys_str += ' ' + str(cnf_id) + ' ' + str(SOLVER_LIMIT_SEC)
+				sys_str += ' ' + str(cnf_id) + ' ' + str(SOLVER_TIME_LIMIT)
 			#print('start system command : ' + sys_str)
 			elapsed_time = time.time()
 			o = os.popen(sys_str).read()
@@ -285,10 +285,10 @@ def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int,
 			solvers_times[solver] = float(elapsed_time)
 			# remove temp file for script-based solvers
 			if '.sh' in solver:
-				solvers_march_times_sec[solver] = get_solver_march_time(o)
+				solvers_march_times[solver] = get_solver_march_time(o)
 				remove_file('./id-' + str(cnf_id) + '-*')
 		remove_file(cnf_known_sat_cube_name)
-	return n, cnf_id, march_time_sec, cubes, refuted, solvers_times, solvers_march_times_sec
+	return n, cnf_id, march_time, cubes, refuted_leaves, solvers_times, solvers_march_times
 
 def collect_result(result):
 	global results
@@ -309,11 +309,11 @@ if __name__ == '__main__':
 	df = pd.read_csv(stat_name, delimiter = ' ')
 	original_data_dict = dict()
 	for index, row in df.iterrows():
-		if int(row['non-refuted-cubes']) < find_cnc_n_param.MAX_NON_REFUTED_CUBES and float(row['time']) > find_cnc_n_param.MIN_MARCH_TIME:
-			original_data_dict[int(row['n'])] = (float(row['time']),int(row['non-refuted-cubes']))
+		if int(row['cubes']) <= fcnp.MAX_CUBES and float(row['march-cu-time']) >= fcnp.MIN_MARCH_TIME and float(row['march-cu-time']) <= fcnp.MAX_MARCH_TIME:
+			original_data_dict[int(row['n'])] = (float(row['march-cu-time']),int(row['cubes']))
 	print('original_data_dict : ')
 	print(original_data_dict)
-
+	
 	start_time = time.time()
 
 	print("Total number of processors: ", mp.cpu_count())
@@ -338,7 +338,7 @@ if __name__ == '__main__':
 		n_time = time.time()
 		index_cnf_ids_prev_runs = 0
 		interrupted_march = 0
-		non_match_non_refuted = 0
+		non_match_cubes = 0
 		results[n] = []
 		while len(results[n]) < RANDOM_SAMPLE_SIZE:
 			if len(cnf_ids_prev_runs) == 0 or index_cnf_ids_prev_runs == len(cnf_ids_prev_runs):
@@ -370,20 +370,20 @@ if __name__ == '__main__':
 		print('cnf_ids_prev_runs : ')
 		print(cnf_ids_prev_runs)
 		print('interrupted_march : %d' % interrupted_march)
-		print('non_match_non_refuted : %d' % non_match_non_refuted)
+		print('non_match_cubes : %d' % non_match_cubes)
 		print('results[n] len : %d' % len(results[n]))
 		for r in results[n]:
 			print(r)
 		# write header to an output file
 		csv_file_name = 'stat_' + template_cnf_name.replace('./','').split('.')[0] + '_n_' + str(n) + '.csv'
 		with open(csv_file_name, 'w') as csv_file:
-			csv_file.write('cnf_id march_cu_time total_cubes refuted_cubes')
+			csv_file.write('cnfid march-cu-time cubes refuted-leaves')
 			# solvers times
 			for solver in solvers:
 				csv_file.write(' ' + solver.replace('./',''))
 			# solvers march times
 			for solver in sh_solvers:
-				csv_file.write(' march_cu_time_' + solver.replace('./',''))
+				csv_file.write(' march-cu-time_' + solver.replace('./',''))
 			csv_file.write('\n')
 			for result in results[n]:
 				csv_file.write('%d %.2f %d %d' % (result[1], result[2], result[3], result[4]))

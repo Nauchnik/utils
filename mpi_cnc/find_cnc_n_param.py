@@ -3,9 +3,9 @@ import os
 import time
 import multiprocessing as mp
 
-MIN_REFUTED_CUBES = 1000
-MAX_NON_REFUTED_CUBES = 10000000
-MIN_MARCH_TIME = 60
+MIN_REFUTED_LEAVES = 1000
+MAX_CUBES = 10000000
+MIN_MARCH_TIME = 60.0
 MAX_MARCH_TIME = 3600.0
 cnfname = ''
 statname = ''
@@ -13,15 +13,13 @@ results = []
 
 def parse_march_log(o):
 	cubes = -1
-	refuted = -1
-	non_refuted = -1
+	refuted_leaves = -1
 	lines = o.split('\n')
 	for line in lines:
-		if 'c number of cubes' in line: # in fact this is the number of non-refuted cubes
-			non_refuted = int(line.split('c number of cubes ')[1].split(',')[0])
-			refuted = int(line.split(' refuted leaves')[0].split(' ')[-1])
-			cubes = non_refuted + refuted
-	return cubes, refuted, non_refuted
+		if 'c number of cubes' in line:
+			cubes = int(line.split('c number of cubes ')[1].split(',')[0])
+			refuted_leaves = int(line.split(' refuted leaves')[0].split(' ')[-1])
+	return cubes, refuted_leaves
 
 def process_n(n : int, cnfname : str):
 	print('n : %d' % n)
@@ -31,25 +29,25 @@ def process_n(n : int, cnfname : str):
 	o = os.popen(system_str).read()
 	elapsed_time = time.time() - start_time
 	cubes = -1
-	refuted = -1
-	non_refuted = -1
-	perc_refuted = -1.0
-	cubes, refuted, non_refuted = parse_march_log(o)
-	if cubes > 0:
-		perc_refuted = refuted*100/cubes
+	refuted_leaves = -1
+	cubes, refuted_leaves = parse_march_log(o)
 	print('elapsed_time : %.2f' % elapsed_time)
-	return n, cubes, refuted, non_refuted, perc_refuted, float(elapsed_time)
+	return n, cubes, refuted_leaves, float(elapsed_time)
 
 def collect_result(res):
 	results.append(res)
-	if res[2] >= MIN_REFUTED_CUBES and res[5] > MIN_MARCH_TIME and res[5] < MAX_MARCH_TIME:
-		ofile = open(statname,'a')
-		ofile.write('%d %d %d %d %.2f %.2f\n' % (res[0], res[1], res[2], res[3], res[4], res[5]))
-		ofile.close()
+	n = res[0]
+	cubes = res[1]
+	refuted_leaves = res[2]
+	march_time = res[3]
 	global is_exit
-	if res[3] > MAX_NON_REFUTED_CUBES or res[5] >= MAX_MARCH_TIME:
+	if cubes > MAX_CUBES or march_time > MAX_MARCH_TIME:
 		is_exit = True
 		print('is_exit : ' + str(is_exit))
+	elif refuted_leaves >= MIN_REFUTED_LEAVES and march_time >= MIN_MARCH_TIME:
+		ofile = open(statname,'a')
+		ofile.write('%d %d %d %.2f\n' % (n, cubes, refuted_leaves, march_time))
+		ofile.close()
 	
 if __name__ == '__main__':
 	print("total number of processors: ", mp.cpu_count())
@@ -87,7 +85,7 @@ if __name__ == '__main__':
 	statname = statname.replace('.','')
 	statname = statname.replace('/','')
 	ofile = open(statname,'w')
-	ofile.write('n cubes refuted-cubes non-refuted-cubes %-refuted-cubes time\n')
+	ofile.write('n cubes refuted-leaves march-cu-time\n')
 	ofile.close()
 
 	n = len(free_vars)
