@@ -362,8 +362,9 @@ if __name__ == '__main__':
 		print('last_checked_cnf_id : %d' % last_checked_cnf_id)
 		# add cnf ids to use them in next runs
 		for res in results[n]:
-			if res[0] not in cnf_ids_prev_runs:
-				cnf_ids_prev_runs.append(res[0])
+			cnfid = res[1]
+			if cnfid not in cnf_ids_prev_runs:
+				cnf_ids_prev_runs.append(cnfid)
 		# sort ids in descending order - to check the last ids first
 		cnf_ids_prev_runs = sorted(cnf_ids_prev_runs, reverse=True) 
 		print('cnf_ids_prev_runs len : %d' % len(cnf_ids_prev_runs))
@@ -372,8 +373,8 @@ if __name__ == '__main__':
 		print('interrupted_march : %d' % interrupted_march)
 		print('non_match_cubes : %d' % non_match_cubes)
 		print('results[n] len : %d' % len(results[n]))
-		for r in results[n]:
-			print(r)
+		for res in results[n]:
+			print(res)
 		# write header to an output file
 		csv_file_name = 'stat_' + template_cnf_name.replace('./','').split('.')[0] + '_n_' + str(n) + '.csv'
 		with open(csv_file_name, 'w') as csv_file:
@@ -385,12 +386,12 @@ if __name__ == '__main__':
 			for solver in sh_solvers:
 				csv_file.write(' march-cu-time_' + solver.replace('./',''))
 			csv_file.write('\n')
-			for result in results[n]:
-				csv_file.write('%d %.2f %d %d' % (result[1], result[2], result[3], result[4]))
+			for res in results[n]:
+				csv_file.write('%d %.2f %d %d' % (res[1], res[2], res[3], res[4]))
 				for solver in solvers:
-					csv_file.write(' %.2f' % result[5][solver])
+					csv_file.write(' %.2f' % res[5][solver])
 				for solver in sh_solvers:
-					csv_file.write(' %.2f' % result[6][solver])
+					csv_file.write(' %.2f' % res[6][solver])
 				csv_file.write('\n')
 		n_time = time.time() - n_time
 		print('n time : %.2f' % n_time)
