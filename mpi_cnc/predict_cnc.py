@@ -4,6 +4,7 @@ import time
 from random import randint
 import multiprocessing as mp
 import pandas as pd
+import logging
 import find_cnc_n_param as fcnp
 
 input_vars_number = 512
@@ -18,45 +19,39 @@ SECOND_LEVEL_LING_MIN_TIME_LIMIT = 120
 RANDOM_SAMPLE_SIZE = 20
 
 def clean_garbage():
-	print('killing solvers')
+	logging.info('killing processes')
+	logging.debug('killing timelimit.sh')
+	sys_str = 'killall -9 ./timelimit.sh'
+	o = os.popen(sys_str).read()
+	logging.debug('killing solvers')
 	for solver in solvers:
 		sys_str = 'killall -9 ' + solver
-		#print(sys_str)
 		o = os.popen(sys_str).read()
-	print('killing lingeling')
+	logging.debug('killing lingeling')
 	sys_str = 'killall -9 ./lingeling'
-	#print(sys_str)
 	o = os.popen(sys_str).read()
-	print('killing march_cu')
+	logging.debug('killing march_cu')
 	sys_str = 'killall -9 ./march_cu'
-	#print(sys_str)
 	o = os.popen(sys_str).read()
-	print('killing ilingeling')
-	#print(sys_str)
+	logging.debug('killing ilingeling')
 	sys_str = 'killall -9 ./ilingeling'
 	o = os.popen(sys_str).read()
-	print('killing iglucose')
-	#print(sys_str)
+	logging.debug('killing iglucose')
 	sys_str = 'killall -9 ./iglucose'
 	o = os.popen(sys_str).read()
 	# kill solvers one more time to be sure
-	print('killing solvers')
+	logging.debug('killing solvers')
 	for solver in solvers:
 		sys_str = 'killall -9 ' + solver
-		#print(sys_str)
 		o = os.popen(sys_str).read()
-	print('removing temporary files')
+	logging.info('removing temporary files')
 	sys_str = 'rm ./rand_*'
-	#print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
 	sys_str = 'rm ./min_rand_*'
-	#print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
 	sys_str = 'rm ./known_sat_cube_*'
-	#print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
 	sys_str = 'rm ./cubes_min_*'
-	#print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
 	sys_str = 'rm ./id-*'
 	o = os.popen(sys_str).read()
@@ -64,9 +59,7 @@ def clean_garbage():
 def generate_random_values(template_cnf_name : str, cnf_id : int):
 	values = dict()
 	sys_str = './lingeling --seed=' + str(cnf_id) + ' ' + template_cnf_name
-	#print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
-	#print(o)
 	s = ''
 	lst = o.split('\n')
 	for x in lst:
@@ -109,7 +102,6 @@ def make_cnf_known_values(template_cnf_name : str, cnf_name : str, known_vars_va
 
 def remove_file(file_name):
 	sys_str = 'rm ' + file_name
-	#print('start system command : ' + sys_str)
 	o = os.popen(sys_str).read()
 
 def find_sat_log(o):
@@ -133,7 +125,6 @@ def find_n_param(o):
 			n = int(line.split(' ')[2])
 			break
 		if 'new perc rec' in line:
-			#print(line)
 			isPerc = True
 	return n
 
@@ -261,7 +252,7 @@ def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int,
 	make_cnf_known_values(template_cnf_name, cnf_name, output_vars)
 	solvers_times = dict()
 	solvers_march_times = dict()
-	for solver in solvers_times:
+	for solver in solvers:
 		solvers_times[solver] = -1
 		solvers_march_times[solver] = -1
 	data = make_cnf_known_sat_cube(n, cnf_name, values_all_vars, original_data_val)
@@ -280,7 +271,7 @@ def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int,
 			elapsed_time = time.time()
 			o = os.popen(sys_str).read()
 			elapsed_time = time.time() - elapsed_time
-			print(o)
+			#print(o)
 			#solvers_times[solver] = get_solving_time(o)
 			solvers_times[solver] = float(elapsed_time)
 			# remove temp file for script-based solvers
@@ -297,34 +288,35 @@ def collect_result(result):
 	cubes = result[3]
 	if cubes > 0:
 		results[n].append(result)
+		logging.info('got %d results' % len(results[n]))
 	else:
 		interrupted_march += 1
 
 if __name__ == '__main__':
-	#template_cnf_name = sys.argv[1]
-	template_cnf_name = 'md4_40_with_constr_template.cnf'
-	print('template_cnf_name : ' + template_cnf_name)
-	stat_name = sys.argv[1]
-	print('stat_name : ' + stat_name)
+	#template_cnf_name = 'md4_40_with_constr_template.cnf'
+	template_cnf_name = sys.argv[1]
+	stat_name = sys.argv[2]
+	log_name = 'predict_' + stat_name.replace('./','').replace('.','') + '.log'
+	logging.basicConfig(filename=log_name, filemode = 'w', level=logging.INFO)
+	logging.info('template_cnf_name : ' + template_cnf_name)
+	logging.info('stat_name : ' + stat_name)
 	df = pd.read_csv(stat_name, delimiter = ' ')
 	original_data_dict = dict()
 	for index, row in df.iterrows():
 		if int(row['cubes']) <= fcnp.MAX_CUBES and float(row['march-cu-time']) >= fcnp.MIN_MARCH_TIME and float(row['march-cu-time']) <= fcnp.MAX_MARCH_TIME:
 			original_data_dict[int(row['n'])] = (float(row['march-cu-time']),int(row['cubes']))
-	print('original_data_dict : ')
-	print(original_data_dict)
+	logging.info('original_data_dict : ')
+	logging.info(original_data_dict)
 	
 	start_time = time.time()
-
-	print("Total number of processors: ", mp.cpu_count())
 	cpu_number = mp.cpu_count()
-	
-	print('solvers :')
-	print(solvers)
-	print('sh_solvers :')
-	print(sh_solvers)
-	print('random sample size : %d' % RANDOM_SAMPLE_SIZE)
-	print('cpu_number : %d' % cpu_number)
+	logging.info("Total number of processors: %d", cpu_number)
+	logging.info('cpu_number : %d' % cpu_number)
+	logging.info('solvers :')
+	logging.info(solvers)
+	logging.info('sh_solvers :')
+	logging.info(sh_solvers)
+	logging.info('random sample size : %d' % RANDOM_SAMPLE_SIZE)
 
 	cnf_ids_prev_runs = []
 	last_checked_cnf_id = -1
@@ -334,7 +326,9 @@ if __name__ == '__main__':
 	results = dict()
 	
 	for n in original_data_dict:
-		print('\n*** n : %d ' % n)
+		logging.info(' ')
+		logging.info('***')
+		logging.info('n : %d ' % n)
 		n_time = time.time()
 		index_cnf_ids_prev_runs = 0
 		interrupted_march = 0
@@ -353,13 +347,14 @@ if __name__ == '__main__':
 			while len(pool._cache) >= cpu_number and len(results[n]) < RANDOM_SAMPLE_SIZE: # wait until any cpu is free
 				time.sleep(2)
 			if len(results[n]) >= RANDOM_SAMPLE_SIZE:
-				clean_garbage()
-				time.sleep(2) # wait for processes' termination
+				for s in solvers: # kill processes for every solver because they are run in a loop
+					clean_garbage()
+					time.sleep(2) # wait for processes' termination
 				break
-		
+				
 		if len(results[n]) > RANDOM_SAMPLE_SIZE:
 			results[n] = results[n][:RANDOM_SAMPLE_SIZE]
-		print('last_checked_cnf_id : %d' % last_checked_cnf_id)
+		logging.info('last_checked_cnf_id : %d' % last_checked_cnf_id)
 		# add cnf ids to use them in next runs
 		for res in results[n]:
 			cnfid = res[1]
@@ -367,14 +362,14 @@ if __name__ == '__main__':
 				cnf_ids_prev_runs.append(cnfid)
 		# sort ids in descending order - to check the last ids first
 		cnf_ids_prev_runs = sorted(cnf_ids_prev_runs, reverse=True) 
-		print('cnf_ids_prev_runs len : %d' % len(cnf_ids_prev_runs))
-		print('cnf_ids_prev_runs : ')
-		print(cnf_ids_prev_runs)
-		print('interrupted_march : %d' % interrupted_march)
-		print('non_match_cubes : %d' % non_match_cubes)
-		print('results[n] len : %d' % len(results[n]))
+		logging.info('cnf_ids_prev_runs len : %d' % len(cnf_ids_prev_runs))
+		logging.info('cnf_ids_prev_runs : ')
+		logging.info(cnf_ids_prev_runs)
+		logging.info('interrupted_march : %d' % interrupted_march)
+		logging.info('non_match_cubes : %d' % non_match_cubes)
+		logging.info('results[n] len : %d' % len(results[n]))
 		for res in results[n]:
-			print(res)
+			logging.info(res)
 		# write header to an output file
 		csv_file_name = 'stat_' + template_cnf_name.replace('./','').split('.')[0] + '_n_' + str(n) + '.csv'
 		with open(csv_file_name, 'w') as csv_file:
@@ -394,13 +389,11 @@ if __name__ == '__main__':
 					csv_file.write(' %.2f' % res[6][solver])
 				csv_file.write('\n')
 		n_time = time.time() - n_time
-		print('n time : %.2f' % n_time)
+		logging.info('n=%d time : %.2f' % (n,n_time))
 
-	#print('terminating pool')
-	#pool.terminate()
 	pool.close()
 	pool.join()
 	
 	elapsed_time = time.time() - start_time
-	print('elapsed_time : ' + str(elapsed_time))
+	logging.info('total elapsed_time : ' + str(elapsed_time))
 	
