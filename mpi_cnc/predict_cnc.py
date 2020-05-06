@@ -21,7 +21,7 @@ SECOND_LEVEL_LING_MIN_TIME_LIMIT = 120
 RANDOM_SAMPLE_SIZE = 30
 
 results = dict()
-interrupted_march = 0
+interrupted = 0
 non_match_cubes = 0
 
 def clean_garbage():
@@ -189,6 +189,7 @@ def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, ori
 	original_cnf_cubes = float(original_data_val[1])
 	left_board_cubes = int(original_cnf_cubes * (1.0 - CUBES_BOARD_FRAC))
 	right_board_cubes = int(original_cnf_cubes * (1.0 + CUBES_BOARD_FRAC))
+	left_board_march_time = float(original_cnf_march_time * (1.0 - MARCH_BOARD_FRAC))
 	right_board_march_time = float(original_cnf_march_time * (1.0 + MARCH_BOARD_FRAC))
 	sys_str = './timelimit -T 1 -t ' + str(int(right_board_march_time)) + ' ./march_cu ' + min_cnf_name + ' -n ' + str(n) + ' -o ' + cubes_name
 	#print('start system command : ' + sys_str)
@@ -197,7 +198,7 @@ def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, ori
 	march_time = time.time() - march_time
 	cubes, refuted_leaves = fcnp.parse_march_log(o)
 	cnf_known_sat_cube_name = ''
-	# don't construct a cube_cnf for non matching march_cu time
+	# don't construct a cube_cnf for non matching number of cubes
 	if cubes >= left_board_cubes and cubes <= right_board_cubes:
 		#print('original_cnf_march_time : %f' % original_cnf_march_time)
 		#print('left_board : %f' % left_board)
@@ -215,9 +216,11 @@ def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, ori
 			exit(1)
 		#print(sat_cubes)
 		add_cube(min_cnf_name, cnf_known_sat_cube_name, sat_cubes[0])
-	elif cubes > 0 and march_time <= right_board_march_time:
-		global non_match_cubes
-		non_match_cubes += 1
+	else:
+		if cubes > 0 and march_time >= left_board_march_time and march_time <= right_board_march_time:
+			global non_match_cubes
+			non_match_cubes += 1
+		cubes = 0
 	
 	remove_file(min_cnf_name)
 	return cnf_known_sat_cube_name, march_time, cubes, refuted_leaves
@@ -267,7 +270,7 @@ def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int,
 	march_time = data[1]
 	cubes = data[2]
 	refuted_leaves = data[3]
-	if cubes > 0:
+	if cubes > 0 and cnf_known_sat_cube_name != '':
 		for solver in solvers:
 			sys_str = './timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + cnf_known_sat_cube_name
 			# if script-based solver
@@ -289,14 +292,20 @@ def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int,
 
 def collect_result(result):
 	global results
-	global interrupted_march
+	global interrupted
 	n = result[0]
 	cubes = result[3]
-	if cubes > 0:
+	solvers_times = result[5]
+	isSolverTimesOk = True
+	for solver in solvers_times:
+		if solvers_times[solver] < 0:
+			isSolverTimesOk = False
+			break
+	if cubes > 0 and isSolverTimesOk:
 		results[n].append(result)
 		logging.info('got %d results' % len(results[n]))
 	else:
-		interrupted_march += 1
+		interrupted += 1
 
 if __name__ == '__main__':
 	#template_cnf_name = 'md4_40_with_constr_template.cnf'
@@ -373,7 +382,7 @@ if __name__ == '__main__':
 		logging.info('n : %d ' % n)
 		n_time = time.time()
 		index_cnf_ids_prev_runs = 0
-		interrupted_march = 0
+		interrupted = 0
 		non_match_cubes = 0
 		results[n] = []
 		while len(results[n]) < RANDOM_SAMPLE_SIZE:
@@ -409,7 +418,7 @@ if __name__ == '__main__':
 		logging.info('cnf_ids_prev_runs : ')
 		logging.info(cnf_ids_prev_runs)
 		logging.info('last_checked_cnf_id : %d' % last_checked_cnf_id)
-		logging.info('interrupted_march : %d' % interrupted_march)
+		logging.info('interrupted : %d' % interrupted)
 		logging.info('non_match_cubes : %d' % non_match_cubes)
 		logging.info('results[n] len : %d' % len(results[n]))
 		for res in results[n]:
