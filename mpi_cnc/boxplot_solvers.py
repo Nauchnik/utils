@@ -20,6 +20,7 @@ myFig = plt.figure();
 plt.ylim(0, timelimit)
 #bp = df.boxplot()
 _, bp = pd.DataFrame.boxplot(df, return_type='both')
+f_name = f_name.replace('./','')
 myFig.savefig("boxplot_" + f_name.split('.')[0] + ".pdf", format="pdf")
 
 print(df.describe())

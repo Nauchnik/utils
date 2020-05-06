@@ -1,4 +1,5 @@
 import sys
+import glob
 import os
 import time
 from random import randint
@@ -12,11 +13,16 @@ output_vars_number = 128 # last variable number in a CNF
 SOLVER_TIME_LIMIT = 5000
 CUBES_BOARD_FRAC = 0.25
 MARCH_BOARD_FRAC = 0.25
-solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
+#solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
+solvers = ['./cube-glucose-mpi.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
 LING_MIN_TIME_LIMIT = 120
 SECOND_LEVEL_LING_MIN_TIME_LIMIT = 120
-RANDOM_SAMPLE_SIZE = 20
+RANDOM_SAMPLE_SIZE = 30
+
+results = dict()
+interrupted_march = 0
+non_match_cubes = 0
 
 def clean_garbage():
 	logging.info('killing processes')
@@ -294,17 +300,57 @@ def collect_result(result):
 
 if __name__ == '__main__':
 	#template_cnf_name = 'md4_40_with_constr_template.cnf'
+	if len(sys.argv) < 3:
+	    print('Usage: script template_cnf_file stat_file [prev_stat_name_mask]')
 	template_cnf_name = sys.argv[1]
 	stat_name = sys.argv[2]
 	log_name = 'predict_' + stat_name.replace('./','').replace('.','') + '.log'
+	sys_str = 'cp ./' + log_name + ' ./copy_' + log_name
+	o = os.popen(sys_str).read()
 	logging.basicConfig(filename=log_name, filemode = 'w', level=logging.INFO)
 	logging.info('template_cnf_name : ' + template_cnf_name)
 	logging.info('stat_name : ' + stat_name)
+
+	cnf_ids_prev_runs = []
+	n_prev_runs = []
+	last_checked_cnf_id = -1
+	if len(sys.argv) >= 4:
+		logging.info('*** loading cnf ids from the previous runs')
+		prev_stat_name_mask = sys.argv[3]
+		#stat_name_mask = 'stat_md4_40_with_constr_template_n_*'	
+		if prev_stat_name_mask[-1] is not '*':
+			prev_stat_name_mask += '*'
+		logging.info('prev_stat_name_mask : ' + str(prev_stat_name_mask))
+		os.chdir('./')
+		prev_stat_name_file_names = []
+		for file_name in glob.glob(prev_stat_name_mask):
+			prev_stat_name_file_names.append(file_name)
+		logging.info('stat_name_file_names :')
+		logging.info(prev_stat_name_file_names)
+		for fname in prev_stat_name_file_names:
+			n = int(fname.split('.csv')[0].split('_')[-1])
+			n_prev_runs.append(n)
+			df = pd.read_csv(fname, delimiter = ' ')
+			for index, row in df.iterrows():
+				cnfid = int(row['cnfid'])
+				if cnfid not in cnf_ids_prev_runs:
+					cnf_ids_prev_runs.append(cnfid)
+		cnf_ids_prev_runs = sorted(cnf_ids_prev_runs, reverse=True) 
+		logging.info('cnf_ids_prev_runs size is %d :' % len(cnf_ids_prev_runs))
+		logging.info(cnf_ids_prev_runs)
+		last_checked_cnf_id = cnf_ids_prev_runs[0]
+		logging.info('last_checked_cnf_id : %d' % last_checked_cnf_id)
+		logging.info('n_prev_runs :')
+		logging.info(n_prev_runs)
+		
 	df = pd.read_csv(stat_name, delimiter = ' ')
 	original_data_dict = dict()
 	for index, row in df.iterrows():
-		if int(row['cubes']) <= fcnp.MAX_CUBES and float(row['march-cu-time']) >= fcnp.MIN_MARCH_TIME and float(row['march-cu-time']) <= fcnp.MAX_MARCH_TIME:
-			original_data_dict[int(row['n'])] = (float(row['march-cu-time']),int(row['cubes']))
+		n = int(row['n'])
+		cubes = int(row['cubes'])
+		m_t = float(row['march-cu-time'])
+		if n not in n_prev_runs and cubes <= fcnp.MAX_CUBES and m_t >= fcnp.MIN_MARCH_TIME and m_t <= fcnp.MAX_MARCH_TIME:
+			original_data_dict[n] = (m_t,cubes)
 	logging.info('original_data_dict : ')
 	logging.info(original_data_dict)
 	
@@ -318,12 +364,8 @@ if __name__ == '__main__':
 	logging.info(sh_solvers)
 	logging.info('random sample size : %d' % RANDOM_SAMPLE_SIZE)
 
-	cnf_ids_prev_runs = []
-	last_checked_cnf_id = -1
-
 	clean_garbage()
 	pool = mp.Pool(cpu_number)
-	results = dict()
 	
 	for n in original_data_dict:
 		logging.info(' ')
@@ -335,11 +377,12 @@ if __name__ == '__main__':
 		non_match_cubes = 0
 		results[n] = []
 		while len(results[n]) < RANDOM_SAMPLE_SIZE:
+			# if first run, i.e. there is no history of previously used ids
+			# or there are no more previous ids to check
+			# else get previous cnf ids
 			if len(cnf_ids_prev_runs) == 0 or index_cnf_ids_prev_runs == len(cnf_ids_prev_runs):
-				# if first run, i.e. there is no history of previously used ids
-				# or there are no more previous ids to check
-				cnf_id = last_checked_cnf_id + 1
-				last_checked_cnf_id = cnf_id
+				last_checked_cnf_id += 1
+				cnf_id = last_checked_cnf_id
 			elif len(cnf_ids_prev_runs) > 0 and index_cnf_ids_prev_runs < len(cnf_ids_prev_runs):
 				cnf_id = cnf_ids_prev_runs[index_cnf_ids_prev_runs]
 				index_cnf_ids_prev_runs += 1
@@ -351,10 +394,9 @@ if __name__ == '__main__':
 					clean_garbage()
 					time.sleep(2) # wait for processes' termination
 				break
-				
+		
 		if len(results[n]) > RANDOM_SAMPLE_SIZE:
 			results[n] = results[n][:RANDOM_SAMPLE_SIZE]
-		logging.info('last_checked_cnf_id : %d' % last_checked_cnf_id)
 		# add cnf ids to use them in next runs
 		for res in results[n]:
 			cnfid = res[1]
@@ -362,18 +404,23 @@ if __name__ == '__main__':
 				cnf_ids_prev_runs.append(cnfid)
 		# sort ids in descending order - to check the last ids first
 		cnf_ids_prev_runs = sorted(cnf_ids_prev_runs, reverse=True) 
+		last_checked_cnf_id = cnf_ids_prev_runs[0]
 		logging.info('cnf_ids_prev_runs len : %d' % len(cnf_ids_prev_runs))
 		logging.info('cnf_ids_prev_runs : ')
 		logging.info(cnf_ids_prev_runs)
+		logging.info('last_checked_cnf_id : %d' % last_checked_cnf_id)
 		logging.info('interrupted_march : %d' % interrupted_march)
 		logging.info('non_match_cubes : %d' % non_match_cubes)
 		logging.info('results[n] len : %d' % len(results[n]))
 		for res in results[n]:
 			logging.info(res)
+			if res[0] != n:
+				logging.error('res[0] != n')
+				exit(-1)
 		# write header to an output file
 		csv_file_name = 'stat_' + template_cnf_name.replace('./','').split('.')[0] + '_n_' + str(n) + '.csv'
 		with open(csv_file_name, 'w') as csv_file:
-			csv_file.write('cnfid march-cu-time cubes refuted-leaves')
+			csv_file.write('n cnfid march-cu-time cubes refuted-leaves')
 			# solvers times
 			for solver in solvers:
 				csv_file.write(' ' + solver.replace('./',''))
@@ -382,7 +429,7 @@ if __name__ == '__main__':
 				csv_file.write(' march-cu-time_' + solver.replace('./',''))
 			csv_file.write('\n')
 			for res in results[n]:
-				csv_file.write('%d %.2f %d %d' % (res[1], res[2], res[3], res[4]))
+				csv_file.write('%d %d %.2f %d %d' % (res[0], res[1], res[2], res[3], res[4]))
 				for solver in solvers:
 					csv_file.write(' %.2f' % res[5][solver])
 				for solver in sh_solvers:
