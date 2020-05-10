@@ -284,10 +284,10 @@ def get_solver_march_time(o, min_time):
 	for line in lines:
 		if 'remaining time after cube phase : ' in line:
 			s = line.split()[6].replace(',','.')
-			logging.info(line)
-			logging.info('min_time : %f' % min_time)
+			#logging.info(line)
+			#logging.info('min_time : %f' % min_time)
 			march_time = float(SOLVER_TIME_LIMIT) - float(s) - float(min_time)
-			logging.info('march_time : %f' % march_time)
+			#logging.info('march_time : %f' % march_time)
 			break
 	return march_time
 	
@@ -348,6 +348,7 @@ def collect_result(result):
 	if cubes > 0 and isSolverTimesOk:
 		results[n].append(result)
 		logging.info('got %d results' % len(results[n]))
+		logging.info(result)
 	else:
 		interrupted += 1
 
@@ -425,8 +426,10 @@ if __name__ == '__main__':
 		results[n] = []
 		if load_mode == 2:
 			cnf_ids_prev_runs = cnfids_from_files[n]
+			last_checked_cnf_id = cnfids_from_files[n][-1]
 			logging.info('loaded cnf_ids_prev_runs')
 			logging.info(cnf_ids_prev_runs)
+			logging.info('last_checked_cnf_id : %d' % last_checked_cnf_id)
 		while len(results[n]) < RANDOM_SAMPLE_SIZE:
 			# if first run, i.e. there is no history of previously used ids
 			# or there are no more previous ids to check
