@@ -14,10 +14,10 @@ SOLVER_TIME_LIMIT = 5000
 CUBES_BOARD_FRAC = 0.25
 MARCH_BOARD_FRAC = 0.25
 #solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
-solvers = ['./cube-glucose-mpi.sh']
+#solvers = ['./cube-glucose-mpi.sh']
+solvers = ['./cube-glucose-mpi-min1min.sh', './cube-glucose-mpi-min10sec.sh', './cube-glucose-mpi-nomin.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
 LING_MIN_TIME_LIMIT = 120
-SECOND_LEVEL_LING_MIN_TIME_LIMIT = 120
 RANDOM_SAMPLE_SIZE = 30
 
 results = dict()
@@ -225,6 +225,47 @@ def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, ori
 	remove_file(min_cnf_name)
 	return cnf_known_sat_cube_name, march_time, cubes, refuted_leaves
 
+def get_cnfids_from_files( par : str ):
+	if '=' not in par:
+		logging.error('wrong input parameter : ' + par)
+		exit(1)
+	logging.info('*** loading cnf ids from the previous runs')
+	cnfids_from_files = dict()
+	load_mode = 0
+	if '-contr-point=' in par:
+		load_mode = 1
+	elif '-load-cnfids=' in par:
+		load_mode = 2
+	logging.info('load_mode : %d' % load_mode)
+	prev_stat_name_mask = par.split('=')[1]
+	#stat_name_mask = 'stat_md4_40_with_constr_template_n_*'	
+	if prev_stat_name_mask[-1] is not '*':
+		prev_stat_name_mask += '*'
+	logging.info('prev_stat_name_mask : ' + str(prev_stat_name_mask))
+	os.chdir('./')
+	prev_stat_name_file_names = []
+	for file_name in glob.glob(prev_stat_name_mask):
+		prev_stat_name_file_names.append(file_name)
+	logging.info('stat_name_file_names :')
+	logging.info(prev_stat_name_file_names)
+	for fname in prev_stat_name_file_names:
+		n = int(fname.split('.csv')[0].split('_')[-1])
+		cnfids_from_files[n] = []
+		df = pd.read_csv(fname, delimiter = ' ')
+		for index, row in df.iterrows():
+			cnfid = int(row['cnfid'])
+			cnfids_from_files[n].append(cnfid)
+	return cnfids_from_files, load_mode
+
+def get_sh_solver_min_time(sh_solver):
+	min_time = 0.0
+	with open(sh_solver, 'r') as ifile:
+		lines = ifile.readlines()
+		for line in lines:
+			if 'LINGTIMELIM=' in line:
+				min_time = float(line.split('LINGTIMELIM=')[1])
+	return min_time
+	
 def get_solving_time(o):
 	#cadical - c total real time since initialization: 
 	#maple_v3 - c CPU time              :
@@ -237,16 +278,19 @@ def get_solving_time(o):
 			solving_time = float(line.split()[4])
 	return solving_time
 
-def get_solver_march_time(o):
-	res = -1.0
+def get_solver_march_time(o, min_time):
+	march_time = -1.0
 	lines = o.split('\n')
 	for line in lines:
 		if 'remaining time after cube phase : ' in line:
 			s = line.split()[6].replace(',','.')
-			res = float(SOLVER_TIME_LIMIT) - float(s) - float(SECOND_LEVEL_LING_MIN_TIME_LIMIT)
+			logging.info(line)
+			logging.info('min_time : %f' % min_time)
+			march_time = float(SOLVER_TIME_LIMIT) - float(s) - float(min_time)
+			logging.info('march_time : %f' % march_time)
 			break
-	return res
-
+	return march_time
+	
 def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int, original_data_val : tuple):
 	#print('cnf_id : %d' % cnf_id)
 	values_all_vars = generate_random_values(template_cnf_name, cnf_id)
@@ -285,7 +329,7 @@ def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int,
 			solvers_times[solver] = float(elapsed_time)
 			# remove temp file for script-based solvers
 			if '.sh' in solver:
-				solvers_march_times[solver] = get_solver_march_time(o)
+				solvers_march_times[solver] = get_solver_march_time(o, min_time_sh_solvers[solver])
 				remove_file('./id-' + str(cnf_id) + '-*')
 		remove_file(cnf_known_sat_cube_name)
 	return n, cnf_id, march_time, cubes, refuted_leaves, solvers_times, solvers_march_times
@@ -310,7 +354,7 @@ def collect_result(result):
 if __name__ == '__main__':
 	#template_cnf_name = 'md4_40_with_constr_template.cnf'
 	if len(sys.argv) < 3:
-	    print('Usage: script template_cnf_file stat_file [prev_stat_name_mask]')
+	    print('Usage: script template_cnf_file stat_file [-contr-point=prev_stat_name_mask | -load-cnfids=prev_stat_name_mask])')
 	template_cnf_name = sys.argv[1]
 	stat_name = sys.argv[2]
 	log_name = 'predict_' + stat_name.replace('./','').replace('.','') + '.log'
@@ -320,37 +364,31 @@ if __name__ == '__main__':
 	logging.info('template_cnf_name : ' + template_cnf_name)
 	logging.info('stat_name : ' + stat_name)
 
+	min_time_sh_solvers = dict()
+	for s in sh_solvers:
+		min_time_sh_solvers[s] = get_sh_solver_min_time(s)
+	logging.info('min_time_sh_solvers:')
+	logging.info(min_time_sh_solvers)
+	
 	cnf_ids_prev_runs = []
 	n_prev_runs = []
+	cnfids_from_files = dict()
 	last_checked_cnf_id = -1
 	if len(sys.argv) >= 4:
-		logging.info('*** loading cnf ids from the previous runs')
-		prev_stat_name_mask = sys.argv[3]
-		#stat_name_mask = 'stat_md4_40_with_constr_template_n_*'	
-		if prev_stat_name_mask[-1] is not '*':
-			prev_stat_name_mask += '*'
-		logging.info('prev_stat_name_mask : ' + str(prev_stat_name_mask))
-		os.chdir('./')
-		prev_stat_name_file_names = []
-		for file_name in glob.glob(prev_stat_name_mask):
-			prev_stat_name_file_names.append(file_name)
-		logging.info('stat_name_file_names :')
-		logging.info(prev_stat_name_file_names)
-		for fname in prev_stat_name_file_names:
-			n = int(fname.split('.csv')[0].split('_')[-1])
-			n_prev_runs.append(n)
-			df = pd.read_csv(fname, delimiter = ' ')
-			for index, row in df.iterrows():
-				cnfid = int(row['cnfid'])
-				if cnfid not in cnf_ids_prev_runs:
-					cnf_ids_prev_runs.append(cnfid)
-		cnf_ids_prev_runs = sorted(cnf_ids_prev_runs, reverse=True) 
-		logging.info('cnf_ids_prev_runs size is %d :' % len(cnf_ids_prev_runs))
-		logging.info(cnf_ids_prev_runs)
-		last_checked_cnf_id = cnf_ids_prev_runs[0]
-		logging.info('last_checked_cnf_id : %d' % last_checked_cnf_id)
-		logging.info('n_prev_runs :')
-		logging.info(n_prev_runs)
+		cnfids_from_files, load_mode = get_cnfids_from_files(sys.argv[3])
+		if load_mode == 1:
+			for n in cnfids_from_files:
+				n_prev_runs.append(n)
+				for cnfid in cnfids_from_files[n]:
+					if cnfid not in cnf_ids_prev_runs:
+						cnf_ids_prev_runs.append(cnfid)
+			cnf_ids_prev_runs = sorted(cnf_ids_prev_runs, reverse=True) 
+			last_checked_cnf_id = cnf_ids_prev_runs[0]
+			logging.info('cnf_ids_prev_runs size is %d :' % len(cnf_ids_prev_runs))
+			logging.info(cnf_ids_prev_runs)
+			logging.info('last_checked_cnf_id : %d' % last_checked_cnf_id)
+			logging.info('n_prev_runs :')
+			logging.info(n_prev_runs)
 		
 	df = pd.read_csv(stat_name, delimiter = ' ')
 	original_data_dict = dict()
@@ -385,6 +423,10 @@ if __name__ == '__main__':
 		interrupted = 0
 		non_match_cubes = 0
 		results[n] = []
+		if load_mode == 2:
+			cnf_ids_prev_runs = cnfids_from_files[n]
+			logging.info('loaded cnf_ids_prev_runs')
+			logging.info(cnf_ids_prev_runs)
 		while len(results[n]) < RANDOM_SAMPLE_SIZE:
 			# if first run, i.e. there is no history of previously used ids
 			# or there are no more previous ids to check
