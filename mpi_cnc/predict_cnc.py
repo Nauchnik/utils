@@ -2,7 +2,6 @@ import sys
 import glob
 import os
 import time
-from random import randint
 import multiprocessing as mp
 import pandas as pd
 import logging
@@ -14,8 +13,8 @@ SOLVER_TIME_LIMIT = 5000
 CUBES_BOARD_FRAC = 0.25
 MARCH_BOARD_FRAC = 0.25
 #solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
-#solvers = ['./cube-glucose-mpi.sh']
-solvers = ['./cube-glucose-mpi-min1min.sh', './cube-glucose-mpi-min10sec.sh', './cube-glucose-mpi-nomin.sh']
+solvers = ['./cube-glucose-mpi.sh']
+#solvers = ['./cube-glucose-mpi-min1min.sh', './cube-glucose-mpi-min10sec.sh', './cube-glucose-mpi-nomin.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
 LING_MIN_TIME_LIMIT = 120
 RANDOM_SAMPLE_SIZE = 30
@@ -135,43 +134,43 @@ def find_n_param(o):
 	return n
 
 def get_sat_cube(cubes_name, values_all_vars):
-		sat_cubes = []
-		with open(cubes_name, 'r') as cubes_file:
-				lines = cubes_file.readlines()
-				for line in lines:
-						lst = line.split(' ')[1:-1] # skip 'a' and '0'
-						match_number = 0
-						for word in lst:
-								val = 0 if word[0] == '-' else 1
-								var = abs(int(word))
-								if values_all_vars[var] == val:
-										match_number += 1
-						if match_number == len(lst):
-								sat_cubes.append(lst)
-		# remove cubes file
-		remove_file(cubes_name)
-		return sat_cubes
+	sat_cubes = []
+	with open(cubes_name, 'r') as cubes_file:
+		lines = cubes_file.readlines()
+		for line in lines:
+			lst = line.split(' ')[1:-1] # skip 'a' and '0'
+			match_number = 0
+			for word in lst:
+				val = 0 if word[0] == '-' else 1
+				var = abs(int(word))
+				if values_all_vars[var] == val:
+					match_number += 1
+			if match_number == len(lst):
+				sat_cubes.append(lst)
+	# remove cubes file
+	remove_file(cubes_name)
+	return sat_cubes
 
 def add_cube(old_cnf_name : str, new_cnf_name : str, cube : list):
-		cnf_var_number = 0
-		clauses = []
-		with open(old_cnf_name, 'r') as cnf_file:
-				lines = cnf_file.readlines()
-				for line in lines:
-						if len(line) < 2 or line[0] == 'c':
-								continue
-						if line[0] == 'p':
-								cnf_var_number = line.split(' ')[2]
-						else:
-								clauses.append(line)
-		clauses_number = len(clauses) + len(cube)
-		#print('clauses_number : %d' % clauses_number)
-		with open(new_cnf_name, 'w') as cnf_file:
-				cnf_file.write('p cnf ' + str(cnf_var_number) + ' ' + str(clauses_number) + '\n')
-				for cl in clauses:
-						cnf_file.write(cl)
-				for c in cube:
-						cnf_file.write(c + ' 0\n')
+	cnf_var_number = 0
+	clauses = []
+	with open(old_cnf_name, 'r') as cnf_file:
+		lines = cnf_file.readlines()
+		for line in lines:
+			if len(line) < 2 or line[0] == 'c':
+				continue
+			if line[0] == 'p':
+				cnf_var_number = line.split(' ')[2]
+			else:
+				clauses.append(line)
+	clauses_number = len(clauses) + len(cube)
+	#print('clauses_number : %d' % clauses_number)
+	with open(new_cnf_name, 'w') as cnf_file:
+		cnf_file.write('p cnf ' + str(cnf_var_number) + ' ' + str(clauses_number) + '\n')
+		for cl in clauses:
+			cnf_file.write(cl)
+		for c in cube:
+			cnf_file.write(c + ' 0\n')
 	
 def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, original_data_val : tuple):
 	min_cnf_name = 'min_' + cnf_name
@@ -239,7 +238,7 @@ def get_cnfids_from_files( par : str ):
 	logging.info('load_mode : %d' % load_mode)
 	prev_stat_name_mask = par.split('=')[1]
 	#stat_name_mask = 'stat_md4_40_with_constr_template_n_*'	
-	if prev_stat_name_mask[-1] is not '*':
+	if prev_stat_name_mask[-1] != '*':
 		prev_stat_name_mask += '*'
 	logging.info('prev_stat_name_mask : ' + str(prev_stat_name_mask))
 	os.chdir('./')
@@ -255,6 +254,8 @@ def get_cnfids_from_files( par : str ):
 		for index, row in df.iterrows():
 			cnfid = int(row['cnfid'])
 			cnfids_from_files[n].append(cnfid)
+	logging.info('cnfids_from_files :')
+	logging.info(cnfids_from_files)
 	return cnfids_from_files, load_mode
 
 def get_sh_solver_min_time(sh_solver):
@@ -375,6 +376,7 @@ if __name__ == '__main__':
 	n_prev_runs = []
 	cnfids_from_files = dict()
 	last_checked_cnf_id = -1
+	load_mode = 0
 	if len(sys.argv) >= 4:
 		cnfids_from_files, load_mode = get_cnfids_from_files(sys.argv[3])
 		if load_mode == 1:
@@ -403,8 +405,10 @@ if __name__ == '__main__':
 	logging.info(original_data_dict)
 	
 	start_time = time.time()
+	logging.info("Total number of processors: %d", mp.cpu_count())
 	cpu_number = mp.cpu_count()
-	logging.info("Total number of processors: %d", cpu_number)
+	if cpu_number > 16:
+		cpu_number = int(cpu_number/2)
 	logging.info('cpu_number : %d' % cpu_number)
 	logging.info('solvers :')
 	logging.info(solvers)
@@ -425,11 +429,22 @@ if __name__ == '__main__':
 		non_match_cubes = 0
 		results[n] = []
 		if load_mode == 2:
-			cnf_ids_prev_runs = cnfids_from_files[n]
-			last_checked_cnf_id = cnfids_from_files[n][-1]
+			cnf_ids_prev_runs = sorted(cnfids_from_files[n])
+			# fill list with additional non-matching values to obtain only results of the same ids
+			# thus all cores will be used all the time
+			first_non_match_val = -1
+			x = cnf_ids_prev_runs[0]
+			while first_non_match_val < 0:
+				x += 1
+				if x not in cnf_ids_prev_runs:
+					first_non_match_val = x
+			for i in range(1000):
+				cnf_ids_prev_runs.append(first_non_match_val)
+			last_checked_cnf_id = cnf_ids_prev_runs[-1]
 			logging.info('loaded cnf_ids_prev_runs')
 			logging.info(cnf_ids_prev_runs)
 			logging.info('last_checked_cnf_id : %d' % last_checked_cnf_id)
+			logging.info('first_non_match_val : %d' % first_non_match_val)
 		while len(results[n]) < RANDOM_SAMPLE_SIZE:
 			# if first run, i.e. there is no history of previously used ids
 			# or there are no more previous ids to check
