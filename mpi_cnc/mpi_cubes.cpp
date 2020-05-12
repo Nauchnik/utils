@@ -31,7 +31,7 @@ void sendWU(vector<wu> &wu_vec, const int wu_id, const int computing_process_id)
 void computingProcess(const int rank, const string solver_file_name, const string cnf_file_name, 
 					  const string cubes_file_name, const string cube_cpu_lim_str);
 void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec, const double start_time);
-void getResultFromFile(const string out_name, int &result, double &time);
+int getResultFromFile(const string out_name);
 void writeProcessingInfo(vector<wu> &wu_vec);
 string exec(const string cmd_str);
 string intToStr(const int x);
@@ -310,12 +310,11 @@ string exec(const string cmd_str)
 	return result;
 }
 
-void getResultFromFile(const string out_name, int &result, double &time)
+int getResultFromFile(const string out_name)
 {
 	ifstream out_file(out_name);
 	string str;
-	result = INDET;
-	time = -1;
+	int result = INDET;
 	while (getline(out_file, str)) {
 		if ((str.find("s SATISFIABLE") != string::npos) || (str.find("SATISFIABLE") == 0)) {
 			result = SAT;
@@ -325,7 +324,7 @@ void getResultFromFile(const string out_name, int &result, double &time)
 			result = UNSAT;
 			break;
 		}
-		if (str.find("c CPU time") != string::npos) {
+		/*if (str.find("c CPU time") != string::npos) {
 			stringstream sstream;
 			sstream << str;
 			vector<string> vec;
@@ -337,8 +336,8 @@ void getResultFromFile(const string out_name, int &result, double &time)
 				MPI_Abort(MPI_COMM_WORLD, 0);
 				exit(-1);
 			}
-			istringstream(vec[4]) >> time;
-		}
+			//istringstream(vec[4]) >> time;
+		}*/
 	}
 	out_file.close();
 	/*if (time == -1) {
@@ -347,6 +346,7 @@ void getResultFromFile(const string out_name, int &result, double &time)
 		MPI_Abort(MPI_COMM_WORLD, 0);
 		exit(-1);
 	}*/
+	return result;
 }
 
 void computingProcess(const int rank, const string solver_file_name, const string cnf_file_name, 
@@ -424,22 +424,18 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 		out_file.close();
 		out_file.clear();
 		int res = INDET;
-		double log_solving_time = -1;
-		getResultFromFile(out_name, res, log_solving_time);
 		double cube_cpu_lim = -1.0;
 		istringstream(cube_cpu_lim_str) >> cube_cpu_lim;
-		// if solver not a script, find solving time in the our file
-		if (solver_file_name.find(".sh")==string::npos)
-			elapsed_solving_time = log_solving_time;
+		res = getResultFromFile(out_name);
 		// remove the temporary cnf file
 		if (res == SAT) {
 			system_str = "cp " + out_name + " ./!sat_out_id_" + wu_id_str;
 			exec(system_str);
 		}
-		else if ((res == INDET) && (elapsed_solving_time < cube_cpu_lim) && (elapsed_solving_time > 0)) {
+		/*else if ((res == INDET) && (elapsed_solving_time < cube_cpu_lim) && (elapsed_solving_time > 0)) {
 			system_str = "cp " + out_name + " ./!indet_out_id_" + wu_id_str;
 			exec(system_str);
-		}
+		}*/
 		else 
 			/*if (
 				(res == UNSAT) || 
