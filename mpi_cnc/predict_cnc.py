@@ -13,8 +13,8 @@ SOLVER_TIME_LIMIT = 5000
 CUBES_BOARD_FRAC = 0.25
 MARCH_BOARD_FRAC = 0.25
 #solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
-solvers = ['./cube-glucose-mpi.sh']
-#solvers = ['./cube-glucose-mpi-min1min.sh', './cube-glucose-mpi-min10sec.sh', './cube-glucose-mpi-nomin.sh']
+#solvers = ['./cube-glucose-mpi.sh']
+solvers = ['./cube-glucose-mpi-min1min.sh', './cube-glucose-mpi-min10sec.sh', './cube-glucose-mpi-nomin.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
 LING_MIN_TIME_LIMIT = 120
 RANDOM_SAMPLE_SIZE = 30
@@ -347,12 +347,19 @@ def collect_result(result):
 			isSolverTimesOk = False
 			break
 	if cubes > 0 and isSolverTimesOk:
+		if result in results[n]:
+			logging.error('result is already in the list')
+			logging.error(result)
+			logging.error(results[n])
+			# make the size RANDOM_SAMPLE_SIZE to exit the program
+			while len(results[n]) < RANDOM_SAMPLE_SIZE:
+				results[n].append(results[0])
 		results[n].append(result)
 		logging.info('got %d results' % len(results[n]))
 		logging.info(result)
 	else:
 		interrupted += 1
-
+	
 if __name__ == '__main__':
 	#template_cnf_name = 'md4_40_with_constr_template.cnf'
 	if len(sys.argv) < 3:
@@ -438,23 +445,27 @@ if __name__ == '__main__':
 				x += 1
 				if x not in cnf_ids_prev_runs:
 					first_non_match_val = x
-			for i in range(1000):
+			for i in range(100000):
 				cnf_ids_prev_runs.append(first_non_match_val)
-			last_checked_cnf_id = cnf_ids_prev_runs[-1]
-			logging.info('loaded cnf_ids_prev_runs')
+			logging.info('cnf_ids_prev_runs')
 			logging.info(cnf_ids_prev_runs)
-			logging.info('last_checked_cnf_id : %d' % last_checked_cnf_id)
 			logging.info('first_non_match_val : %d' % first_non_match_val)
 		while len(results[n]) < RANDOM_SAMPLE_SIZE:
 			# if first run, i.e. there is no history of previously used ids
 			# or there are no more previous ids to check
 			# else get previous cnf ids
 			if len(cnf_ids_prev_runs) == 0 or index_cnf_ids_prev_runs == len(cnf_ids_prev_runs):
+				if load_mode == 2:
+					logging.error('last_checked_cnf_id is increased in load_mode 2')
+					exit(-1)
 				last_checked_cnf_id += 1
 				cnf_id = last_checked_cnf_id
 			elif len(cnf_ids_prev_runs) > 0 and index_cnf_ids_prev_runs < len(cnf_ids_prev_runs):
 				cnf_id = cnf_ids_prev_runs[index_cnf_ids_prev_runs]
 				index_cnf_ids_prev_runs += 1
+			else:
+				logging.error('wrong case in main loop')
+				exit(-1)
 			pool.apply_async(solve_cnf_id, args=(n, solvers, template_cnf_name, cnf_id, original_data_dict[n]), callback=collect_result)
 			while len(pool._cache) >= cpu_number and len(results[n]) < RANDOM_SAMPLE_SIZE: # wait until any cpu is free
 				time.sleep(2)
@@ -467,13 +478,17 @@ if __name__ == '__main__':
 		if len(results[n]) > RANDOM_SAMPLE_SIZE:
 			results[n] = results[n][:RANDOM_SAMPLE_SIZE]
 		# add cnf ids to use them in next runs
-		for res in results[n]:
-			cnfid = res[1]
-			if cnfid not in cnf_ids_prev_runs:
-				cnf_ids_prev_runs.append(cnfid)
-		# sort ids in descending order - to check the last ids first
-		cnf_ids_prev_runs = sorted(cnf_ids_prev_runs, reverse=True) 
-		last_checked_cnf_id = cnf_ids_prev_runs[0]
+		if load_mode == 2:
+			cnf_ids_prev_runs = []
+			last_checked_cnf_id = -1
+		else:
+			for res in results[n]:
+				cnfid = res[1]
+				if cnfid not in cnf_ids_prev_runs:
+					cnf_ids_prev_runs.append(cnfid)
+			# sort ids in descending order - to check the last ids first
+			cnf_ids_prev_runs = sorted(cnf_ids_prev_runs, reverse=True) 
+			last_checked_cnf_id = cnf_ids_prev_runs[0]
 		logging.info('cnf_ids_prev_runs len : %d' % len(cnf_ids_prev_runs))
 		logging.info('cnf_ids_prev_runs : ')
 		logging.info(cnf_ids_prev_runs)
