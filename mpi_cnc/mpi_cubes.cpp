@@ -57,11 +57,11 @@ int main(int argc, char *argv[])
 	}
 	
 	string solver_file_name = argv[1];
-	string cnf_file_name = argv[2];
-	string cubes_file_name = argv[3];
+	string cnf_file_name	= argv[2];
+	string cubes_file_name	= argv[3];
 	string cube_cpu_lim_str = argv[4];
 	
-	// MPI searching for DLS and constucting pseudotriples
+	// control or computing process
 	if (rank == 0) {
 		cout << "solver_file_name : " << solver_file_name << endl;
 		cout << "cnf_file_name : "    << cnf_file_name << endl;
@@ -432,16 +432,11 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			system_str = "cp " + out_name + " ./!sat_out_id_" + wu_id_str;
 			exec(system_str);
 		}
-		/*else if ((res == INDET) && (elapsed_solving_time < cube_cpu_lim) && (elapsed_solving_time > 0)) {
-			system_str = "cp " + out_name + " ./!indet_out_id_" + wu_id_str;
+		else if (elapsed_solving_time > cube_cpu_lim + 10.0) {
+			system_str = "cp " + out_name + " ./!extra_time_out_id_" + wu_id_str;
 			exec(system_str);
-		}*/
-		else 
-			/*if (
-				(res == UNSAT) || 
-			    ((res == INDET) && (elapsed_solving_time >= cube_cpu_lim))
-				)*/
-		{
+		}
+		else {
 			system_str = "rm ./*id-" + wu_id_str + "-*";
 			exec(system_str);
 		}
