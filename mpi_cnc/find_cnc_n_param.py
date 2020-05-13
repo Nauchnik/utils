@@ -5,8 +5,8 @@ import multiprocessing as mp
 import random
 
 MIN_REFUTED_LEAVES = 1000
+MIN_CUBES = 100000
 MAX_CUBES = 10000000
-MIN_MARCH_TIME = 60.0
 MAX_MARCH_TIME = 3600.0
 UNSAT_RANDOM_SAMPLE_SIZE = 100
 cnfname = ''
@@ -70,7 +70,7 @@ def process_n(n : int, cnfname : str):
 	print('elapsed_time : %.2f' % elapsed_time)
 	
 	random_cubes = []
-	if march_time < MAX_MARCH_TIME:
+	if march_time <= MAX_MARCH_TIME:
 		random_cubes = get_random_cubes(cubes_name)
 	
 	return n, cubes_num, refuted_leaves, march_time, random_cubes
@@ -84,14 +84,14 @@ def collect_result(res):
 	march_time = res[3]
 	random_cubes = res[4]
 	global is_exit
-	if cubes_num > MAX_CUBES or march_time > MAX_MARCH_TIME:
-		is_exit = True
-		print('is_exit : ' + str(is_exit))
-	elif refuted_leaves >= MIN_REFUTED_LEAVES and march_time >= MIN_MARCH_TIME:
+	if cubes_num >= MIN_CUBES and cubes_num <= MAX_CUBES and refuted_leaves >= MIN_REFUTED_LEAVES:
 		ofile = open(statname,'a')
 		ofile.write('%d %d %d %.2f\n' % (n, cubes_num, refuted_leaves, march_time))
 		ofile.close()
 		#print(random_cubes)
+	elif cubes_num > MAX_CUBES or march_time > MAX_MARCH_TIME:
+		is_exit = True
+		print('is_exit : ' + str(is_exit))
 	
 if __name__ == '__main__':
 	print("total number of processors: ", mp.cpu_count())

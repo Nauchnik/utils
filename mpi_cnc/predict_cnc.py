@@ -14,7 +14,7 @@ CUBES_BOARD_FRAC = 0.25
 MARCH_BOARD_FRAC = 0.25
 #solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
 #solvers = ['./cube-glucose-mpi.sh']
-solvers = ['./cube-glucose-mpi-min1min.sh', './cube-glucose-mpi-min10sec.sh', './cube-glucose-mpi-nomin.sh']
+solvers = ['./cube-glucose-mpi-min2min.sh', './cube-glucose-mpi-min1min.sh', './cube-glucose-mpi-min10sec.sh', './cube-glucose-mpi-nomin.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
 LING_MIN_TIME_LIMIT = 120
 RANDOM_SAMPLE_SIZE = 30
@@ -406,7 +406,7 @@ if __name__ == '__main__':
 		n = int(row['n'])
 		cubes = int(row['cubes'])
 		m_t = float(row['march-cu-time'])
-		if n not in n_prev_runs and cubes <= fcnp.MAX_CUBES and m_t >= fcnp.MIN_MARCH_TIME and m_t <= fcnp.MAX_MARCH_TIME:
+		if n not in n_prev_runs and cubes >= fcnp.MIN_CUBES and cubes <= fcnp.MAX_CUBES and m_t <= fcnp.MAX_MARCH_TIME:
 			original_data_dict[n] = (m_t,cubes)
 	logging.info('original_data_dict : ')
 	logging.info(original_data_dict)
