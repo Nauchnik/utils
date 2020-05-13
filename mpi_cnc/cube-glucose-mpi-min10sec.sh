@@ -38,3 +38,4 @@ echo "p inccnf" > $formula
 cat $mincnf | grep -v c >> $formula
 cat $cubes >> $formula
 ./timelimit -t $rem -T 1 $DIR/iglucose $formula -verb=0 -cpu-lim=$rem
+
