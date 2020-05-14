@@ -24,6 +24,9 @@ const int UNSAT = 2;
 const int SAT = 3;
 const int INDET = 4;
 const int REPORT_EVERY_SEC = 100;
+const int CORES_PER_NODE = 36;
+const string LOCAL_DIR = "/store/ozaikin/";
+vector<string> files_to_copy{"./iglucose", "./lingeling", "./march_cu", "./timelimit"};
 
 void controlProcess(const int corecount, const string cubes_file_name);
 vector<wu> readCubes(const string cubes_file_name);
@@ -60,6 +63,26 @@ int main(int argc, char *argv[])
 	string cnf_file_name	= argv[2];
 	string cubes_file_name	= argv[3];
 	string cube_cpu_lim_str = argv[4];
+	
+	// make a local directory on each node if it does not exist yet
+	// copy to it all solver's files
+	int node_num = 0;
+	if (rank % CORES_PER_NODE == 0) {
+		cout << "process " << rank << " is making dir " << LOCAL_DIR << " on node " << node_num << endl;
+		string system_str = "mkdir " + LOCAL_DIR;
+		cout << "system_str : " << system_str << endl;
+		exec(system_str);
+		system_str = "rm " + LOCAL_DIR + "id-*";
+		cout << "system_str : " << system_str << endl;
+		exec(system_str);
+		node_num++;
+		files_to_copy.push_back(solver_file_name);
+		for (auto file_name : files_to_copy) {
+			string system_str = "cp " + file_name + " " + LOCAL_DIR;
+			cout << "system_str : " << system_str << endl;
+			exec(system_str);
+		}
+	}
 	
 	// control or computing process
 	if (rank == 0) {
@@ -352,6 +375,14 @@ int getResultFromFile(const string out_name)
 void computingProcess(const int rank, const string solver_file_name, const string cnf_file_name, 
 					  const string cubes_file_name, const string cube_cpu_lim_str)
 {
+	string local_solver_file_name = LOCAL_DIR;
+	if (solver_file_name.find("./") != string::npos)
+		local_solver_file_name += solver_file_name.substr(solver_file_name.find("./") + 2);
+	else
+		local_solver_file_name += solver_file_name;
+	if (rank == 1)
+		cout << "local_solver_file_name : " << local_solver_file_name << endl;
+
 	vector<wu> wu_vec = readCubes(cubes_file_name);
 	
 	stringstream cnf_sstream;
@@ -392,52 +423,52 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 		}
 		
 		string wu_id_str = intToStr(wu_id);
-		string tmp_cnf_file_name = "id-" + wu_id_str + "-cnf";
+		string local_cnf_file_name = LOCAL_DIR + "id-" + wu_id_str + "-cnf";
 		
 		stringstream cube_sstream;
 		for (auto x : wu_vec[wu_id].cube)
 			cube_sstream << x << " 0" << endl;
 		
-		ofstream tmp_cnf(tmp_cnf_file_name, ios_base::out);
-		tmp_cnf << "p cnf " << cnf_main_variables << " " << cnf_main_clauses + wu_vec[wu_id].cube.size() << endl;
-		tmp_cnf << cnf_sstream.str();
-		tmp_cnf << cube_sstream.str();
-		tmp_cnf.close();
+		ofstream local_cnf_file(local_cnf_file_name, ios_base::out);
+		local_cnf_file << "p cnf " << cnf_main_variables << " " << cnf_main_clauses + wu_vec[wu_id].cube.size() << endl;
+		local_cnf_file << cnf_sstream.str();
+		local_cnf_file << cube_sstream.str();
+		local_cnf_file.close();
 		
 		string system_str;
-		if (solver_file_name.find(".sh") != string::npos) {
+		if (local_solver_file_name.find(".sh") != string::npos) {
 			// cube_cpu_lim_str is used as cpu-lim for an incremental SAT solver
-			system_str = solver_file_name + " " + tmp_cnf_file_name + " " + wu_id_str + " " + cube_cpu_lim_str;
+			system_str = local_solver_file_name + " " + local_cnf_file_name
+				+ " " + wu_id_str + " " + cube_cpu_lim_str;
 		}
 		else {
-			system_str = "./timelimit -t " + cube_cpu_lim_str + " -T 1 " + solver_file_name + " " + tmp_cnf_file_name;
+			system_str = LOCAL_DIR + "timelimit -t " + cube_cpu_lim_str + " -T 1 " 
+				+ local_solver_file_name + " " + local_cnf_file_name;
 		}
-		//if (rank == 1)
-		//	cout << system_str << endl;
 		string rank_str = intToStr(rank);
-		string out_name = "./out_process_" + rank_str;
-		fstream out_file;
-		out_file.open(out_name, ios_base::out);
+		string local_out_file_name = LOCAL_DIR + "id-" + wu_id_str + "-out";
+		fstream local_out_file;
+		local_out_file.open(local_out_file_name, ios_base::out);
 		double elapsed_solving_time = MPI_Wtime();
-		out_file << exec(system_str);
+		local_out_file << exec(system_str);
 		elapsed_solving_time = MPI_Wtime() - elapsed_solving_time;
-		out_file.close();
-		out_file.clear();
+		local_out_file.close();
+		local_out_file.clear();
 		int res = INDET;
 		double cube_cpu_lim = -1.0;
 		istringstream(cube_cpu_lim_str) >> cube_cpu_lim;
-		res = getResultFromFile(out_name);
+		res = getResultFromFile(local_out_file_name);
 		// remove the temporary cnf file
 		if (res == SAT) {
-			system_str = "cp " + out_name + " ./!sat_out_id_" + wu_id_str;
+			system_str = "cp " + local_out_file_name + " ./!sat_out_id_" + wu_id_str;
 			exec(system_str);
 		}
 		else if (elapsed_solving_time > cube_cpu_lim + 10.0) {
-			system_str = "cp " + out_name + " ./!extra_time_out_id_" + wu_id_str;
+			system_str = "cp " + local_out_file_name + " ./!extra_time_out_id_" + wu_id_str;
 			exec(system_str);
 		}
 		else {
-			system_str = "rm ./*id-" + wu_id_str + "-*";
+			system_str = "rm " + LOCAL_DIR + "id-" + wu_id_str + "-*";
 			exec(system_str);
 		}
 

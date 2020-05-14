@@ -2,7 +2,7 @@
 CNF=$1
 id=$2
 CPULIM=$3
-DIR=.
+DIR=/store/ozaikin/
 LINGTIMELIM=120
 printf "id : %d\n" $id
 printf "CPULIM : %d\n" $CPULIM

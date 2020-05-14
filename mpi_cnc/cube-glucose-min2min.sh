@@ -2,8 +2,8 @@
 CNF=$1
 id=$2
 CPULIM=$3
-DIR=/store/ozaikin/
-LINGTIMELIM=10
+DIR=.
+LINGTIMELIM=120
 printf "id : %d\n" $id
 printf "CPULIM : %d\n" $CPULIM
 res1=$(date +%s.%N)
