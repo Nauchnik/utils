@@ -3,23 +3,31 @@ import os
 import time
 import multiprocessing as mp
 import random
+import collections
+import predict_cnc as p_c
 
 MIN_REFUTED_LEAVES = 1000
 MIN_CUBES = 100000
 MAX_CUBES = 10000000
 MAX_MARCH_TIME = 3600.0
-UNSAT_RANDOM_SAMPLE_SIZE = 100
-cnfname = ''
-statname = ''
-results = []
+RANDOM_SAMPLE_SIZE = 100
+SOLVER_TIME_LIMIT = 5000
+cnf_name = ''
+stat_name = ''
 
+def kill_unuseful_processes():
+	sys_str = 'killall -9 ./march_cu'
+	o = os.popen(sys_str).read()
+	sys_str = 'killall -9 ./timelimit.sh'
+	o = os.popen(sys_str).read()
+	
 def remove_file(file_name):
 	sys_str = 'rm ' + file_name
 	o = os.popen(sys_str).read()
 
-def get_free_vars(cnfname):
+def get_free_vars(cnf_name):
 	free_vars = []
-	with open(cnfname) as cnf:
+	with open(cnf_name) as cnf:
 		lines = cnf.readlines()
 		for line in lines:
 			if line[0] == 'p' or line[0] == 'c':
@@ -50,48 +58,73 @@ def get_random_cubes(cubes_name):
 		for line in lines:
 			lst = line.split(' ')[1:-1] # skip 'a' and '0'
 			cubes.append(lst)
-	remove_file(cubes_name)
-	random_cubes = random.sample(cubes, UNSAT_RANDOM_SAMPLE_SIZE)
+	if len(cubes) < RANDOM_SAMPLE_SIZE:
+		print('too few cubes : %d' % len(cubes))
+		exit(1)
+	random_cubes = random.sample(cubes, RANDOM_SAMPLE_SIZE)
 	return random_cubes
 	
-def process_n(n : int, cnfname : str):
+def process_n(n : int, cnf_name : str):
 	print('n : %d' % n)
 	start_time = time.time()
-	cubes_name = './cubes_n_' + str(n) + '_' + cnfname.replace('./','')
-	system_str = './timelimit -T 1 -t ' + str(MAX_MARCH_TIME) +  ' ./march_cu ' + cnfname + \
+	cubes_name = './cubes_n_' + str(n) + '_' + cnf_name.replace('./','')
+	system_str = './timelimit -T 1 -t ' + str(int(MAX_MARCH_TIME)) +  ' ./march_cu ' + cnf_name + \
 	' -n ' + str(n) + ' -o ' + cubes_name
 	#print('system_str : ' + system_str)
 	o = os.popen(system_str).read()
 	elapsed_time = time.time() - start_time
 	cubes_num = -1
 	refuted_leaves = -1
+	march_time = -1.0
 	cubes_num, refuted_leaves = parse_march_log(o)
 	march_time = float(elapsed_time)
 	print('elapsed_time : %.2f' % elapsed_time)
 	
-	random_cubes = []
-	if march_time <= MAX_MARCH_TIME:
-		random_cubes = get_random_cubes(cubes_name)
-	
-	return n, cubes_num, refuted_leaves, march_time, random_cubes
+	return n, cubes_num, refuted_leaves, march_time, cubes_name
 
-def collect_result(res):
-	print(res[:-1])
-	results.append(res)
+def collect_n_result(res):
+	global random_cubes_n
+	global is_exit
 	n = res[0]
 	cubes_num = res[1]
 	refuted_leaves = res[2]
 	march_time = res[3]
-	random_cubes = res[4]
-	global is_exit
+	cubes_name = res[4]
 	if cubes_num >= MIN_CUBES and cubes_num <= MAX_CUBES and refuted_leaves >= MIN_REFUTED_LEAVES:
-		ofile = open(statname,'a')
+		print(res)
+		ofile = open(stat_name,'a')
 		ofile.write('%d %d %d %.2f\n' % (n, cubes_num, refuted_leaves, march_time))
 		ofile.close()
-		#print(random_cubes)
+		random_cubes = []
+		random_cubes = get_random_cubes(cubes_name)
+		random_cubes_n[n] = random_cubes
 	elif cubes_num > MAX_CUBES or march_time > MAX_MARCH_TIME:
 		is_exit = True
 		print('is_exit : ' + str(is_exit))
+	remove_file(cubes_name)
+	
+def process_cube(cnf_name : str, n : int, cube : list, cube_index : int):
+	known_cube_cnf_name = './sample_cnf_n_' + str(n) + '_cube_' + str(cube_index) + '.cnf'
+	p_c.add_cube(cnf_name, known_cube_cnf_name, cube)
+	solvers_times = dict()
+
+	for solver in p_c.solvers:
+		sys_str = './timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + known_cube_cnf_name +\
+		' ' + str(cube_index) + ' ' + str(SOLVER_TIME_LIMIT)
+		#print('system command : ' + sys_str)
+		elapsed_time = time.time()
+		os.popen(sys_str).read()
+		elapsed_time = time.time() - elapsed_time
+		solvers_times[solver] = float(elapsed_time)
+	remove_file(known_cube_cnf_name)
+	return n, solvers_times
+	
+def collect_cube_result(res):
+	global solvers_results
+	n = res[0]
+	solvers_times = res[1]
+	solvers_results[n].append(solvers_times)
+	print('n : %d, got %d results' % (n, len(solvers_results[n])))
 	
 if __name__ == '__main__':
 	print("total number of processors: ", mp.cpu_count())
@@ -106,12 +139,12 @@ if __name__ == '__main__':
 	if len(sys.argv) < 2:
 		print('Usage : prog cnf-name')
 		exit(1)
-	cnfname = sys.argv[1]
-	print('cnf : ' + cnfname)
+	cnf_name = sys.argv[1]
+	print('cnf : ' + cnf_name)
 	start_time = time.time()
 
 	# count free variables
-	free_vars = get_free_vars(cnfname)
+	free_vars = get_free_vars(cnf_name)
 	print('free vars : %d' % len(free_vars))
 	n = len(free_vars)
 	while n % 10 != 0:
@@ -119,33 +152,72 @@ if __name__ == '__main__':
 	print('start n : %d ' % n)
 
 	# prepare an output file
-	statname = 'stat_' + cnfname
-	statname = statname.replace('.','')
-	statname = statname.replace('/','')
-	ofile = open(statname,'w')
+	stat_name = 'stat_' + cnf_name
+	stat_name = stat_name.replace('.','')
+	stat_name = stat_name.replace('/','')
+	ofile = open(stat_name,'w')
 	ofile.write('n cubes refuted-leaves march-cu-time\n')
 	ofile.close()
 
+	random_cubes_n = dict()
+	# find required n and their cubes numbers
 	while not is_exit:
-		pool.apply_async(process_n, args=(n, cnfname), callback=collect_result)
+		pool.apply_async(process_n, args=(n, cnf_name), callback=collect_n_result)
 		while len(pool._cache) >= cpu_number: # wait until any cpu is free
 			time.sleep(2)
 		n -= 10
 		if is_exit or n <= 0:
-			print('terminating pool')
-			pool.terminate()
+			#print('terminating pool')
+			#pool.terminate()
+			print('killing unuseful processes')
+			kill_unuseful_processes()
+			time.sleep(2) # wait for processes' termination
 			break
-	
-	pool.close()
-	pool.join()
 
 	elapsed_time = time.time() - start_time
 	print('elapsed_time : ' + str(elapsed_time))
-	print(results)
+	print('random_cubes_n : ')
+	#print(random_cubes_n)
+	
+	# sort dict by n in descending order
+	sorted_random_cubes_n = collections.OrderedDict(sorted(random_cubes_n.items()))
+	print('sorted_random_cubes_n : ')
+	print(sorted_random_cubes_n)
+	# for evary n solve cube-problems from the random sample
+	print('')
+	print('processing random samples')
+	print('')
 
-	# kill processes
-	system_str = 'killall -9 march_cu'
-	print('system_str : ' + system_str)
-	o = os.popen(system_str).read()
-	time.sleep(2)
-	o = os.popen(system_str).read()
+	solvers_results = dict()
+	for n, random_cubes in sorted_random_cubes_n.items():
+		print('*** n : %d' % n)
+		print('random_cubes size : %d' % len(random_cubes))
+		solvers_results[n] = []
+		cube_index = 0
+		for cube in random_cubes:
+			pool.apply_async(process_cube, args=(cnf_name, n, cube, cube_index), callback=collect_cube_result)
+			cube_index += 1
+		# wait for all results
+		while len(solvers_results[n]) < RANDOM_SAMPLE_SIZE:
+			time.sleep(5)
+		print('solvers_results[n] len : %d' % len(solvers_results[n]))
+		print(solvers_results[n])
+	
+	pool.close()
+	pool.join()
+	
+	# prepare file for results
+	sample_name = 'sample_results_' + cnf_name
+	sample_name = sample_name.replace('.','')
+	sample_name = sample_name.replace('/','')
+	sample_name += '.csv'
+	ofile = open(sample_name, 'w')
+	ofile.write('n solver time\n')
+	for n in solvers_results:
+		for solvers_times in solvers_results[n]:
+			for solver, time in solvers_times.items():
+				ofile.write('%d %s %.2f\n' % (n, solver, time))
+	ofile.close()
+
+	elapsed_time = time.time() - start_time
+	print('elapsed_time : ' + str(elapsed_time))

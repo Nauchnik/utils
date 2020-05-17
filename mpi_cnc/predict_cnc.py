@@ -9,12 +9,11 @@ import find_cnc_n_param as fcnp
 
 input_vars_number = 512
 output_vars_number = 128 # last variable number in a CNF
-SOLVER_TIME_LIMIT = 5000
 CUBES_BOARD_FRAC = 0.25
 MARCH_BOARD_FRAC = 0.25
 #solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
 #solvers = ['./cube-glucose-mpi.sh']
-solvers = ['./cube-glucose-mpi-min2min.sh', './cube-glucose-mpi-min1min.sh', './cube-glucose-mpi-min10sec.sh', './cube-glucose-mpi-nomin.sh']
+solvers = ['./cube-glucose-min2min.sh', './cube-glucose-min1min.sh', './cube-glucose-min10sec.sh', './cube-glucose-nomin.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
 LING_MIN_TIME_LIMIT = 120
 RANDOM_SAMPLE_SIZE = 30
@@ -287,7 +286,7 @@ def get_solver_march_time(o, min_time):
 			s = line.split()[6].replace(',','.')
 			#logging.info(line)
 			#logging.info('min_time : %f' % min_time)
-			march_time = float(SOLVER_TIME_LIMIT) - float(s) - float(min_time)
+			march_time = float(fcnp.SOLVER_TIME_LIMIT) - float(s) - float(min_time)
 			#logging.info('march_time : %f' % march_time)
 			break
 	return march_time
@@ -317,10 +316,10 @@ def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int,
 	refuted_leaves = data[3]
 	if cubes > 0 and cnf_known_sat_cube_name != '':
 		for solver in solvers:
-			sys_str = './timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + cnf_known_sat_cube_name
+			sys_str = './timelimit -T 1 -t ' + str(fcnp.SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + cnf_known_sat_cube_name
 			# if script-based solver
 			if '.sh' in solver:
-				sys_str += ' ' + str(cnf_id) + ' ' + str(SOLVER_TIME_LIMIT)
+				sys_str += ' ' + str(cnf_id) + ' ' + str(fcnp.SOLVER_TIME_LIMIT)
 			#print('start system command : ' + sys_str)
 			elapsed_time = time.time()
 			o = os.popen(sys_str).read()
