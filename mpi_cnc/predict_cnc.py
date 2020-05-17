@@ -24,8 +24,8 @@ non_match_cubes = 0
 
 def clean_garbage():
 	logging.info('killing processes')
-	logging.debug('killing timelimit.sh')
-	sys_str = 'killall -9 ./timelimit.sh'
+	logging.debug('killing timelimit')
+	sys_str = 'killall -9 ./timelimit'
 	o = os.popen(sys_str).read()
 	logging.debug('killing solvers')
 	for solver in solvers:
@@ -316,17 +316,19 @@ def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int,
 	refuted_leaves = data[3]
 	if cubes > 0 and cnf_known_sat_cube_name != '':
 		for solver in solvers:
-			sys_str = './timelimit -T 1 -t ' + str(fcnp.SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + cnf_known_sat_cube_name
 			# if script-based solver
+			# do not use timelimit because script will use it by itself
 			if '.sh' in solver:
-				sys_str += ' ' + str(cnf_id) + ' ' + str(fcnp.SOLVER_TIME_LIMIT)
+				sys_str = solver + ' ' + cnf_known_sat_cube_name + ' ' + str(cnf_id) + ' ' + str(fcnp.SOLVER_TIME_LIMIT)
+			else:
+				sys_str = './timelimit -T 1 -t ' + str(fcnp.SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + cnf_known_sat_cube_name
 			#print('start system command : ' + sys_str)
-			elapsed_time = time.time()
+			t = time.time()
 			o = os.popen(sys_str).read()
-			elapsed_time = time.time() - elapsed_time
+			t = time.time() - t
 			#print(o)
 			#solvers_times[solver] = get_solving_time(o)
-			solvers_times[solver] = float(elapsed_time)
+			solvers_times[solver] = float(t)
 			# remove temp file for script-based solvers
 			if '.sh' in solver:
 				solvers_march_times[solver] = get_solver_march_time(o, min_time_sh_solvers[solver])
