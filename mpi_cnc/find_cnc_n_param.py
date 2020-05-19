@@ -15,6 +15,7 @@ RANDOM_SAMPLE_SIZE = 100
 SOLVER_TIME_LIMIT = 5000
 cnf_name = ''
 stat_name = ''
+start_time = 0.0
 
 def kill_unuseful_processes():
 	sys_str = 'killall -9 ./march_cu'
@@ -109,24 +110,36 @@ def process_cube(cnf_name : str, n : int, cube : list, cube_index : int):
 	p_c.add_cube(cnf_name, known_cube_cnf_name, cube)
 	solvers_times = dict()
 
+	isSat = False
 	for solver in p_c.solvers:
 		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(cube_index) + ' ' + str(SOLVER_TIME_LIMIT)
 		#print('system command : ' + sys_str)
 		t = time.time()
-		os.popen(sys_str).read()
+		o = os.popen(sys_str).read()
 		t = time.time() - t
 		solvers_times[solver] = float(t)
+		isSat = p_c.find_sat_log(o)
+		if isSat:
+			with open('!sat_' + known_cube_cnf_name.replace('.cnf',''), 'w') as ofile:
+				ofile.write('*** SAT found\n')
+				ofile.write(o)
 	remove_file(known_cube_cnf_name)
 	# remove files from solver's script
 	remove_file('./id-' + str(cube_index) + '-*')
-	return n, solvers_times
+	return n, solvers_times, isSat
 	
 def collect_cube_result(res):
 	global solvers_results
 	n = res[0]
 	solvers_times = res[1]
+	isSat = res[2]
 	solvers_results[n].append(solvers_times)
 	logging.info('n : %d, got %d results' % (n, len(solvers_results[n])))
+	if isSat:
+		logging('*** SAT found')
+		exit(1)
+		elapsed_time = time.time() - start_time
+		logging.info('elapsed_time : ' + str(elapsed_time))
 	
 if __name__ == '__main__':
 	cpu_number = mp.cpu_count()
