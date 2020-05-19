@@ -117,6 +117,8 @@ def process_cube(cnf_name : str, n : int, cube : list, cube_index : int):
 		t = time.time() - t
 		solvers_times[solver] = float(t)
 	remove_file(known_cube_cnf_name)
+	# remove files from solver's script
+	remove_file('./id-' + str(cube_index) + '-*')
 	return n, solvers_times
 	
 def collect_cube_result(res):
