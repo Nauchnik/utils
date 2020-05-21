@@ -120,7 +120,9 @@ def process_cube(cnf_name : str, n : int, cube : list, cube_index : int):
 		solvers_times[solver] = float(t)
 		isSat = p_c.find_sat_log(o)
 		if isSat:
-			with open('!sat_' + known_cube_cnf_name.replace('.cnf',''), 'w') as ofile:
+			sat_name = known_cube_cnf_name.replace('.cnf','')
+			sat_name = sat_name.replace('./','')
+			with open('!sat_' + sat_name, 'w') as ofile:
 				ofile.write('*** SAT found\n')
 				ofile.write(o)
 	remove_file(known_cube_cnf_name)
@@ -160,9 +162,9 @@ if __name__ == '__main__':
 	logging.basicConfig(filename=log_name, filemode = 'w', level=logging.INFO)
 
 	logging.info('cnf : ' + cnf_name)
-	logging.info("total number of processors: ", mp.cpu_count())
+	logging.info("total number of processors: %d" % mp.cpu_count())
 	logging.info('cpu_number : %d' % cpu_number)
-
+		
 	# count free variables
 	free_vars = get_free_vars(cnf_name)
 	logging.info('free vars : %d' % len(free_vars))

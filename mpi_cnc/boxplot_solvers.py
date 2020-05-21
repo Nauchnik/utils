@@ -12,6 +12,7 @@ solvers_names = [s.replace('./','') for s in solvers_names]
 
 def process_n_stat_file(n_stat_file_name : str):
 	n = int(n_stat_file_name.split('_n_')[1].split('.')[0])
+	print('\n*** n : %d\n' % n)
 	#print('input file : ' + n_stat_file_name)
 	df= pd.read_csv(n_stat_file_name, delimiter = ' ')
 	#print(df)
@@ -24,7 +25,7 @@ def process_n_stat_file(n_stat_file_name : str):
 		medians[s] = df[s].median()
 		#print(df[s])
 		#print(str(df[s].median()))
-	#print(df.describe())
+	print(df.describe())
 
 	myFig = plt.figure();
 	plt.ylim(0, timelimit)
@@ -33,8 +34,9 @@ def process_n_stat_file(n_stat_file_name : str):
 	myFig.savefig("boxplot_" + n_stat_file_name.split('.')[0] + ".pdf", format="pdf")
 
 	whiskers = [whiskers.get_ydata() for whiskers in bp['whiskers']]
-	#print(whiskers)
-
+	print('whiskers :')
+	print(whiskers)
+	
 	return n, medians
 
 n_stat_mask = sys.argv[1]
