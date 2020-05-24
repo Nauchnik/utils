@@ -112,7 +112,10 @@ def process_cube(cnf_name : str, n : int, cube : list, cube_index : int):
 
 	isSat = False
 	for solver in p_c.solvers:
-		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(cube_index) + ' ' + str(SOLVER_TIME_LIMIT)
+		if '.sh' in solver:
+			sys_str = solver + ' ' + str(cube_index) + ' ' + str(SOLVER_TIME_LIMIT)
+		else:
+			sys_str = './timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + known_cube_cnf_name
 		#print('system command : ' + sys_str)
 		t = time.time()
 		o = os.popen(sys_str).read()

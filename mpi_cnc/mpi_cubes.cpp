@@ -26,14 +26,16 @@ const int INDET = 4;
 const int REPORT_EVERY_SEC = 100;
 const int CORES_PER_NODE = 36;
 const string LOCAL_DIR = "/store/ozaikin/";
+
 vector<string> files_to_copy{"./iglucose", "./lingeling", "./march_cu", "./timelimit"};
 
-void controlProcess(const int corecount, const string cubes_file_name);
+void controlProcess(const int corecount, const string cubes_file_name, const string cube_cpu_lim_str);
 vector<wu> readCubes(const string cubes_file_name);
 void sendWU(vector<wu> &wu_vec, const int wu_id, const int computing_process_id);
 void computingProcess(const int rank, const string solver_file_name, const string cnf_file_name, 
 					  const string cubes_file_name, const string cube_cpu_lim_str);
-void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec, const double start_time);
+void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec, 
+	const double start_time, const string cube_cpu_lim_str);
 int getResultFromFile(const string out_name);
 void writeProcessingInfo(vector<wu> &wu_vec);
 string exec(const string cmd_str);
@@ -90,7 +92,7 @@ int main(int argc, char *argv[])
 		cout << "cnf_file_name : "    << cnf_file_name << endl;
 		cout << "cubes_file_name : "  << cubes_file_name << endl;
 		cout << "cube_cpu_limit : "   << cube_cpu_lim_str << endl;
-		controlProcess(corecount, cubes_file_name);
+		controlProcess(corecount, cubes_file_name, cube_cpu_lim_str);
 	}
 	else
 		computingProcess(rank, solver_file_name, cnf_file_name, cubes_file_name, cube_cpu_lim_str);
@@ -147,7 +149,7 @@ vector<wu> readCubes(const string cubes_file_name)
 	return res_wu_cubes;
 }
 
-void controlProcess(const int corecount, const string cubes_file_name)
+void controlProcess(const int corecount, const string cubes_file_name, const string cube_cpu_lim_str)
 {
 	double start_time = MPI_Wtime();
 	vector<wu> wu_vec = readCubes(cubes_file_name);
@@ -207,13 +209,13 @@ void controlProcess(const int corecount, const string cubes_file_name)
 		}
 		// write results to a file not more often than every 100 seconds
 		if ((result_writing_time < 0) || (MPI_Wtime() - result_writing_time > REPORT_EVERY_SEC)) {
-			writeInfoOutFile(control_process_ofile_name, wu_vec, start_time);
+			writeInfoOutFile(control_process_ofile_name, wu_vec, start_time, cube_cpu_lim_str);
 			writeProcessingInfo(wu_vec);
 			result_writing_time = MPI_Wtime();
 		}
 	}
 	
-	writeInfoOutFile(control_process_ofile_name, wu_vec, start_time);
+	writeInfoOutFile(control_process_ofile_name, wu_vec, start_time, cube_cpu_lim_str);
 	cout << "control process finished" << endl;
 
 	writeProcessingInfo(wu_vec);
@@ -250,16 +252,23 @@ void sendWU(vector<wu> &wu_vec, const int wu_id, const int computing_process_id)
 	wu_vec[wu_id].status = IN_PROGRESS;
 }
 
-void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec, const double start_time)
+void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec, const double start_time, 
+	const string cube_cpu_lim_str)
 {
 	double min_solving_time_unsat = 1e+308;
 	double max_solving_time_unsat = -1;
 	double avg_solving_time_unsat = -1;
 	double sum_time_unsat = 0.0;
+	double min_solving_time_inter_march = 1e+308;
+	double max_solving_time_inter_march = -1;
+	double avg_solving_time_inter_march = -1;
+	double sum_time_inter_march = 0.0;
 	int k = 0;
 	int sat_cubes = 0;
 	int unsat_cubes = 0;
 	int indet_cubes = 0;
+	int inter_march_cubes = 0;
+	
 	for (auto cur_wu : wu_vec) {
 		if (cur_wu.status != PROCESSED)
 			continue;
@@ -270,8 +279,17 @@ void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec
 			min_solving_time_unsat = cur_wu.processing_time < min_solving_time_unsat ? cur_wu.processing_time : min_solving_time_unsat;
 			sum_time_unsat += cur_wu.processing_time;
 		}
-		else if (cur_wu.result == INDET)
+		else if (cur_wu.result == INDET) {
 			indet_cubes++;
+			double cube_cpu_lim;
+			istringstream(cube_cpu_lim_str) >> cube_cpu_lim;
+			if (cur_wu.processing_time < cube_cpu_lim - 10.0) {
+				inter_march_cubes++;
+				max_solving_time_inter_march = cur_wu.processing_time > max_solving_time_inter_march ? cur_wu.processing_time : max_solving_time_inter_march;
+				min_solving_time_inter_march = cur_wu.processing_time < min_solving_time_inter_march ? cur_wu.processing_time : min_solving_time_inter_march;
+				sum_time_inter_march += cur_wu.processing_time;
+			}
+		}
 		else if (cur_wu.result == SAT) {
 			sat_cubes++;
 			string ofile_name = "!sat_cube_id_" + intToStr(cur_wu.id);
@@ -295,6 +313,8 @@ void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec
 	}
 	if (sum_time_unsat > 0)
 		avg_solving_time_unsat = sum_time_unsat / unsat_cubes;
+	if (sum_time_inter_march > 0)
+		avg_solving_time_inter_march = sum_time_inter_march / inter_march_cubes;
 	
 	double percent_val;
 	ofstream control_process_ofile(control_process_ofile_name, ios_base::app);
@@ -310,6 +330,10 @@ void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec
 	control_process_ofile << "min_solving_time_unsat : " << min_solving_time_unsat << endl;
 	control_process_ofile << "max_solving_time_unsat : " << max_solving_time_unsat << endl;
 	control_process_ofile << "avg_solving_time_unsat : " << avg_solving_time_unsat << endl;
+	control_process_ofile << "inter_march_cubes (part of indet) : " << inter_march_cubes << endl;
+	control_process_ofile << "min_solving_time_inter_march : " << min_solving_time_inter_march << endl;
+	control_process_ofile << "max_solving_time_inter_march : " << max_solving_time_inter_march << endl;
+	control_process_ofile << "avg_solving_time_inter_march : " << avg_solving_time_inter_march << endl;
 	control_process_ofile << endl;
 	control_process_ofile.close();
 }
