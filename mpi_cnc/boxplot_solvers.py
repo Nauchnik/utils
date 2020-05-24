@@ -52,6 +52,11 @@ def process_n_stat_file(n_stat_file_name : str):
 
 	df = df.rename(columns={'cube-glucose-mpi-min2min.sh' : 'gl-min2m', 'cube-glucose-mpi-min1min.sh' : 'gl-min1m', 'cube-glucose-mpi-min10sec.sh' : 'gl-min10s', 'cube-glucose-mpi-nomin.sh' : 'gl-nomin'})
 	df = df.rename(columns={'march-cu-time_cube-glucose-mpi-min2min.sh' : 'm-gl-min2m', 'march-cu-time_cube-glucose-mpi-min1min.sh' : 'm-gl-min1m', 'march-cu-time_cube-glucose-mpi-min10sec.sh' : 'm-gl-min10s', 'march-cu-time_cube-glucose-mpi-nomin.sh' : 'm-gl-nomin'})
+	# replace -1.0 caused by solving on the minimization phase
+	d = {-1.00 : 0.00}
+	df = df.replace(d)
+	#print(df)
+	
 	upper_whiskers = make_upper_whiskers(df)
 
 	#print(df)
