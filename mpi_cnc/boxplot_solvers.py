@@ -11,7 +11,7 @@ y_limit = 5100
 old_solvers_names = ['cube-glucose-mpi-min2min.sh', 'cube-glucose-mpi-min1min.sh', 'cube-glucose-mpi-min10sec.sh', 'cube-glucose-mpi-nomin.sh']
 solvers_names = ['./cube-glucose-min2min.sh', './cube-glucose-min1min.sh', './cube-glucose-min10sec.sh', './cube-glucose-nomin.sh']
 solvers_short_names = ['gl-min2m', 'gl-min1m', 'gl-min10s', 'gl-nomin']
-solvers_short_names_dict = {'./cube-glucose-min2min.sh' : 'gl-min2m', './cube-glucose-min1min.sh' : 'gl-min1m', './cube-glucose-min10sec.sh' : 'gl-min10s', './cube-glucose-nomin.sh' : 'gl-nomin'}
+solvers_short_names_dict = {'./MapleLCMDistChrBt-DL-v3' : 'v3', './kissat' : 'kissat', './cadical' : 'cadical', './cube-glucose-min2min.sh' : 'gl-min2m', './cube-glucose-min1min.sh' : 'gl-min1m', './cube-glucose-min10sec.sh' : 'gl-min10s', './cube-glucose-nomin.sh' : 'gl-nomin'}
 
 def make_upper_whiskers(df):
 	upper_whiskers = dict()
@@ -73,6 +73,51 @@ def process_n_stat_file(n_stat_file_name : str):
 	
 	return n, upper_whiskers
 
+def process_sat_logs(n_stat_mask : str, cubes_dict : dict, samples : dict):
+	os.chdir('./')
+	n_stat_file_names = []
+	for fname in glob.glob(n_stat_mask):
+		n_stat_file_names.append(fname)
+
+	print('n_stat_file_names : ')
+	print(n_stat_file_names)
+
+	n_solvers_upper_whiskers = dict()
+	for fname in n_stat_file_names:
+		n, upper_whiskers = process_n_stat_file(fname)
+		n_solvers_upper_whiskers[n] = upper_whiskers
+
+	samples_comb_est = dict()
+	for n in samples:
+		samples_comb_est[n] = dict()
+		print('n : %d' % n)
+		for s in samples[n]:
+			lst_val_less_upper_whisker = [x for x in samples[n][s] if x <= n_solvers_upper_whiskers[n][s]]
+			lst_val_greater_upper_whisker = [x for x in samples[n][s] if x > n_solvers_upper_whiskers[n][s]]
+			frac_less_upper_whisker = len(lst_val_less_upper_whisker) / len(samples[n][s])
+			frac_greater_upper_whisker = len(lst_val_greater_upper_whisker) / len(samples[n][s])
+			print('frac_less_upper_whisker : %.2f' % frac_less_upper_whisker)
+			print('frac_greater_upper_whisker : %.2f' % frac_greater_upper_whisker)
+
+	with open('total_stat_' + n_stat_mask.replace('*',''), 'w') as ofile:
+		s_names = []
+		for n in cubes_dict:
+			for s in n_solvers_upper_whiskers[n]:
+				s_names.append(s)
+			break
+	
+		ofile.write('n cubes')
+		for s in s_names:
+			ofile.write(' up_wh_' + s)
+		ofile.write('\n')
+		for n in cubes_dict:
+			if n not in n_solvers_upper_whiskers:
+				continue
+			ofile.write('%d %d' % (n, cubes_dict[n]))
+			for s in s_names:
+				ofile.write(' %.2f' % n_solvers_upper_whiskers[n][s])
+			ofile.write('\n')
+
 def read_samples(samples_file_name : str):
 	df_samples = pd.read_csv(samples_file_name, delimiter = ' ')
 	samples = dict()
@@ -99,12 +144,18 @@ def read_samples(samples_file_name : str):
 				myFig.savefig('n_' + str(n) + 's_' + s + '_' + samples_file_name.split('.')[0] + ".pdf", format="pdf")
 	return samples, samples_mean
 
-n_stat_mask = sys.argv[1]
-print('n_stat_mask : ' + n_stat_mask)
-cubes_stat_file_name = sys.argv[2]
+if len(sys.argv) < 3:
+    print('Usage: cubes_file unsat_log sat_logs_mask')
+    exit(1)
+
+cubes_stat_file_name = sys.argv[1]
 print('cubes_stat_file_name : ' + cubes_stat_file_name)
-samples_file_name = sys.argv[3]
+samples_file_name = sys.argv[2]
 print('samples_file_name : ' + samples_file_name)
+n_stat_mask = ''
+if len(sys.argv) > 3:
+	n_stat_mask = sys.argv[1]
+	print('n_stat_mask : ' + n_stat_mask)
 
 cubes_dict = dict()
 df = pd.read_csv(cubes_stat_file_name, delimiter = ' ')
@@ -124,7 +175,7 @@ for n in samples_mean:
 	for s in samples_mean[n]:
 		if s not in solvers:
 			solvers.append(s)
-		samples_unsat_est[n][s] = samples_mean[n][s]	* cubes_dict[n] * CLUSTER_CPU_FRAC / 86400 / CLUSTER_CORES
+		samples_unsat_est[n][s] = samples_mean[n][s] * cubes_dict[n] * CLUSTER_CPU_FRAC / 86400 / CLUSTER_CORES
 with open('est_' + samples_file_name, 'w') as est_samples_file:
 	est_samples_file.write('n')
 	for s in solvers:
@@ -136,48 +187,7 @@ with open('est_' + samples_file_name, 'w') as est_samples_file:
 		for s in solvers:
 			est_samples_file.write(' %.2f' % samples_unsat_est[n][s])
 		est_samples_file.write('\n')
-		
-os.chdir('./')
-n_stat_file_names = []
-for fname in glob.glob(n_stat_mask):
-	n_stat_file_names.append(fname)
-
-print('n_stat_file_names : ')
-print(n_stat_file_names)
-
-n_solvers_upper_whiskers = dict()
-for fname in n_stat_file_names:
-	n, upper_whiskers = process_n_stat_file(fname)
-	n_solvers_upper_whiskers[n] = upper_whiskers
-
-samples_comb_est = dict()
-for n in samples:
-	samples_comb_est[n] = dict()
-	print('n : %d' % n)
-	for s in samples[n]:
-		lst_val_less_upper_whisker = [x for x in samples[n][s] if x <= n_solvers_upper_whiskers[n][s]]
-		lst_val_greater_upper_whisker = [x for x in samples[n][s] if x > n_solvers_upper_whiskers[n][s]]
-		frac_less_upper_whisker = len(lst_val_less_upper_whisker) / len(samples[n][s])
-		frac_greater_upper_whisker = len(lst_val_greater_upper_whisker) / len(samples[n][s])
-		print('frac_less_upper_whisker : %.2f' % frac_less_upper_whisker)
-		print('frac_greater_upper_whisker : %.2f' % frac_greater_upper_whisker)
-
-with open('total_stat_' + n_stat_mask.replace('*',''), 'w') as ofile:
-	s_names = []
-	for n in cubes_dict:
-		for s in n_solvers_upper_whiskers[n]:
-			s_names.append(s)
-		break
 	
-	ofile.write('n cubes')
-	for s in s_names:
-		ofile.write(' up_wh_' + s)
-	ofile.write('\n')
-	for n in cubes_dict:
-		if n not in n_solvers_upper_whiskers:
-			continue
-		ofile.write('%d %d' % (n, cubes_dict[n]))
-		for s in s_names:
-			ofile.write(' %.2f' % n_solvers_upper_whiskers[n][s])
-		ofile.write('\n')
+if n_stat_mask != '':
+	process_sat_logs(n_stat_mask, cubes_dict, samples)
 		
