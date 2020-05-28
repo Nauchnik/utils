@@ -11,8 +11,6 @@ input_vars_number = 512
 output_vars_number = 128 # last variable number in a CNF
 CUBES_BOARD_FRAC = 0.25
 MARCH_BOARD_FRAC = 0.25
-#solvers = ['./MapleLCMDistChrBt-DL-v3', './cadical_sr2019', './cube-lingeling-mpi.sh', './cube-glucose-mpi.sh']
-#solvers = ['./cube-glucose-mpi.sh']
 solvers = ['./cube-glucose-min2min.sh', './cube-glucose-min1min.sh', './cube-glucose-min10sec.sh', './cube-glucose-nomin.sh']
 sh_solvers = [s for s in solvers if '.sh' in s]
 LING_MIN_TIME_LIMIT = 120
@@ -482,6 +480,7 @@ if __name__ == '__main__':
 		if load_mode == 2:
 			cnf_ids_prev_runs = []
 			last_checked_cnf_id = -1
+			MARCH_BOARD_FRAC = 1 # do not use hard limit on march solving time
 		else:
 			for res in results[n]:
 				cnfid = res[1]
