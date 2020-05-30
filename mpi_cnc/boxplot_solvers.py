@@ -6,6 +6,8 @@ import sys
 import glob
 import os
 
+CLUSTER_CORES = 179
+CLUSTER_CPU_FRAC = 2.2
 SOLVER_TIME_LIM = 5000.0
 y_limit = 5100
 old_solvers_names = ['cube-glucose-mpi-min2min.sh', 'cube-glucose-mpi-min1min.sh', 'cube-glucose-mpi-min10sec.sh', 'cube-glucose-mpi-nomin.sh']
@@ -36,14 +38,6 @@ def process_n_stat_file(n_stat_file_name : str):
 	df= pd.read_csv(n_stat_file_name, delimiter = ' ')
 	#print(df)
 
-	#all_columns_names = list(df.columns.values)
-	#columns_names = []
-	#for col in all_columns_names:
-	#	if col n cnfid march-cu-time cubes refuted-leaves 
-
-	#df = df[old_solvers_names]
-	#df.columns = solvers_short_names
-
 	del df['n']
 	del df['cnfid']
 	del df['march-cu-time']
@@ -55,11 +49,8 @@ def process_n_stat_file(n_stat_file_name : str):
 	# replace -1.0 caused by solving on the minimization phase
 	d = {-1.00 : 0.00}
 	df = df.replace(d)
-	#print(df)
 	
 	upper_whiskers = make_upper_whiskers(df)
-
-	#print(df)
 	
 	myFig = plt.figure();
 	plt.ylim(0, y_limit)
@@ -73,10 +64,10 @@ def process_n_stat_file(n_stat_file_name : str):
 	
 	return n, upper_whiskers
 
-def process_sat_logs(n_stat_mask : str, cubes_dict : dict, samples : dict):
+def process_sat_samples(sat_samples_files_mask : str, cubes_dict : dict, unsat_samples : dict):
 	os.chdir('./')
 	n_stat_file_names = []
-	for fname in glob.glob(n_stat_mask):
+	for fname in glob.glob(sat_samples_files_mask):
 		n_stat_file_names.append(fname)
 
 	print('n_stat_file_names : ')
@@ -87,19 +78,20 @@ def process_sat_logs(n_stat_mask : str, cubes_dict : dict, samples : dict):
 		n, upper_whiskers = process_n_stat_file(fname)
 		n_solvers_upper_whiskers[n] = upper_whiskers
 
-	samples_comb_est = dict()
-	for n in samples:
-		samples_comb_est[n] = dict()
-		print('n : %d' % n)
-		for s in samples[n]:
-			lst_val_less_upper_whisker = [x for x in samples[n][s] if x <= n_solvers_upper_whiskers[n][s]]
-			lst_val_greater_upper_whisker = [x for x in samples[n][s] if x > n_solvers_upper_whiskers[n][s]]
-			frac_less_upper_whisker = len(lst_val_less_upper_whisker) / len(samples[n][s])
-			frac_greater_upper_whisker = len(lst_val_greater_upper_whisker) / len(samples[n][s])
-			print('frac_less_upper_whisker : %.2f' % frac_less_upper_whisker)
-			print('frac_greater_upper_whisker : %.2f' % frac_greater_upper_whisker)
+	if len(unsat_samples) > 0:
+		samples_comb_est = dict()
+		for n in unsat_samples:
+			samples_comb_est[n] = dict()
+			print('n : %d' % n)
+			for s in unsat_samples[n]:
+				lst_val_less_upper_whisker = [x for x in unsat_samples[n][s] if x <= n_solvers_upper_whiskers[n][s]]
+				lst_val_greater_upper_whisker = [x for x in unsat_samples[n][s] if x > n_solvers_upper_whiskers[n][s]]
+				frac_less_upper_whisker = len(lst_val_less_upper_whisker) / len(unsat_samples[n][s])
+				frac_greater_upper_whisker = len(lst_val_greater_upper_whisker) / len(unsat_samples[n][s])
+				print('frac_less_upper_whisker : %.2f' % frac_less_upper_whisker)
+				print('frac_greater_upper_whisker : %.2f' % frac_greater_upper_whisker)
 
-	with open('total_stat_' + n_stat_mask.replace('*',''), 'w') as ofile:
+	with open('total_stat_' + sat_samples_files_mask.replace('*',''), 'w') as ofile:
 		s_names = []
 		for n in cubes_dict:
 			for s in n_solvers_upper_whiskers[n]:
@@ -118,44 +110,73 @@ def process_sat_logs(n_stat_mask : str, cubes_dict : dict, samples : dict):
 				ofile.write(' %.2f' % n_solvers_upper_whiskers[n][s])
 			ofile.write('\n')
 
-def read_samples(samples_file_name : str):
-	df_samples = pd.read_csv(samples_file_name, delimiter = ' ')
+def read_unsat_samples(unsat_samples_file_name : str):
+	df_unsat_samples = pd.read_csv(unsat_samples_file_name, delimiter = ' ')
 	samples = dict()
-	for index, row in df_samples.iterrows():
+	for index, row in df_unsat_samples.iterrows():
 		n = int(row['n'])
 		t = float(row['time'])
 		if t >= SOLVER_TIME_LIM:
 			t = SOLVER_TIME_LIM*2 # PAR-2 penalty
 		s = solvers_short_names_dict[row['solver']]
-		if n not in samples:
-			samples[n] = dict()
-		if s not in samples[n]:
-			samples[n][s] = []
-		samples[n][s].append(t)
+		if n not in unsat_samples:
+			unsat_samples[n] = dict()
+		if s not in unsat_samples[n]:
+			unsat_samples[n][s] = []
+		unsat_samples[n][s].append(t)
 
-	samples_mean = dict()
-	for n in samples:
-		samples_mean[n] = dict()
-		for s in samples[n]:
-			samples_mean[n][s] = statistics.mean(samples[n][s])
+	unsat_samples_mean = dict()
+	for n in unsat_samples:
+		unsat_samples_mean[n] = dict()
+		for s in unsat_samples[n]:
+			unsat_samples_mean[n][s] = statistics.mean(unsat_samples[n][s])
 			if n == 2670:
 				myFig = plt.figure();
-				plt.hist(samples[n][s], bins = 100)
-				myFig.savefig('n_' + str(n) + 's_' + s + '_' + samples_file_name.split('.')[0] + ".pdf", format="pdf")
-	return samples, samples_mean
+				plt.hist(unsat_samples[n][s], bins = 100)
+				myFig.savefig('n_' + str(n) + 's_' + s + '_' + unsat_samples_file_name.split('.')[0] + ".pdf", format="pdf")
+	return unsat_samples, unsat_samples_mean
+
+def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
+	unsat_samples, unsat_samples_mean = read_unsat_samples(unsat_samples_file_name)
+	unsat_samples_est = dict()
+	solvers = []
+	for n in unsat_samples_mean:
+		if n not in cubes_dict:
+			continue
+		unsat_samples_est[n] = dict()
+		for s in unsat_samples_mean[n]:
+			if s not in solvers:
+				solvers.append(s)
+			unsat_samples_est[n][s] = unsat_samples_mean[n][s] * cubes_dict[n] * CLUSTER_CPU_FRAC / 86400 / CLUSTER_CORES
+		with open('est_' + unsat_samples_file_name, 'w') as unsat_samples_est_file:
+			unsat_samples_est_file.write('n')
+			for s in solvers:
+				unsat_samples_est_file.write(' ' + s)
+			unsat_samples_est_file.write('\n')
+			for n in unsat_samples_est:
+				unsat_samples_est_file.write('%d' % n)
+				#for s in samples_unsat_est[n]:
+				for s in solvers:
+					unsat_samples_est_file.write(' %.2f' % unsat_samples_est[n][s])
+				unsat_samples_est_file.write('\n')
+
+# main 
 
 if len(sys.argv) < 3:
-    print('Usage: cubes_file unsat_log sat_logs_mask')
+    print('Usage: cubes_file [-u=unsat_log] [-s=sat_logs_mask]')
     exit(1)
 
 cubes_stat_file_name = sys.argv[1]
 print('cubes_stat_file_name : ' + cubes_stat_file_name)
-samples_file_name = sys.argv[2]
-print('samples_file_name : ' + samples_file_name)
-n_stat_mask = ''
-if len(sys.argv) > 3:
-	n_stat_mask = sys.argv[1]
-	print('n_stat_mask : ' + n_stat_mask)
+unsat_samples_file_name = ''
+sat_samples_files_mask = ''
+for word in sys.argv[2:]:
+	if '-u=' in word:
+		unsat_samples_file_name = word.split('-u=')[1]
+		print('unsat_samples_file_name : ' + unsat_samples_file_name)
+	elif '-s=' in word:
+		sat_samples_files_mask = word.split('-s=')[1]
+		print('sat_samples_files_mask : ' + sat_samples_files_mask)
 
 cubes_dict = dict()
 df = pd.read_csv(cubes_stat_file_name, delimiter = ' ')
@@ -164,30 +185,9 @@ for index, row in df.iterrows():
 print('cubes_dict : ')
 print(cubes_dict)
 
-samples, samples_mean = read_samples(samples_file_name)
-#print(samples_mean)
-CLUSTER_CORES = 179
-CLUSTER_CPU_FRAC = 2.2
-samples_unsat_est = dict()
-solvers = []
-for n in samples_mean:
-	samples_unsat_est[n] = dict()
-	for s in samples_mean[n]:
-		if s not in solvers:
-			solvers.append(s)
-		samples_unsat_est[n][s] = samples_mean[n][s] * cubes_dict[n] * CLUSTER_CPU_FRAC / 86400 / CLUSTER_CORES
-with open('est_' + samples_file_name, 'w') as est_samples_file:
-	est_samples_file.write('n')
-	for s in solvers:
-		est_samples_file.write(' ' + s)
-	est_samples_file.write('\n')
-	for n in samples_unsat_est:
-		est_samples_file.write('%d' % n)
-		#for s in samples_unsat_est[n]:
-		for s in solvers:
-			est_samples_file.write(' %.2f' % samples_unsat_est[n][s])
-		est_samples_file.write('\n')
-	
-if n_stat_mask != '':
-	process_sat_logs(n_stat_mask, cubes_dict, samples)
-		
+unsat_samples = dict()
+if unsat_samples_file_name != '':
+	unsat_samples = process_unsat_samples(unsat_samples_file_name, cubes_dict)
+
+if sat_samples_files_mask != '':
+	process_sat_samples(sat_samples_files_mask, cubes_dict, unsat_samples)
