@@ -18,17 +18,21 @@ solvers_short_names_dict = {'./MapleLCMDistChrBt-DL-v3' : 'v3', './kissat' : 'ki
 def make_upper_whiskers(df):
 	upper_whiskers = dict()
 	for col in df.columns:
-		q1 = np.percentile(df[col], 25) # q1
-		q3 = np.percentile(df[col], 75) # q3
-		iqr = q3 - q1
-		upper_whisker_bound = q3 + iqr*1.5
+		#q1 = np.percentile(df[col], 25) # q1
+		#q3 = np.percentile(df[col], 75) # q3
+		#iqr = q3 - q1
+		#upper_whisker_bound = q3 + iqr*1.5
+		upper_whisker_bound = np.percentile(df[col], 91, interpolation='higher')
+		print('upper_whisker_bound : %.2f' % upper_whisker_bound)
 		upper_whisker = -1.0
 		rev_sort = sorted(df[col], reverse = True)
+		print(rev_sort)
 		for x in rev_sort:
-			if x < upper_whisker_bound:
+			if x <= upper_whisker_bound:
 				upper_whisker = x
 				break
 		upper_whiskers[col] = upper_whisker
+		print('upper_whisker : %.2f' % upper_whisker)
 	return upper_whiskers
 	
 def process_n_stat_file(n_stat_file_name : str):
