@@ -9,9 +9,9 @@ import predict_cnc as p_c
 
 MIN_REFUTED_LEAVES = 1000
 MIN_CUBES = 100000
-MAX_CUBES = 4000000
+MAX_CUBES = 1000000
 MAX_MARCH_TIME = 86400.0
-RANDOM_SAMPLE_SIZE = 100
+RANDOM_SAMPLE_SIZE = 1000
 SOLVER_TIME_LIMIT = 5000
 cnf_name = ''
 stat_name = ''
@@ -87,6 +87,7 @@ def process_n(n : int, cnf_name : str):
 def collect_n_result(res):
 	global random_cubes_n
 	global is_exit
+	global is_unsat_sample_solving
 	n = res[0]
 	cubes_num = res[1]
 	refuted_leaves = res[2]
@@ -97,9 +98,10 @@ def collect_n_result(res):
 		ofile = open(stat_name,'a')
 		ofile.write('%d %d %d %.2f\n' % (n, cubes_num, refuted_leaves, march_time))
 		ofile.close()
-		random_cubes = []
-		random_cubes = get_random_cubes(cubes_name)
-		random_cubes_n[n] = random_cubes
+		if is_unsat_sample_solving:
+			random_cubes = []
+			random_cubes = get_random_cubes(cubes_name)
+			random_cubes_n[n] = random_cubes
 	elif cubes_num > MAX_CUBES or march_time > MAX_MARCH_TIME:
 		is_exit = True
 		logging.info('is_exit : ' + str(is_exit))
@@ -158,15 +160,22 @@ if __name__ == '__main__':
 		print('Usage : prog cnf-name')
 		exit(1)
 	cnf_name = sys.argv[1]
-	
-	start_time = time.time()
 
-	log_name = 'find_n_' + cnf_name.replace('./','').replace('.','') + '.log'
+	log_name = './find_n_' + cnf_name.replace('./','').replace('.','') + '.log'
+	print('log_name : ' + log_name)
 	logging.basicConfig(filename=log_name, filemode = 'w', level=logging.INFO)
 
 	logging.info('cnf : ' + cnf_name)
 	logging.info("total number of processors: %d" % mp.cpu_count())
 	logging.info('cpu_number : %d' % cpu_number)
+
+	is_unsat_sample_solving = True
+	if len(sys.argv) > 2:
+		if sys.argv[2] == '--nosample':
+			is_unsat_sample_solving = False
+	logging.info('is_unsat_sample_solving : ' + str(is_unsat_sample_solving))
+		
+	start_time = time.time()
 		
 	# count free variables
 	free_vars = get_free_vars(cnf_name)
@@ -180,9 +189,9 @@ if __name__ == '__main__':
 	stat_name = 'stat_' + cnf_name
 	stat_name = stat_name.replace('.','')
 	stat_name = stat_name.replace('/','')
-	ofile = open(stat_name,'w')
-	ofile.write('n cubes refuted-leaves march-cu-time\n')
-	ofile.close()
+	stat_file = open(stat_name,'w')
+	stat_file.write('n cubes refuted-leaves march-cu-time\n')
+	stat_file.close()
 
 	random_cubes_n = dict()
 	# find required n and their cubes numbers
@@ -204,45 +213,47 @@ if __name__ == '__main__':
 	logging.info('random_cubes_n : ')
 	#print(random_cubes_n)
 	
-	# sort dict by n in descending order
-	sorted_random_cubes_n = collections.OrderedDict(sorted(random_cubes_n.items()))
-	logging.info('sorted_random_cubes_n : ')
-	logging.info(sorted_random_cubes_n)
-	# for evary n solve cube-problems from the random sample
-	logging.info('')
-	logging.info('processing random samples')
-	logging.info('')
+	if is_unsat_sample_solving:
+		# sort dict by n in descending order
+		sorted_random_cubes_n = collections.OrderedDict(sorted(random_cubes_n.items()))
+		logging.info('sorted_random_cubes_n : ')
+		logging.info(sorted_random_cubes_n)
+		# for evary n solve cube-problems from the random sample
+		logging.info('')
+		logging.info('processing random samples')
+		logging.info('')
 
-	solvers_results = dict()
-	for n, random_cubes in sorted_random_cubes_n.items():
-		logging.info('*** n : %d' % n)
-		logging.info('random_cubes size : %d' % len(random_cubes))
-		solvers_results[n] = []
-		cube_index = 0
-		for cube in random_cubes:
-			pool.apply_async(process_cube, args=(cnf_name, n, cube, cube_index), callback=collect_cube_result)
-			cube_index += 1
-		# wait for all results
-		while len(solvers_results[n]) < RANDOM_SAMPLE_SIZE:
-			time.sleep(5)
-		logging.info('solvers_results[n] len : %d' % len(solvers_results[n]))
-		logging.info(solvers_results[n])
+		solvers_results = dict()
+		for n, random_cubes in sorted_random_cubes_n.items():
+			logging.info('*** n : %d' % n)
+			logging.info('random_cubes size : %d' % len(random_cubes))
+			solvers_results[n] = []
+			cube_index = 0
+			for cube in random_cubes:
+				pool.apply_async(process_cube, args=(cnf_name, n, cube, cube_index), callback=collect_cube_result)
+				cube_index += 1
+			# wait for all results
+			while len(solvers_results[n]) < RANDOM_SAMPLE_SIZE:
+				time.sleep(5)
+			logging.info('solvers_results[n] len : %d' % len(solvers_results[n]))
+			logging.info(solvers_results[n])
 	
 	pool.close()
 	pool.join()
 	
-	# prepare file for results
-	sample_name = 'sample_results_' + cnf_name
-	sample_name = sample_name.replace('.','')
-	sample_name = sample_name.replace('/','')
-	sample_name += '.csv'
-	ofile = open(sample_name, 'w')
-	ofile.write('n solver time\n')
-	for n in solvers_results:
-		for solvers_times in solvers_results[n]:
-			for s, t in solvers_times.items():
-				ofile.write('%d %s %.2f\n' % (n, s, t))
-	ofile.close()
+	if is_unsat_sample_solving:
+		# prepare file for results
+		sample_name = 'sample_results_' + cnf_name
+		sample_name = sample_name.replace('.','')
+		sample_name = sample_name.replace('/','')
+		sample_name += '.csv'
+		sample_file = open(sample_name, 'w')
+		sample_file.write('n solver time\n')
+		for n in solvers_results:
+			for solvers_times in solvers_results[n]:
+				for s, t in solvers_times.items():
+					sample_file.write('%d %s %.2f\n' % (n, s, t))
+		sample_file.close()
 
 	elapsed_time = time.time() - start_time
 	logging.info('elapsed_time : ' + str(elapsed_time))
