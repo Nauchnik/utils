@@ -142,6 +142,8 @@ def read_unsat_samples(unsat_samples_file_name : str):
 
 def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 	unsat_samples, unsat_samples_mean = read_unsat_samples(unsat_samples_file_name)
+	print('unsat_samples_mean : ')
+	print(unsat_samples_mean)
 	unsat_samples_est = dict()
 	solvers = []
 	for n in unsat_samples_mean:
@@ -161,7 +163,7 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 				unsat_samples_est_file.write('%d' % n)
 				#for s in samples_unsat_est[n]:
 				for s in solvers:
-					unsat_samples_est_file.write(' %.2f' % unsat_samples_est[n][s])
+					unsat_samples_est_file.write(' %.5f' % unsat_samples_est[n][s])
 				unsat_samples_est_file.write('\n')
 
 # main 
