@@ -9,6 +9,7 @@ import os
 CLUSTER_CORES = 179
 CLUSTER_CPU_FRAC = 2.2
 SOLVER_TIME_LIM = 5000.0
+MESSAGE_COST = 0.1 # cost of sending and recieving a message on a cluster
 y_limit = 5100
 old_solvers_names = ['cube-glucose-mpi-min2min.sh', 'cube-glucose-mpi-min1min.sh', 'cube-glucose-mpi-min10sec.sh', 'cube-glucose-mpi-nomin.sh']
 solvers_names = ['./cube-glucose-min2min.sh', './cube-glucose-min1min.sh', './cube-glucose-min10sec.sh', './cube-glucose-nomin.sh']
@@ -153,7 +154,7 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 		for s in unsat_samples_mean[n]:
 			if s not in solvers:
 				solvers.append(s)
-			unsat_samples_est[n][s] = unsat_samples_mean[n][s] * cubes_dict[n] * CLUSTER_CPU_FRAC / 86400 / CLUSTER_CORES
+			unsat_samples_est[n][s] = (unsat_samples_mean[n][s] + MESSAGE_COST ) * cubes_dict[n] * CLUSTER_CPU_FRAC / 86400 / CLUSTER_CORES 
 		with open('est_' + unsat_samples_file_name, 'w') as unsat_samples_est_file:
 			unsat_samples_est_file.write('n')
 			for s in solvers:
