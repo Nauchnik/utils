@@ -81,7 +81,7 @@ def make_cnf_known_values(template_cnf_name : str, cnf_name : str, known_vars_va
 	with open(template_cnf_name, 'r') as ifile:
 		lines = ifile.readlines()
 		for line in lines:
-			if len(line) < 2:
+			if len(line) < 2 or line[0] == 'c':
 				continue
 			if 'p cnf' in line:
 				cnf_vars_number = int(line.split(' ')[2])
