@@ -160,7 +160,11 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 			for s in solvers:
 				unsat_samples_est_file.write(' ' + s)
 			unsat_samples_est_file.write('\n')
+			lst_n = []
 			for n in unsat_samples_est:
+				lst_n.append(n)
+			lst_n.reverse()
+			for n in lst_n:
 				unsat_samples_est_file.write('%d' % n)
 				#for s in samples_unsat_est[n]:
 				for s in solvers:
