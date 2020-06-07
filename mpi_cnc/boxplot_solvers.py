@@ -16,14 +16,17 @@ solvers_names = ['./cube-glucose-min2min.sh', './cube-glucose-min1min.sh', './cu
 solvers_short_names = ['gl-min2m', 'gl-min1m', 'gl-min10s', 'gl-nomin']
 solvers_short_names_dict = {'./MapleLCMDistChrBt-DL-v3' : 'v3', './kissat' : 'kissat', './cadical' : 'cadical', './cube-glucose-min2min.sh' : 'gl-min2m', './cube-glucose-min1min.sh' : 'gl-min1m', './cube-glucose-min10sec.sh' : 'gl-min10s', './cube-glucose-nomin.sh' : 'gl-nomin'}
 
-def make_upper_whiskers(df):
+def make_medians_upper_whiskers(df):
+	medians = dict()
 	upper_whiskers = dict()
 	for col in df.columns:
-		#q1 = np.percentile(df[col], 25) # q1
-		#q3 = np.percentile(df[col], 75) # q3
-		#iqr = q3 - q1
-		#upper_whisker_bound = q3 + iqr*1.5
-		upper_whisker_bound = np.percentile(df[col], 91, interpolation='higher')
+		medians[col] = statistics.median(df[col])
+		# calculate upper whisker
+		q1 = np.percentile(df[col], 25) # q1
+		q3 = np.percentile(df[col], 75) # q3
+		iqr = q3 - q1
+		upper_whisker_bound = q3 + iqr*1.5
+		#upper_whisker_bound = np.percentile(df[col], 91, interpolation='higher')
 		print('upper_whisker_bound : %.2f' % upper_whisker_bound)
 		upper_whisker = -1.0
 		rev_sort = sorted(df[col], reverse = True)
@@ -33,8 +36,8 @@ def make_upper_whiskers(df):
 				upper_whisker = x
 				break
 		upper_whiskers[col] = upper_whisker
-		print('upper_whisker : %.2f' % upper_whisker)
-	return upper_whiskers
+		#print('upper_whisker : %.2f' % upper_whisker)
+	return medians, upper_whiskers
 	
 def process_n_stat_file(n_stat_file_name : str):
 	n = int(n_stat_file_name.split('_n_')[1].split('.')[0])
@@ -55,7 +58,7 @@ def process_n_stat_file(n_stat_file_name : str):
 	d = {-1.00 : 0.00}
 	df = df.replace(d)
 	
-	upper_whiskers = make_upper_whiskers(df)
+	medians, upper_whiskers = make_medians_upper_whiskers(df)
 	
 	myFig = plt.figure();
 	plt.ylim(0, y_limit)
@@ -67,7 +70,7 @@ def process_n_stat_file(n_stat_file_name : str):
 	#print('whiskers :')
 	#print(whiskers)
 	
-	return n, upper_whiskers
+	return n, medians, upper_whiskers
 
 def process_sat_samples(sat_samples_files_mask : str, cubes_dict : dict, unsat_samples : dict):
 	os.chdir('./')
@@ -79,22 +82,22 @@ def process_sat_samples(sat_samples_files_mask : str, cubes_dict : dict, unsat_s
 	print(n_stat_file_names)
 
 	n_solvers_upper_whiskers = dict()
+	n_solvers_medians = dict()
 	for fname in n_stat_file_names:
-		n, upper_whiskers = process_n_stat_file(fname)
-		n_solvers_upper_whiskers[n] = upper_whiskers
-
+		n, n_solvers_medians[n], n_solvers_upper_whiskers[n] = process_n_stat_file(fname)
+	
 	if len(unsat_samples) > 0:
 		samples_comb_est = dict()
 		for n in unsat_samples:
 			samples_comb_est[n] = dict()
 			print('n : %d' % n)
 			for s in unsat_samples[n]:
-				lst_val_less_upper_whisker = [x for x in unsat_samples[n][s] if x <= n_solvers_upper_whiskers[n][s]]
-				lst_val_greater_upper_whisker = [x for x in unsat_samples[n][s] if x > n_solvers_upper_whiskers[n][s]]
-				frac_less_upper_whisker = len(lst_val_less_upper_whisker) / len(unsat_samples[n][s])
-				frac_greater_upper_whisker = len(lst_val_greater_upper_whisker) / len(unsat_samples[n][s])
-				print('frac_less_upper_whisker : %.2f' % frac_less_upper_whisker)
-				print('frac_greater_upper_whisker : %.2f' % frac_greater_upper_whisker)
+				lst_val_less_median = [x for x in unsat_samples[n][s] if x <= n_solvers_medians[n][s]]
+				lst_val_greater_median = [x for x in unsat_samples[n][s] if x > n_solvers_medians[n][s]]
+				frac_less_median = len(lst_val_less_median) / len(unsat_samples[n][s])
+				frac_greater_median = len(lst_val_greater_median) / len(unsat_samples[n][s])
+				print('frac_less_median : %.2f' % frac_less_median)
+				print('frac_greater_median : %.2f' % frac_greater_median)
 
 	with open('total_stat_' + sat_samples_files_mask.replace('*',''), 'w') as ofile:
 		s_names = []
@@ -102,8 +105,10 @@ def process_sat_samples(sat_samples_files_mask : str, cubes_dict : dict, unsat_s
 			for s in n_solvers_upper_whiskers[n]:
 				s_names.append(s)
 			break
-	
+		
 		ofile.write('n cubes')
+		for s in s_names:
+			ofile.write(' m_' + s)
 		for s in s_names:
 			ofile.write(' up_wh_' + s)
 		ofile.write('\n')
@@ -112,9 +117,11 @@ def process_sat_samples(sat_samples_files_mask : str, cubes_dict : dict, unsat_s
 				continue
 			ofile.write('%d %d' % (n, cubes_dict[n]))
 			for s in s_names:
+				ofile.write(' %.2f' % n_solvers_medians[n][s])
+			for s in s_names:
 				ofile.write(' %.2f' % n_solvers_upper_whiskers[n][s])
 			ofile.write('\n')
-
+		
 def read_unsat_samples(unsat_samples_file_name : str):
 	df_unsat_samples = pd.read_csv(unsat_samples_file_name, delimiter = ' ')
 	samples = dict()
