@@ -5,7 +5,9 @@
 import sys
 import os
 
-MIN_REFUTED_CUBES = 1000
+MIN_REFUTED_LEAVES = 1
+MAX_REFUTED_LEAVES = 1
+MAX_CUBES = 1000000
 
 if len(sys.argv) < 2:
 	print('Usage : prog cnf-name')
@@ -41,7 +43,7 @@ statname = 'stat_' + cnfname
 statname = statname.replace('.','')
 statname = statname.replace('/','')
 ofile = open(statname,'w')
-ofile.write('n cubes non-refuted-cubes refuted-cubes %-refuted-cubes time\n')
+ofile.write('n cubes refuted-leaves %-refuted-cubes time\n')
 while not is_exit:
 	n_val = n_val - 10
 	print('n_val : %d' % n_val)
@@ -54,7 +56,7 @@ while not is_exit:
 	lst = s.split('\n')
 	# c number of cubes 2, including 0 refuted leaves
 	cubes = 0
-	refuted = 0
+	refuted_leaves = 0
 	t = 0.0
 	for x in lst:
 		# c time = 0.06 seconds
@@ -62,21 +64,20 @@ while not is_exit:
 			t = float(x.split('c time = ')[1].split(' ')[0])
 			print('time : %.2f' % t)	
 		if 'c number of cubes' in x:
-			non_refuted = int(x.split('c number of cubes ')[1].split(',')[0])
-			refuted = int(x.split(' refuted leaves')[0].split(' ')[-1])
-			cubes = non_refuted + refuted
-			print('non_refuted cubes : %d ' % non_refuted)
-			print('refuted cubes : %d' % refuted)
+			cubes = int(x.split('c number of cubes ')[1].split(',')[0])
+			refuted_leaves = int(x.split(' refuted leaves')[0].split(' ')[-1])
+            print('cubes : %d' % cubes)
+			print('refuted_leaves : %d ' % refuted_leaves)
 			if cubes > 0:
-				perc = refuted*100/cubes
-				ofile.write('%d %d %d %d %.2f %.2f \n' % (n_val, cubes, non_refuted, refuted, perc, t))
+				perc = refuted_leaves*100/cubes
+				ofile.write('%d %d %d %.2f %.2f \n' % (n_val, cubes, refuted_leaves, perc, t))
 				print('perc : %f' % perc)
-				if refuted >= MIN_REFUTED_CUBES:
+				if refuted_leaves >= MIN_REFUTED_LEAVES:
 					if perc > perc_rec:
 						perc_rec = perc
 						print('new perc rec : %f' % perc_rec)
 					elif perc < perc_rec and perc_rec > 0:
 						is_exit = True
-				if non_refuted > 1000000:
+				if cubes > MAX_CUBES or refuted_leaves >= MAX_REFUTED_LEAVES:
 					is_exit = True
 ofile.close
