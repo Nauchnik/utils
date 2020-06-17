@@ -14,7 +14,7 @@ y_limit = 5100
 old_solvers_names = ['cube-glucose-mpi-min2min.sh', 'cube-glucose-mpi-min1min.sh', 'cube-glucose-mpi-min10sec.sh', 'cube-glucose-mpi-nomin.sh']
 solvers_names = ['./cube-glucose-min2min.sh', './cube-glucose-min1min.sh', './cube-glucose-min10sec.sh', './cube-glucose-nomin.sh']
 solvers_short_names = ['gl-min2m', 'gl-min1m', 'gl-min10s', 'gl-nomin']
-solvers_short_names_dict = {'./MapleLCMDistChrBt-DL-v3' : 'v3', './kissat' : 'kissat', './cadical' : 'cadical', './cube-glucose-min2min.sh' : 'gl-min2m', './cube-glucose-min1min.sh' : 'gl-min1m', './cube-glucose-min10sec.sh' : 'gl-min10s', './cube-glucose-nomin.sh' : 'gl-nomin'}
+solvers_short_names_dict = {'./cadical2020' : 'cad20', './MapleLCMDistChrBt-DL-v3' : 'v3', './kissat' : 'kissat', './cadical' : 'cadical', './cube-glucose-min2min.sh' : 'gl-min2m', './cube-glucose-min1min.sh' : 'gl-min1m', './cube-glucose-min10sec.sh' : 'gl-min10s', './cube-glucose-nomin.sh' : 'gl-nomin'}
 
 def make_medians_upper_whiskers(df):
 	medians = dict()
