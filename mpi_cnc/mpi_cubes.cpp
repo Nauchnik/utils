@@ -27,7 +27,7 @@ const int REPORT_EVERY_SEC = 100;
 const int CORES_PER_NODE = 36;
 const string LOCAL_DIR = "/store/ozaikin/";
 
-vector<string> files_to_copy{"./iglucose", "./lingeling", "./march_cu", "./timelimit"};
+vector<string> files_to_copy{"./iglucose", "./cadical130", "./march_cu", "./timelimit"};
 
 void controlProcess(const int corecount, const string cubes_file_name, const string cube_cpu_lim_str);
 vector<wu> readCubes(const string cubes_file_name);
@@ -485,6 +485,8 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 		// remove the temporary cnf file
 		if (res == SAT) {
 			system_str = "cp " + local_out_file_name + " ./!sat_out_id_" + wu_id_str;
+			exec(system_str);
+			system_str = "cp " + LOCAL_DIR + "id-" + wu_id_str + "-*" + "./";
 			exec(system_str);
 		}
 		else if (elapsed_solving_time > cube_cpu_lim + 10.0) {

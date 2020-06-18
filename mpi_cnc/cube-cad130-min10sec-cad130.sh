@@ -3,24 +3,26 @@ CNF=$1
 id=$2
 CPULIM=$3
 DIR=.
-LINGTIMELIM=10
+SIMPTIMELIM=10
 printf "id : %d\n" $id
 printf "CPULIM : %d\n" $CPULIM
 res1=$(date +%s.%N)
 mincnf=$DIR/id-$id-mincnf
 cubes=$DIR/id-$id-cubes
 formula=$DIR/id-$id-formula.icnf
-$DIR/lingeling $CNF -s -o $mincnf -T $LINGTIMELIM
+ext=$DIR/id-$id-ext
+ext2=$DIR/id-$id-ext2
+$DIR/cadical130 $CNF -o $mincnf -e $ext -t $SIMPTIMELIM -q
 res2=$(date +%s.%N)
 elapsed=$(echo "$res2 - $res1" | bc)
 elapsed=${elapsed%.*}
 printf "elapsed : %02.4f\n" $elapsed
-if [[ $elapsed -lt $LINGTIMELIM ]] ; then
-    printf "solved on the minimization phase"
+if [[ $elapsed -lt $SIMPTIMELIM ]] ; then
+    printf "solved during simplification"
     exit 1
 fi 
 rem=$((CPULIM-elapsed))
-printf "remaining time after minimization : %02.4f\n" $rem
+printf "remaining time after simplification : %02.4f\n" $rem
 if [[ $rem -le 0 ]] ; then
     exit 1
 fi
@@ -37,4 +39,4 @@ fi
 echo "p inccnf" > $formula
 cat $mincnf | grep -v c >> $formula
 cat $cubes >> $formula
-./timelimit -t $rem -T 1 $DIR/iglucose $formula -verb=0 -cpu-lim=$rem
+./timelimit -t $rem -T 1 $DIR/cadical130 $formula -t $rem -e $ext2
