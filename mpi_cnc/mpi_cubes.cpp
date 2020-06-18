@@ -486,7 +486,7 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 		if (res == SAT) {
 			system_str = "cp " + local_out_file_name + " ./!sat_out_id_" + wu_id_str;
 			exec(system_str);
-			system_str = "cp " + LOCAL_DIR + "id-" + wu_id_str + "-*" + "./";
+			system_str = "cp " + LOCAL_DIR + "id-" + wu_id_str + "-*" + " ./";
 			exec(system_str);
 		}
 		else if (elapsed_solving_time > cube_cpu_lim + 10.0) {
