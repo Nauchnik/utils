@@ -8,8 +8,8 @@ import logging
 import predict_cnc as p_c
 
 MIN_REFUTED_LEAVES = 1000
-MIN_CUBES = 10000
-MAX_CUBES = 1000000
+MIN_CUBES = 0
+MAX_CUBES = 5000000
 MAX_MARCH_TIME = 86400.0
 RANDOM_SAMPLE_SIZE = 1000
 SOLVER_TIME_LIMIT = 5000
@@ -237,6 +237,8 @@ if __name__ == '__main__':
 				time.sleep(5)
 			logging.info('solvers_results[n] len : %d' % len(solvers_results[n]))
 			logging.info(solvers_results[n])
+			elapsed_time = time.time() - start_time
+			logging.info('elapsed_time : ' + str(elapsed_time) + '\n')
 	
 	pool.close()
 	pool.join()

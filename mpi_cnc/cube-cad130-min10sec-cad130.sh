@@ -39,4 +39,4 @@ fi
 echo "p inccnf" > $formula
 cat $mincnf | grep -v c >> $formula
 cat $cubes >> $formula
-./timelimit -t $rem -T 1 $DIR/cadical130 $formula -t $rem -e $ext2
+./timelimit -t $rem -T 1 $DIR/cadical130 $formula -t $rem
