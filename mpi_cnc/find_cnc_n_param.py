@@ -157,7 +157,7 @@ if __name__ == '__main__':
 	is_exit = False
 
 	if len(sys.argv) < 2:
-		print('Usage : prog cnf-name')
+		print('Usage : prog cnf-name [--nosample | --onesample]')
 		exit(1)
 	cnf_name = sys.argv[1]
 
@@ -170,13 +170,17 @@ if __name__ == '__main__':
 	logging.info('cpu_number : %d' % cpu_number)
 
 	is_unsat_sample_solving = True
+	is_one_sample = False
 	if len(sys.argv) > 2:
 		if sys.argv[2] == '--nosample':
 			is_unsat_sample_solving = False
+		elif sys.argv[2] == '--onesample':
+			is_one_sample = True
 	logging.info('is_unsat_sample_solving : ' + str(is_unsat_sample_solving))
-		
+	logging.info('is_one_sample : ' + str(is_one_sample))
+	
 	start_time = time.time()
-		
+	
 	# count free variables
 	free_vars = get_free_vars(cnf_name)
 	logging.info('free vars : %d' % len(free_vars))
@@ -216,6 +220,14 @@ if __name__ == '__main__':
 	if is_unsat_sample_solving:
 		# sort dict by n in descending order
 		sorted_random_cubes_n = collections.OrderedDict(sorted(random_cubes_n.items()))
+		if is_one_sample:
+			n_v = -1
+			rc_v = []
+			for n, random_cubes in sorted_random_cubes_n.items():
+				n_v = n
+				rc_v = random_cubes
+				break
+			sorted_random_cubes_n = {n_v : rc_v}
 		logging.info('sorted_random_cubes_n : ')
 		logging.info(sorted_random_cubes_n)
 		# for evary n solve cube-problems from the random sample
