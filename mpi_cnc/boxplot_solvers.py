@@ -11,10 +11,11 @@ CLUSTER_CPU_FRAC = 2.2
 SOLVER_TIME_LIM = 5000.0
 MESSAGE_COST = 0.1 # cost of sending and recieving a message on a cluster
 y_limit = 5100
-old_solvers_names = ['cube-glucose-mpi-min2min.sh', 'cube-glucose-mpi-min1min.sh', 'cube-glucose-mpi-min10sec.sh', 'cube-glucose-mpi-nomin.sh']
-solvers_names = ['./cube-glucose-min2min.sh', './cube-glucose-min1min.sh', './cube-glucose-min10sec.sh', './cube-glucose-nomin.sh']
-solvers_short_names = ['gl-min2m', 'gl-min1m', 'gl-min10s', 'gl-nomin']
-solvers_short_names_dict = {'./cadical2020' : 'cad20', './MapleLCMDistChrBt-DL-v3' : 'v3', './kissat' : 'kissat', './cadical' : 'cadical', './cube-glucose-min2min.sh' : 'gl-min2m', './cube-glucose-min1min.sh' : 'gl-min1m', './cube-glucose-min10sec.sh' : 'gl-min10s', './cube-glucose-nomin.sh' : 'gl-nomin'}
+
+solvers_short_names_dict = {'./cryptominisat5.7.1' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
+'./kissat' : 'kissat', './cadical130' : 'cad130', './cube-glucose-min10sec-cad130.sh' : 'igl-10s', \
+'./cube-glucose-min1min-cad130.sh' : 'igl-1m', './cube-cad130-min10sec-cad130.sh' : 'icad130-10s', \
+'./cube-cad130-min1min-cad130.sh' : 'icad130-min1m'}
 
 def make_medians_upper_whiskers(df):
 	medians = dict()
@@ -177,6 +178,8 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 				for s in solvers:
 					unsat_samples_est_file.write(' %.5f' % unsat_samples_est[n][s])
 				unsat_samples_est_file.write('\n')
+	print('unsat_samples_est : ')
+	print(unsat_samples_est)
 
 # main 
 
