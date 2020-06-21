@@ -10,7 +10,7 @@ import find_cnc_n_param as fcnp
 
 INPUT_VARS_NUM = 512 # first variables in a CNF
 OUTPUT_VARS_NUM = 128 # last variables in a CNF
-IN_OUT_PAIRS_NUM = 10000
+IN_OUT_PAIRS_NUM = 50000
 SIMP_SOLVER = './cadical130'
 ENUM_SOL_SOLVER = './cryptominisat5'
 CUBES_BOARD_FRAC = 0.25
@@ -114,7 +114,7 @@ def find_n_param(o):
 			isPerc = True
 	return n
 
-def get_sat_cube(cubes_name, values_all_vars):
+def get_sat_cube(cubes_name : str, io_vars_values : list):
 	sat_cubes = []
 	with open(cubes_name, 'r') as cubes_file:
 		lines = cubes_file.readlines()
@@ -124,7 +124,7 @@ def get_sat_cube(cubes_name, values_all_vars):
 			for word in lst:
 				val = 0 if word[0] == '-' else 1
 				var = abs(int(word))
-				if values_all_vars[var-1] == val:
+				if io_vars_values[var-1] == val:
 					match_number += 1
 			if match_number == len(lst):
 				sat_cubes.append(lst)
@@ -153,7 +153,7 @@ def add_cube(old_cnf_name : str, new_cnf_name : str, cube : list):
 		for c in cube:
 			cnf_file.write(c + ' 0\n')
 	
-def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, original_data_val : tuple):
+def make_cnf_known_sat_cube(n : int, cnf_name : str, io_vars_values : list, original_data_val : tuple):
 	min_cnf_name = 'min_' + cnf_name
 	sys_str = SIMP_SOLVER + ' ' + cnf_name + ' -t ' + str(SIMP_MIN_TIME_LIMIT) + ' -o ' + min_cnf_name
 	#print('start system command : ' + sys_str)
@@ -189,7 +189,7 @@ def make_cnf_known_sat_cube(n : int, cnf_name : str, values_all_vars : list, ori
 			print(o)
 			exit(1)
 		cnf_known_sat_cube_name = 'known_sat_cube_' + min_cnf_name
-		sat_cubes = get_sat_cube(cubes_name, values_all_vars)
+		sat_cubes = get_sat_cube(cubes_name, io_vars_values)
 		#print('%d sat_cubes :' % len(sat_cubes))
 		if len(sat_cubes) == 0:
 			print('*** sat_cubes is empty')
@@ -286,15 +286,15 @@ def read_template_cnf(template_cnf_name : str):
 			else:
 			    template_cnf_clauses.append(line)
 	
-def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int, original_data_val : tuple, values_all_vars):
+def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int, original_data_val : tuple, io_vars_values):
 	if len(template_cnf_clauses) == 0:
 		read_template_cnf(template_cnf_name)
-
+	
 	#print('values_all_vars len : %d' % len(values_all_vars))
 	output_vars = dict()
-	for i in range(len(values_all_vars)-OUTPUT_VARS_NUM,len(values_all_vars)):
+	for i in range(len(io_vars_values)-OUTPUT_VARS_NUM,len(io_vars_values)):
 		v = i+1
-		output_vars[v] = values_all_vars[i]
+		output_vars[v] = io_vars_values[i]
 	#print('%d output vars :' % len(output_vars))
 	cnf_name = 'rand_' + template_cnf_name.replace('./','').split('.')[0] + '_cnfid_' + str(cnf_id) + '.cnf'
 	make_cnf_known_values(template_cnf_name, cnf_name, output_vars)
@@ -303,7 +303,7 @@ def solve_cnf_id(n : int, solvers : list, template_cnf_name : str, cnf_id : int,
 	for solver in solvers:
 		solvers_times[solver] = -1
 		solvers_march_times[solver] = -1
-	data = make_cnf_known_sat_cube(n, cnf_name, values_all_vars, original_data_val)
+	data = make_cnf_known_sat_cube(n, cnf_name, io_vars_values, original_data_val)
 	#print(data)
 	cnf_known_sat_cube_name = data[0]
 	march_time = data[1]
@@ -421,7 +421,16 @@ if __name__ == '__main__':
 
 	lst_values_all_vars = generate_random_values(template_cnf_name)
 	print('lst_values_all_vars len : %d' % len(lst_values_all_vars))
-
+	print('lst_values_all_vars[0] len : %d' % len(lst_values_all_vars[0]))
+	io_pairs_fname = 'io_pairs_' + template_cnf_name.replace('./','').replace('.cnf','')
+	with open(io_pairs_fname, 'w') as io_pairs_f:
+		for values in lst_values_all_vars:
+			io_values = values[:INPUT_VARS_NUM] + values[-OUTPUT_VARS_NUM:]
+			s = ''
+			for x in io_values:
+				s += str(x)
+			io_pairs_f.write(s + '\n')
+	
 	#solve_cnf_id(2460, solvers, template_cnf_name, 0, original_data_dict[2460], lst_values_all_vars[0])
 	#exit(1)
 
