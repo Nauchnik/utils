@@ -218,6 +218,13 @@ if __name__ == '__main__':
 	#print(random_cubes_n)
 	
 	if is_unsat_sample_solving:
+		# prepare file for results
+		sample_name = 'sample_results_' + cnf_name
+		sample_name = sample_name.replace('.','')
+		sample_name = sample_name.replace('/','')
+		sample_name += '.csv'
+		with open(sample_name, 'w') as sample_file:
+			sample_file.write('n solver time\n')
 		# sort dict by n in descending order
 		sorted_random_cubes_n = collections.OrderedDict(sorted(random_cubes_n.items()))
 		if is_one_sample:
@@ -251,23 +258,14 @@ if __name__ == '__main__':
 			logging.info(solvers_results[n])
 			elapsed_time = time.time() - start_time
 			logging.info('elapsed_time : ' + str(elapsed_time) + '\n')
+			# write to result file
+			with open(sample_name, 'a') as sample_file:
+				for solvers_times in solvers_results[n]:
+					for s, t in solvers_times.items():
+						sample_file.write('%d %s %.2f\n' % (n, s, t))
 	
 	pool.close()
 	pool.join()
-	
-	if is_unsat_sample_solving:
-		# prepare file for results
-		sample_name = 'sample_results_' + cnf_name
-		sample_name = sample_name.replace('.','')
-		sample_name = sample_name.replace('/','')
-		sample_name += '.csv'
-		sample_file = open(sample_name, 'w')
-		sample_file.write('n solver time\n')
-		for n in solvers_results:
-			for solvers_times in solvers_results[n]:
-				for s, t in solvers_times.items():
-					sample_file.write('%d %s %.2f\n' % (n, s, t))
-		sample_file.close()
 
 	elapsed_time = time.time() - start_time
 	logging.info('elapsed_time : ' + str(elapsed_time))
