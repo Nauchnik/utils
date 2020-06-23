@@ -7,7 +7,7 @@ import os
 
 MIN_REFUTED_LEAVES = 1
 MAX_REFUTED_LEAVES = 1
-MAX_CUBES = 1000000
+MAX_CUBES = 5000000
 
 if len(sys.argv) < 2:
 	print('Usage : prog cnf-name')
