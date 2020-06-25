@@ -107,41 +107,41 @@ def collect_n_result(res):
 		logging.info('is_exit : ' + str(is_exit))
 	remove_file(cubes_name)
 	
-def process_cube(cnf_name : str, n : int, cube : list, cube_index : int):
+def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, solver : str):
 	known_cube_cnf_name = './sample_cnf_n_' + str(n) + '_cube_' + str(cube_index) + '.cnf'
 	p_c.add_cube(cnf_name, known_cube_cnf_name, cube)
-	solvers_times = dict()
 
 	isSat = False
-	for solver in p_c.solvers:
-		if '.sh' in solver:
-			sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(cube_index) + ' ' + str(SOLVER_TIME_LIMIT)
-		else:
-			sys_str = './timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + known_cube_cnf_name
-		#print('system command : ' + sys_str)
-		t = time.time()
-		o = os.popen(sys_str).read()
-		t = time.time() - t
-		solvers_times[solver] = float(t)
-		isSat = p_c.find_sat_log(o)
-		if isSat:
-			sat_name = known_cube_cnf_name.replace('.cnf','')
-			sat_name = sat_name.replace('./','')
-			with open('!sat_' + sat_name, 'w') as ofile:
-				ofile.write('*** SAT found\n')
-				ofile.write(o)
+	if '.sh' in solver:
+		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(cube_index) + ' ' + str(SOLVER_TIME_LIMIT)
+	else:
+		sys_str = './timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + known_cube_cnf_name
+	#print('system command : ' + sys_str)
+	t = time.time()
+	o = os.popen(sys_str).read()
+	t = time.time() - t
+	solver_time = float(t)
+	isSat = p_c.find_sat_log(o)
+	if isSat:
+		sat_name = cnf_name.replace('./','').replace('.cnf','') + '_' + solver + '_cube_index_' + str(cube_index) 
+		sat_name = sat_name.replace('./','')
+		with open('!sat_' + sat_name, 'w') as ofile:
+			ofile.write('*** SAT found\n')
+			ofile.write(o)
 	remove_file(known_cube_cnf_name)
 	# remove files from solver's script
 	remove_file('./id-' + str(cube_index) + '-*')
-	return n, solvers_times, isSat
+	return n, cube_index, solver, solver_time, isSat
 	
-def collect_cube_result(res):
+def collect_cube_solver_result(res):
 	global solvers_results
 	n = res[0]
-	solvers_times = res[1]
-	isSat = res[2]
-	solvers_results[n].append(solvers_times)
-	logging.info('n : %d, got %d results' % (n, len(solvers_results[n])))
+	cube_index = res[1]
+	solver = res[2]
+	solver_time = res[3]
+	isSat = res[4]
+	results[n].append((cube_index,solver,solver_time)) # append a tuple
+	logging.info('n : %d, got %d results - cube_index %d, solver %s, time %f' % (n, len(results[n]), cube_index, solver, solver_time))
 	if isSat:
 		logging('*** SAT found')
 		exit(1)
@@ -224,7 +224,7 @@ if __name__ == '__main__':
 		sample_name = sample_name.replace('/','')
 		sample_name += '.csv'
 		with open(sample_name, 'w') as sample_file:
-			sample_file.write('n solver time\n')
+			sample_file.write('n cube-index solver time\n')
 		# sort dict by n in descending order
 		sorted_random_cubes_n = collections.OrderedDict(sorted(random_cubes_n.items()))
 		if is_one_sample:
@@ -241,28 +241,31 @@ if __name__ == '__main__':
 		logging.info('')
 		logging.info('processing random samples')
 		logging.info('')
-
-		solvers_results = dict()
+		
+		results = dict()
 		for n, random_cubes in sorted_random_cubes_n.items():
 			logging.info('*** n : %d' % n)
 			logging.info('random_cubes size : %d' % len(random_cubes))
-			solvers_results[n] = []
+			results[n] = []
+			results_size = len(random_cubes) * len(p_c.solvers)
+			logging.info('results size : %d' % results_size)
 			cube_index = 0
+			
 			for cube in random_cubes:
-				pool.apply_async(process_cube, args=(cnf_name, n, cube, cube_index), callback=collect_cube_result)
+				for solver in p_c.solvers:
+					pool.apply_async(process_cube_solver, args=(cnf_name, n, cube, cube_index, solver), callback=collect_cube_solver_result)
 				cube_index += 1
 			# wait for all results
-			while len(solvers_results[n]) < RANDOM_SAMPLE_SIZE:
+			while len(results[n]) < results_size:
 				time.sleep(5)
-			logging.info('solvers_results[n] len : %d' % len(solvers_results[n]))
-			logging.info(solvers_results[n])
+			logging.info('results[n] len : %d' % len(results[n]))
+			logging.info(results[n])
 			elapsed_time = time.time() - start_time
 			logging.info('elapsed_time : ' + str(elapsed_time) + '\n')
 			# write to result file
 			with open(sample_name, 'a') as sample_file:
-				for solvers_times in solvers_results[n]:
-					for s, t in solvers_times.items():
-						sample_file.write('%d %s %.2f\n' % (n, s, t))
+				for res in results[n]:
+					sample_file.write('%d %d %s %.2f\n' % (n, res[0], res[1], res[2])) # tuple (cube_index,solver,solver_time)
 	
 	pool.close()
 	pool.join()
