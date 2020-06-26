@@ -9,12 +9,16 @@ import sys
 
 KNOWN_VARS_NUM = 512 
 
-extname = sys.argv[1]
-cnfname = sys.argv[2]
-print('extname : ' + extname)
+if len(sys.argv) < 3:
+	print('Usage: cnf solution')
+	exit(1)
+
+cnfname = sys.argv[1]
+solname = sys.argv[2]
+print('solname : ' + solname)
 print('cnfname : ' + cnfname)
 literals = []
-with open(extname, 'r') as f:
+with open(solname, 'r') as f:
 	lines = f.readlines()
 	for line in lines:
 		if line == '' or line[0] == 's':

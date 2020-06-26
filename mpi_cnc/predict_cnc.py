@@ -131,7 +131,7 @@ def get_sat_cube(cubes_name : str, io_vars_values : list):
 	# remove cubes file
 	remove_file(cubes_name)
 	return sat_cubes
-
+	
 def add_cube(old_cnf_name : str, new_cnf_name : str, cube : list):
 	cnf_var_number = 0
 	clauses = []
