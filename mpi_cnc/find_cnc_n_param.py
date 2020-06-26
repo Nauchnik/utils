@@ -11,7 +11,7 @@ MIN_REFUTED_LEAVES = 1000
 MIN_CUBES = 0
 MAX_CUBES = 5000000
 MAX_MARCH_TIME = 86400.0
-RANDOM_SAMPLE_SIZE = 10
+RANDOM_SAMPLE_SIZE = 100
 SOLVER_TIME_LIMIT = 5000
 cnf_name = ''
 stat_name = ''
@@ -111,9 +111,11 @@ def collect_n_result(res):
 		logging.info('is_exit : ' + str(is_exit))
 	remove_file(cubes_name)
 	
-def process_cube_solver(cnf_name : str, n : int, cube_index : int, solver : str, known_cube_cnf_name : str):
+def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, task_index : int, solver : str):
+	known_cube_cnf_name = './sample_cnf_n_' + str(n) + '_cube_' + str(cube_index) + '_task_' + str(task_index) + '.cnf'
+	p_c.add_cube(cnf_name, known_cube_cnf_name, cube)
 	if '.sh' in solver:
-		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(cube_index) + ' ' + str(SOLVER_TIME_LIMIT)
+		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(task_index) + ' ' + str(SOLVER_TIME_LIMIT)
 	else:
 		sys_str = './timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + known_cube_cnf_name
 	#print('system command : ' + sys_str)
@@ -129,13 +131,15 @@ def process_cube_solver(cnf_name : str, n : int, cube_index : int, solver : str,
 			ofile.write('*** SAT found\n')
 			ofile.write(o)
 	else:
-		# remove files from solver's script
-		remove_file('./id-' + str(cube_index) + '-*')
+		# remove cnf with known cube
+		remove_file(known_cube_cnf_name)
+		# remove tmp files from solver's script
+		remove_file('./id-' + str(task_index) + '-*')
+		
 	return n, cube_index, solver, solver_time, isSat
 	
 def collect_cube_solver_result(res):
 	global results
-	global solved_tasks_random_cubes
 	n = res[0]
 	cube_index = res[1]
 	solver = res[2]
@@ -144,11 +148,6 @@ def collect_cube_solver_result(res):
 	results[n].append((cube_index,solver,solver_time)) # append a tuple
 	logging.info('n : %d, got %d results - cube_index %d, solver %s, time %f' % (n, len(results[n]), cube_index, solver, solver_time))
 
-	solved_tasks_random_cubes[n][cube_index].solved_tasks += 1
-	if solved_tasks_random_cubes[n][cube_index].solved_tasks == len(p_c.solvers):
-		logging('removing cube file ' + solved_tasks_random_cubes[n][cube_index].cube_cnf_name)
-		logging(solved_tasks_random_cubes[n][cube_index])
-		remove_file(solved_tasks_random_cubes[n][cube_index].cube_cnf_name)
 	if isSat:
 		logging('*** SAT found')
 		logging(res)
@@ -251,7 +250,6 @@ if __name__ == '__main__':
 		logging.info('')
 		
 		results = dict()
-		solved_tasks_random_cubes = dict()
 		for n, random_cubes in sorted_random_cubes_n.items():
 			logging.info('*** n : %d' % n)
 			logging.info('random_cubes size : %d' % len(random_cubes))
@@ -259,17 +257,12 @@ if __name__ == '__main__':
 			results_size = len(random_cubes) * len(p_c.solvers)
 			logging.info('results size : %d' % results_size)
 			cube_index = 0
-			solved_tasks_random_cubes[n] = dict()
 			
+			task_index = 0
 			for cube in random_cubes:
-				known_cube_cnf_name = './sample_cnf_n_' + str(n) + '_cube_' + str(cube_index) + '.cnf'
-				p_c.add_cube(cnf_name, known_cube_cnf_name, cube)
-				r_c_d = random_cube_data()
-				r_c_d.cube_cnf_name = known_cube_cnf_name
-				r_c_d.solved_tasks = 0
-				solved_tasks_random_cubes[n][cube_index] = r_c_d
 				for solver in p_c.solvers:
-					pool.apply_async(process_cube_solver, args=(cnf_name, n, cube_index, solver, known_cube_cnf_name), callback=collect_cube_solver_result)
+					pool.apply_async(process_cube_solver, args=(cnf_name, n, cube, cube_index, task_index, solver), callback=collect_cube_solver_result)
+					task_index += 1
 				cube_index += 1
 			# wait for all results
 			while len(results[n]) < results_size:
