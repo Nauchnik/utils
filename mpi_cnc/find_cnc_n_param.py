@@ -11,7 +11,7 @@ MIN_REFUTED_LEAVES = 1000
 MIN_CUBES = 0
 MAX_CUBES = 5000000
 MAX_MARCH_TIME = 86400.0
-RANDOM_SAMPLE_SIZE = 100
+RANDOM_SAMPLE_SIZE = 1000
 SOLVER_TIME_LIMIT = 5000
 cnf_name = ''
 stat_name = ''
@@ -58,17 +58,23 @@ def parse_march_log(o):
 	return cubes, refuted_leaves
 
 def get_random_cubes(cubes_name):
-	cubes = []
+	lines = []
+	random_cubes = []
+	remaining_cubes_str = []
 	with open(cubes_name, 'r') as cubes_file:
 		lines = cubes_file.readlines()
-		for line in lines:
+		random_lines = random.sample(lines, RANDOM_SAMPLE_SIZE)
+		for line in random_lines:
 			lst = line.split(' ')[1:-1] # skip 'a' and '0'
-			cubes.append(lst)
-	if len(cubes) < RANDOM_SAMPLE_SIZE:
-		logging.error('too few cubes : %d' % len(cubes))
+			random_cubes.append(lst)
+		remaining_cubes_str = [line for line in lines if line not in random_lines]
+	if len(random_cubes) < RANDOM_SAMPLE_SIZE:
+		logging.error('too few cubes : %d' % len(random_cubes))
 		exit(1)
-	random_cubes = random.sample(cubes, RANDOM_SAMPLE_SIZE)
-	return random_cubes
+	if len(random_cubes) + len(remaining_cubes_str) != len(lines):
+		logging.error('incorrect number of of random and remaining cubes')
+		exit(1)
+	return random_cubes, remaining_cubes_str
 	
 def process_n(n : int, cnf_name : str):
 	print('n : %d' % n)
@@ -104,12 +110,17 @@ def collect_n_result(res):
 		ofile.close()
 		if is_unsat_sample_solving:
 			random_cubes = []
-			random_cubes = get_random_cubes(cubes_name)
+			random_cubes, remaining_cubes_str = get_random_cubes(cubes_name)
 			random_cubes_n[n] = random_cubes
-	elif cubes_num > MAX_CUBES or march_time > MAX_MARCH_TIME:
+			# write all cubes which are not from the random sample to solve them further in the case n is the best one
+			with open(cubes_name, 'w') as remaining_cubes_file:
+				for cube in remaining_cubes_str:
+					remaining_cubes_file.write(cube)
+	else:
+		remove_file(cubes_name)
+	if cubes_num > MAX_CUBES or march_time > MAX_MARCH_TIME:
 		is_exit = True
 		logging.info('is_exit : ' + str(is_exit))
-	remove_file(cubes_name)
 	
 def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, task_index : int, solver : str):
 	known_cube_cnf_name = './sample_cnf_n_' + str(n) + '_cube_' + str(cube_index) + '_task_' + str(task_index) + '.cnf'
