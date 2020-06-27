@@ -12,7 +12,7 @@ SOLVER_TIME_LIM = 5000.0
 MESSAGE_COST = 0.1 # cost of sending and recieving a message on a cluster
 y_limit = 5100
 
-solvers_short_names_dict = {'./cryptominisat5.7.1' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
+solvers_short_names_dict = {'./kissat-unsat' : 'kissat-u', './kissat-sat' : 'kissat-s', './cryptominisat5.7.1' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
 './kissat' : 'kissat', './cadical130' : 'cad130', './cube-glucose-min10sec-cad130.sh' : 'igl-10s', \
 './cube-glucose-min1min-cad130.sh' : 'igl-1m', './cube-cad130-min10sec-cad130.sh' : 'icad130-10s', \
 './cube-cad130-min1min-cad130.sh' : 'icad130-min1m'}
