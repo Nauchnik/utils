@@ -90,9 +90,9 @@ if pairname != '':
 		    clauses_pair.append(str(var) + ' 0\n')
 
 if len(clauses_pair) > 0:
-	add_name = '_known_pair_cms.cnf'
+	add_name = '_known_pair_' + cmsname  + '.cnf'
 else:
-	add_name = '_known_cms.cnf'
+	add_name = '_known_' + cmsname + '.cnf'
 
 with open(cnfname.replace('.cnf','') + add_name, 'w') as cnf:
 	cnf.write('p cnf ' + str(var_num) + ' ' + str(len(clauses) + len(clauses_pair) + len(clauses_cms)) + '\n')
