@@ -6,7 +6,7 @@ import sys
 import glob
 import os
 
-CLUSTER_CORES = 179
+CLUSTER_CORES = 359
 CLUSTER_CPU_FRAC = 2.2
 SOLVER_TIME_LIM = 5000.0
 MESSAGE_COST = 0.1 # cost of sending and recieving a message on a cluster
