@@ -47,7 +47,7 @@ ofile.write('n cubes refuted-leaves %-refuted-cubes time\n')
 while not is_exit:
 	n_val = n_val - 10
 	print('n_val : %d' % n_val)
-	system_str = './march_cu/march_cu ' + cnfname + ' -n ' + str(n_val) 
+	system_str = './march_cu ' + cnfname + ' -n ' + str(n_val) 
 	o = os.popen(system_str).read()
 	s = ''
 	for x in o:
@@ -66,7 +66,7 @@ while not is_exit:
 		if 'c number of cubes' in x:
 			cubes = int(x.split('c number of cubes ')[1].split(',')[0])
 			refuted_leaves = int(x.split(' refuted leaves')[0].split(' ')[-1])
-            print('cubes : %d' % cubes)
+			print('cubes : %d' % cubes)
 			print('refuted_leaves : %d ' % refuted_leaves)
 			if cubes > 0:
 				perc = refuted_leaves*100/cubes

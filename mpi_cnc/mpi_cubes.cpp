@@ -5,6 +5,8 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <iomanip>
+#include <ctime>
 
 using namespace std;
 
@@ -167,6 +169,19 @@ void controlProcess(const int corecount, const string cubes_file_name, const str
 	ofstream control_process_ofile(control_process_ofile_name, ios_base::out);
 	control_process_ofile.close();
 	
+	// start time in string
+	auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    ostringstream oss;
+    oss << put_time(&tm, "%d-%m-%Y-%H-%M-%S");
+    auto time_str = oss.str();
+	char *time_char_arr = new char[time_str.length()+1];
+	strcpy(time_char_arr, time_str.c_str());
+	
+	// send start time to all computing processes
+	for (int i = 0; i < corecount - 1; i++)
+		sendWU(wu_vec, i, i + 1);
+
 	// send a wu to every computing process
 	int sending_id = 0;
 	for (int i = 0; i < corecount - 1; i++) {
@@ -497,7 +512,7 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			system_str = "rm " + LOCAL_DIR + "id-" + wu_id_str + "-*";
 			exec(system_str);
 		}
-
+		
 		// send calculated result to the control process
 		//cout << "sending wu_id " << wu_id << endl;
 		//cout << "sending res " << res << endl;
