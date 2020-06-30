@@ -5,8 +5,10 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
-#include <iomanip>
 #include <ctime>
+#include <cstring>
+
+const int TIME_BUFFER_SIZE = 80;
 
 using namespace std;
 
@@ -76,9 +78,9 @@ int main(int argc, char *argv[])
 		string system_str = "mkdir " + LOCAL_DIR;
 		cout << "system_str : " << system_str << endl;
 		exec(system_str);
-		system_str = "rm " + LOCAL_DIR + "id-*";
-		cout << "system_str : " << system_str << endl;
-		exec(system_str);
+		//system_str = "rm " + LOCAL_DIR + "id-*";
+		//cout << "system_str : " << system_str << endl;
+		//exec(system_str);
 		node_num++;
 		files_to_copy.push_back(solver_file_name);
 		for (auto file_name : files_to_copy) {
@@ -170,17 +172,17 @@ void controlProcess(const int corecount, const string cubes_file_name, const str
 	control_process_ofile.close();
 	
 	// start time in string
-	auto t = std::time(nullptr);
-    auto tm = *std::localtime(&t);
-    ostringstream oss;
-    oss << put_time(&tm, "%d-%m-%Y-%H-%M-%S");
-    auto time_str = oss.str();
-	char *time_char_arr = new char[time_str.length()+1];
-	strcpy(time_char_arr, time_str.c_str());
+	time_t rawtime;
+	struct tm * timeinfo;
+	char time_char_arr[TIME_BUFFER_SIZE];
+	time (&rawtime);
+	timeinfo = localtime(&rawtime);
+	strftime(time_char_arr,sizeof(time_char_arr),"%d%m%Y%H%M%S",timeinfo);
+	string time_str(time_char_arr);
 	
 	// send start time to all computing processes
-	for (int i = 0; i < corecount - 1; i++)
-		sendWU(wu_vec, i, i + 1);
+	for (int i = 1; i < corecount; i++)
+		MPI_Send(time_char_arr, TIME_BUFFER_SIZE, MPI_CHAR, i, 0, MPI_COMM_WORLD);
 
 	// send a wu to every computing process
 	int sending_id = 0;
@@ -254,6 +256,9 @@ void controlProcess(const int corecount, const string cubes_file_name, const str
 	inter_cubes_file.close();
 	
 	if (is_SAT) {
+		string system_str = "rm " + LOCAL_DIR + "id-" + time_str + "-*";
+		cout << "system_str : " << system_str << endl;
+		exec(system_str);
 		MPI_Abort(MPI_COMM_WORLD, 0);
 		exit(1);
 	}
@@ -450,11 +455,16 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 	base_path.erase(remove(base_path.begin(), base_path.end(), '\n'), base_path.end());
 	solver_file_name = base_path + "/" + solver_file_name;
 	cnf_file_name = base_path + "/" + cnf_file_name;*/
-	
+
 	MPI_Status status;
+	
+	char time_char_arr[TIME_BUFFER_SIZE];
+	MPI_Recv( time_char_arr, TIME_BUFFER_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &status );
+	string time_str = time_char_arr;
+
 	int wu_id = -1;
 	for (;;) {
-		MPI_Recv( &wu_id,    1, MPI_INT,  0, 0, MPI_COMM_WORLD, &status );
+		MPI_Recv( &wu_id, 1, MPI_INT,  0, 0, MPI_COMM_WORLD, &status );
 		//cout << "received wu_id " << wu_id << endl;
 		if (wu_id == -1) {// stop message
 			cout << "computing prosess " << rank << " got the stop message" << endl;
@@ -462,7 +472,7 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 		}
 		
 		string wu_id_str = intToStr(wu_id);
-		string local_cnf_file_name = LOCAL_DIR + "id-" + wu_id_str + "-cnf";
+		string local_cnf_file_name = LOCAL_DIR + "id-" + time_str + '-' + wu_id_str + "-cnf";
 		
 		stringstream cube_sstream;
 		for (auto x : wu_vec[wu_id].cube)
@@ -485,7 +495,7 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 				+ local_solver_file_name + " " + local_cnf_file_name;
 		}
 		string rank_str = intToStr(rank);
-		string local_out_file_name = LOCAL_DIR + "id-" + wu_id_str + "-out";
+		string local_out_file_name = LOCAL_DIR + "id-" + time_str + '-' + wu_id_str + "-out";
 		fstream local_out_file;
 		local_out_file.open(local_out_file_name, ios_base::out);
 		double elapsed_solving_time = MPI_Wtime();
@@ -501,7 +511,7 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 		if (res == SAT) {
 			system_str = "cp " + local_out_file_name + " ./!sat_out_id_" + wu_id_str;
 			exec(system_str);
-			system_str = "cp " + LOCAL_DIR + "id-" + wu_id_str + "-*" + " ./";
+			system_str = "cp " + LOCAL_DIR + "id-" + time_str + '-' + wu_id_str + "-*" + " ./";
 			exec(system_str);
 		}
 		else if (elapsed_solving_time > cube_cpu_lim + 10.0) {
@@ -509,7 +519,7 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			exec(system_str);
 		}
 		else {
-			system_str = "rm " + LOCAL_DIR + "id-" + wu_id_str + "-*";
+			system_str = "rm " + LOCAL_DIR + "id-" + time_str + '-' + wu_id_str + "-*";
 			exec(system_str);
 		}
 		
