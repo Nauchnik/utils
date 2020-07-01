@@ -23,7 +23,7 @@ row = ''
 k = 0
 for x in sat_assign:
 	if x > 0:
-		cell_val = (x % LS_ORDER) - 1
+		cell_val = (x-1) % LS_ORDER
 		print(cell_val)
 		row += str(cell_val) + ' '
 		k += 1
