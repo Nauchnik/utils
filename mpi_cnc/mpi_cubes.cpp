@@ -379,34 +379,24 @@ string exec(const string cmd_str)
 
 int getResultFromFile(const string out_name)
 {
-	ifstream out_file(out_name);
-	string str;
 	int result = INDET;
-	while (getline(out_file, str)) {
-		if ((str.find("s SATISFIABLE") != string::npos) || (str.find("SATISFIABLE") == 0)) {
-			result = SAT;
-			break;
-		}
-		else if ((str.find("s UNSATISFIABLE") != string::npos) || (str.find("UNSATISFIABLE") == 0)) {
-			result = UNSAT;
-			break;
-		}
-		/*if (str.find("c CPU time") != string::npos) {
-			stringstream sstream;
-			sstream << str;
-			vector<string> vec;
-			string word;
-			while (sstream >> word)
-				vec.push_back(word);
-			if (vec.size() < 5) {
-				cerr << "error : vec size " << vec.size() << endl;
-				MPI_Abort(MPI_COMM_WORLD, 0);
-				exit(-1);
+	ifstream out_file(out_name);
+	if (out_file.is_open()) {
+		string str;
+		while (getline(out_file, str)) {
+			if ((str.find("s SATISFIABLE") != string::npos) || (str.find("SATISFIABLE") == 0)) {
+				result = SAT;
+				break;
 			}
-			//istringstream(vec[4]) >> time;
-		}*/
+			else if ((str.find("s UNSATISFIABLE") != string::npos) || (str.find("UNSATISFIABLE") == 0)) {
+				result = UNSAT;
+				break;
+			}
+		}
+		out_file.close();
 	}
-	out_file.close();
+	else
+		cerr << "out file " << out_name << " was not opened" << endl;
 	/*if (time == -1) {
 		cerr << "solving time == -1" << endl;
 		cerr << endl;
