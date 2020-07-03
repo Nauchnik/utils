@@ -8,6 +8,8 @@
 #include <ctime>
 #include <cstring>
 
+#pragma warning(disable : 4996)
+
 const int TIME_BUFFER_SIZE = 80;
 
 using namespace std;
@@ -44,13 +46,13 @@ int getResultFromFile(const string out_name);
 void writeProcessingInfo(vector<wu> &wu_vec);
 string exec(const string cmd_str);
 string intToStr(const int x);
+bool hasPrefix(string str, string prefix, string &value);
 
 int total_processed_wus = 0;
+int verb = 0;
 
 int main(int argc, char *argv[])
-{
-	#pragma warning(disable : 4996)
-	
+{	
 	int rank = 0, corecount = 0;
 	
 	MPI_Init(&argc, &argv);
@@ -58,10 +60,10 @@ int main(int argc, char *argv[])
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 	if (rank == 0)
-		cout << "corecount " << corecount << endl;
+		cout << "corecount : " << corecount << endl;
 	
 	if (argc < 5) {
-		cerr << "Usage : prog solver-name cnf-file-name cubes-file-name cube-cpu-limit";
+		cerr << "Usage : prog solver-name cnf-file-name cubes-file-name cube-cpu-limit [-verb=0|1]";
 		return 1;
 	}
 	
@@ -69,7 +71,16 @@ int main(int argc, char *argv[])
 	string cnf_file_name	= argv[2];
 	string cubes_file_name	= argv[3];
 	string cube_cpu_lim_str = argv[4];
+	if (argc >= 6) {
+		string str = argv[5];
+		string value;
+		if (hasPrefix( str, "-verb=", value ))
+			istringstream(value) >> verb;
+	}
 	
+	if (rank == 0)
+		cout << "verb : " << verb << endl;
+
 	// make a local directory on each node if it does not exist yet
 	// copy to it all solver's files
 	int node_num = 0;
@@ -102,6 +113,16 @@ int main(int argc, char *argv[])
 		computingProcess(rank, solver_file_name, cnf_file_name, cubes_file_name, cube_cpu_lim_str);
 	
 	return 0;
+}
+
+bool hasPrefix( string str, string prefix, string &value )
+{
+	int found = str.find( prefix );
+	if ( found != -1 ) {
+		value = str.substr( found + prefix.length( ) );
+		return true;
+	}
+	return false;
 }
 
 string intToStr(const int x)
@@ -208,6 +229,9 @@ void controlProcess(const int corecount, const string cubes_file_name, const str
 		wu_vec[wu_id].result = res;
 		wu_vec[wu_id].processing_time = time;
 		total_processed_wus++;
+		cout << "got result, time " << res << ", " << time << " for task id " << wu_id << endl;
+		cout << "current_status.MPI_SOURCE : " << current_status.MPI_SOURCE << endl;
+		cout << "total_processed_wus : " << total_processed_wus << endl;
 		
 		if (res == SAT) {
 				is_SAT = true;
@@ -221,7 +245,6 @@ void controlProcess(const int corecount, const string cubes_file_name, const str
 		}
 		else {
 			cout << "sending stop message to computing process " << current_status.MPI_SOURCE << endl;
-			cout << "total_processed_wus : " << total_processed_wus << endl;
 			MPI_Send(&stop_mes, 1, MPI_INT, current_status.MPI_SOURCE, 0, MPI_COMM_WORLD);
 		}
 		// write results to a file not more often than every 100 seconds
@@ -268,8 +291,14 @@ void controlProcess(const int corecount, const string cubes_file_name, const str
 
 void sendWU(vector<wu> &wu_vec, const int wu_id, const int computing_process_id)
 {
+	if ( verb )
+		cout << "sending task id " << wu_id << " to process " << computing_process_id << endl;
+	
 	MPI_Send(&wu_id, 1, MPI_INT, computing_process_id, 0, MPI_COMM_WORLD);
 	wu_vec[wu_id].status = IN_PROGRESS;
+
+	if ( verb )
+		cout << "wu_vec[wu_id].status " << wu_vec[wu_id].status << endl;
 }
 
 void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec, const double start_time, 
@@ -409,6 +438,17 @@ int getResultFromFile(const string out_name)
 void computingProcess(const int rank, const string solver_file_name, const string cnf_file_name, 
 					  const string cubes_file_name, const string cube_cpu_lim_str)
 {
+	string rank_str = intToStr(rank);
+
+	string log_file_name = "log_process_" + rank_str;
+	ofstream log_file;
+
+	if ( verb ) {
+		log_file.open(log_file_name, ios_base::out);
+		log_file.close();
+		log_file.clear();
+	}
+
 	string local_solver_file_name = LOCAL_DIR;
 	if (solver_file_name.find("./") != string::npos)
 		local_solver_file_name += solver_file_name.substr(solver_file_name.find("./") + 2);
@@ -452,9 +492,39 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 	MPI_Recv( time_char_arr, TIME_BUFFER_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &status );
 	string time_str = time_char_arr;
 
+	double rep_time = MPI_Wtime();
+	int rep_num = 0;
+
 	int wu_id = -1;
 	for (;;) {
-		MPI_Recv( &wu_id, 1, MPI_INT,  0, 0, MPI_COMM_WORLD, &status );
+		if ((MPI_Wtime() - rep_time > 10.0)) {
+			log_file.open(log_file_name, ios_base::app);
+			log_file << "rep_num " << rep_num << endl;
+			log_file.close();
+			log_file.clear();
+			rep_num++;
+			rep_time = MPI_Wtime();
+		}
+		
+		MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		if (status.MPI_SOURCE == 0) {
+			if (verb) {
+				log_file.open(log_file_name, ios_base::app);
+				log_file << "got probe from source " << status.MPI_SOURCE << endl;
+				log_file.close();
+				log_file.clear();
+			}
+		}
+
+		MPI_Recv( &wu_id, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status );
+
+		if ( verb ) {
+			log_file.open(log_file_name, ios_base::app);
+			log_file << "got task id " << wu_id << endl;
+			log_file.close();
+			log_file.clear();
+		}
+
 		//cout << "received wu_id " << wu_id << endl;
 		if (wu_id == -1) {// stop message
 			cout << "computing prosess " << rank << " got the stop message" << endl;
@@ -484,13 +554,31 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			system_str = LOCAL_DIR + "timelimit -t " + cube_cpu_lim_str + " -T 1 " 
 				+ local_solver_file_name + " " + local_cnf_file_name;
 		}
-		string rank_str = intToStr(rank);
 		string local_out_file_name = LOCAL_DIR + "id-" + time_str + '-' + wu_id_str + "-out";
 		fstream local_out_file;
 		local_out_file.open(local_out_file_name, ios_base::out);
+
+		if ( verb ) {
+			log_file.open(log_file_name, ios_base::app);
+			log_file << "system_str : " << system_str << endl;
+			log_file.close();
+			log_file.clear();
+		}
+
 		double elapsed_solving_time = MPI_Wtime();
-		local_out_file << exec(system_str);
+		stringstream sstream;
+		sstream << exec(system_str);
 		elapsed_solving_time = MPI_Wtime() - elapsed_solving_time;
+
+		if ( verb ) {
+			log_file.open(log_file_name, ios_base::app);
+			log_file << "out : " << sstream.str() << endl;
+			log_file << "elapsed_solving_time : " << elapsed_solving_time << endl;
+			log_file.close();
+			log_file.clear();
+		}
+
+		local_out_file << sstream.str();
 		local_out_file.close();
 		local_out_file.clear();
 		int res = INDET;
@@ -505,6 +593,7 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			exec(system_str);
 		}
 		else if (elapsed_solving_time > cube_cpu_lim + 10.0) {
+			cout << "extra elapsed_solving_time : " << elapsed_solving_time << endl;
 			system_str = "cp " + local_out_file_name + " ./!extra_time_out_id_" + wu_id_str;
 			exec(system_str);
 		}
@@ -512,24 +601,37 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			system_str = "rm " + LOCAL_DIR + "id-" + time_str + '-' + wu_id_str + "-*";
 			exec(system_str);
 		}
+
+		if ( verb ) {
+			log_file.open(log_file_name, ios_base::app);
+			log_file << "before sending result " << res << " for task id " << wu_id << endl;
+			log_file.close();
+			log_file.clear();
+		}
 		
 		// send calculated result to the control process
 		//cout << "sending wu_id " << wu_id << endl;
 		//cout << "sending res " << res << endl;
-		MPI_Send( &wu_id, 1, MPI_INT,    0, 0, MPI_COMM_WORLD);
-		MPI_Send( &res,   1, MPI_INT,    0, 0, MPI_COMM_WORLD);
-		MPI_Send( &elapsed_solving_time,  1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+		MPI_Send( &wu_id,                1, MPI_INT,    0, 0, MPI_COMM_WORLD);
+		MPI_Send( &res,                  1, MPI_INT,    0, 0, MPI_COMM_WORLD);
+		MPI_Send( &elapsed_solving_time, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+
+		if ( verb ) {
+			log_file.open(log_file_name, ios_base::app);
+			log_file << "after sending result " << res << " for task id " << wu_id << endl;
+			log_file.close();
+			log_file.clear();
+		}
 	}
 	MPI_Finalize();
 }
 
-
 void writeProcessingInfo(vector<wu> &wu_vec)
 {
 	ofstream ofile("!processing_info");
-	ofile << "cube_id cube_result cube_time" << endl;
+	ofile << "cube_id cube_status cube_result cube_time" << endl;
 	for (auto &cur_wu : wu_vec)
-		ofile << cur_wu.id << " " << cur_wu.result << " " << cur_wu.processing_time << endl;
+		ofile << cur_wu.id << " " << cur_wu.status << " " << cur_wu.result << " " << cur_wu.processing_time << endl;
 	ofile.close();
 	ofile.clear();
 }
