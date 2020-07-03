@@ -293,10 +293,19 @@ void sendWU(vector<wu> &wu_vec, const int wu_id, const int computing_process_id)
 {
 	if ( verb )
 		cout << "sending task id " << wu_id << " to process " << computing_process_id << endl;
-	
-	MPI_Send(&wu_id, 1, MPI_INT, computing_process_id, 0, MPI_COMM_WORLD);
-	wu_vec[wu_id].status = IN_PROGRESS;
 
+	MPI_Request request;
+	//MPI_Send( &wu_id, 1, MPI_INT, computing_process_id, 0, MPI_COMM_WORLD );
+	MPI_Isend( &wu_id, 1, MPI_INT, computing_process_id, 0, MPI_COMM_WORLD, &request );
+	wu_vec[wu_id].status = IN_PROGRESS;
+	/*int flag = 0;
+	MPI_Status status;
+	for (;;) {
+		MPI_Test( &request, &flag, &status );
+		if ( flag )
+			break;
+		//cout << "waiting for receiving of a sent message" << endl;
+	}*/
 	if ( verb )
 		cout << "wu_vec[wu_id].status " << wu_vec[wu_id].status << endl;
 }
@@ -492,28 +501,21 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 	MPI_Recv( time_char_arr, TIME_BUFFER_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &status );
 	string time_str = time_char_arr;
 
-	double rep_time = MPI_Wtime();
-	int rep_num = 0;
-
 	int wu_id = -1;
 	for (;;) {
-		if ((MPI_Wtime() - rep_time > 10.0)) {
+		if (verb) {
 			log_file.open(log_file_name, ios_base::app);
-			log_file << "rep_num " << rep_num << endl;
+			log_file << "waiting for a task" << endl;
 			log_file.close();
 			log_file.clear();
-			rep_num++;
-			rep_time = MPI_Wtime();
 		}
 		
 		MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-		if (status.MPI_SOURCE == 0) {
-			if (verb) {
-				log_file.open(log_file_name, ios_base::app);
-				log_file << "got probe from source " << status.MPI_SOURCE << endl;
-				log_file.close();
-				log_file.clear();
-			}
+		if (verb) {
+			log_file.open(log_file_name, ios_base::app);
+			log_file << "got probe from source " << status.MPI_SOURCE << endl;
+			log_file.close();
+			log_file.clear();
 		}
 
 		MPI_Recv( &wu_id, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status );
