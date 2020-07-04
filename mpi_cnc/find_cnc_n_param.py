@@ -79,7 +79,7 @@ def get_random_cubes(cubes_name):
 def process_n(n : int, cnf_name : str):
 	print('n : %d' % n)
 	start_t = time.time()
-	cubes_name = './cubes_n_' + str(n) + '_' + cnf_name.replace('./','')
+	cubes_name = './cubes_n_' + str(n) + '_' + cnf_name.replace('./','').replace('.cnf','')
 	system_str = './timelimit -T 1 -t ' + str(int(MAX_MARCH_TIME)) +  ' ./march_cu ' + cnf_name + \
 	' -n ' + str(n) + ' -o ' + cubes_name
 	#print('system_str : ' + system_str)

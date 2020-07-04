@@ -1,5 +1,5 @@
 CPP = mpicxx
-CPPFLAGS = -O3 -std=c++0x -D __STDC_LIMIT_MACROS -D __STDC_FORMAT_MACROS -D _MPI
+CPPFLAGS = -cxx=g++ -O3 -std=c++11
 
 mpi_cubes: mpi_cubes.o
 	${CPP} ${CPPFLAGS} mpi_cubes.o -o mpi_cubes

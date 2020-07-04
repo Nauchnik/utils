@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 	if (argc >= 6) {
 		string str = argv[5];
 		string value;
-		if (hasPrefix( str, "-verb=", value ))
+		if hasPrefix( str, "-verb=", value )
 			istringstream(value) >> verb;
 	}
 	
@@ -225,7 +225,16 @@ void controlProcess(const int corecount, const string cubes_file_name, const str
 		current_status = status;
 		MPI_Recv(&res,  1, MPI_INT, current_status.MPI_SOURCE, 0, MPI_COMM_WORLD, &status);
 		MPI_Recv(&time, 1, MPI_DOUBLE, current_status.MPI_SOURCE, 0, MPI_COMM_WORLD, &status);
-
+		wu_vec[wu_id].status = PROCESSED;
+		wu_vec[wu_id].result = res;
+		wu_vec[wu_id].processing_time = time;
+		total_processed_wus++;
+		
+		if (res == SAT) {
+				is_SAT = true;
+				break;
+		}
+	
 		// send back a new WU
 		if (sending_id < wu_vec.size()) {
 			sendWU(wu_vec, sending_id, current_status.MPI_SOURCE);
@@ -233,25 +242,9 @@ void controlProcess(const int corecount, const string cubes_file_name, const str
 		}
 		else {
 			cout << "sending stop message to computing process " << current_status.MPI_SOURCE << endl;
+			cout << "total_processed_wus : " << total_processed_wus << endl;
 			MPI_Send(&stop_mes, 1, MPI_INT, current_status.MPI_SOURCE, 0, MPI_COMM_WORLD);
 		}
-
-		wu_vec[wu_id].status = PROCESSED;
-		wu_vec[wu_id].result = res;
-		wu_vec[wu_id].processing_time = time;
-		total_processed_wus++;
-
-		if (verb) {
-			cout << "got result, time " << res << ", " << time << " for task id " << wu_id << endl;
-			cout << "current_status.MPI_SOURCE : " << current_status.MPI_SOURCE << endl;
-			cout << "total_processed_wus : " << total_processed_wus << endl;
-		}
-		
-		if (res == SAT) {
-				is_SAT = true;
-				break;
-		}
-	
 		// write results to a file not more often than every 100 seconds
 		if ((result_writing_time < 0) || (MPI_Wtime() - result_writing_time > REPORT_EVERY_SEC)) {
 			writeInfoOutFile(control_process_ofile_name, wu_vec, start_time, cube_cpu_lim_str);
@@ -265,31 +258,30 @@ void controlProcess(const int corecount, const string cubes_file_name, const str
 
 	writeProcessingInfo(wu_vec);
 	
-	// remove temporary files
-	string system_str = "rm " + LOCAL_DIR + "id-" + time_str + "-*";
-	cout << "system_str : " << system_str << endl;
-	exec(system_str);
+	string inter_cubes_file_name = "!interrupted_" + cubes_file_name;
+	inter_cubes_file_name.erase(remove(inter_cubes_file_name.begin(), inter_cubes_file_name.end(), '.'), inter_cubes_file_name.end());
+	inter_cubes_file_name.erase(remove(inter_cubes_file_name.begin(), inter_cubes_file_name.end(), '/'), inter_cubes_file_name.end());
+	ofstream inter_cubes_file(inter_cubes_file_name);
+	for (auto &cur_wu : wu_vec) {
+		if (cur_wu.status != PROCESSED) {
+			cerr << "cur_wu.status != PROCESSED" << endl;
+			MPI_Abort(MPI_COMM_WORLD, 0);
+		}
+		if (cur_wu.result == INDET) {
+			inter_cubes_file << "a ";
+			for (auto lit : cur_wu.cube)
+				inter_cubes_file << lit << " ";
+			inter_cubes_file << "0" << endl;
+		}
+	}
+	inter_cubes_file.close();
 	
 	if (is_SAT) {
+		string system_str = "rm " + LOCAL_DIR + "id-" + time_str + "-*";
+		cout << "system_str : " << system_str << endl;
+		exec(system_str);
 		MPI_Abort(MPI_COMM_WORLD, 0);
-	} else {
-		string inter_cubes_file_name = "!interrupted_" + cubes_file_name;
-		inter_cubes_file_name.erase(remove(inter_cubes_file_name.begin(), inter_cubes_file_name.end(), '.'), inter_cubes_file_name.end());
-		inter_cubes_file_name.erase(remove(inter_cubes_file_name.begin(), inter_cubes_file_name.end(), '/'), inter_cubes_file_name.end());
-		ofstream inter_cubes_file(inter_cubes_file_name);
-		for (auto &cur_wu : wu_vec) {
-			if (cur_wu.status != PROCESSED) {
-				cerr << "cur_wu.status != PROCESSED" << endl;
-				MPI_Abort(MPI_COMM_WORLD, 0);
-			}
-			if (cur_wu.result == INDET) {
-				inter_cubes_file << "a ";
-				for (auto lit : cur_wu.cube)
-					inter_cubes_file << lit << " ";
-				inter_cubes_file << "0" << endl;
-			}
-		}
-		inter_cubes_file.close();
+		exit(1);
 	}
 	
 	MPI_Finalize();
@@ -297,23 +289,8 @@ void controlProcess(const int corecount, const string cubes_file_name, const str
 
 void sendWU(vector<wu> &wu_vec, const int wu_id, const int computing_process_id)
 {
-	if ( verb )
-		cout << "sending task id " << wu_id << " to process " << computing_process_id << endl;
-
-	MPI_Request request;
-	//MPI_Send( &wu_id, 1, MPI_INT, computing_process_id, 0, MPI_COMM_WORLD );
-	MPI_Isend( &wu_id, 1, MPI_INT, computing_process_id, 0, MPI_COMM_WORLD, &request );
+	MPI_Send(&wu_id, 1, MPI_INT, computing_process_id, 0, MPI_COMM_WORLD);
 	wu_vec[wu_id].status = IN_PROGRESS;
-	/*int flag = 0;
-	MPI_Status status;
-	for (;;) {
-		MPI_Test( &request, &flag, &status );
-		if ( flag )
-			break;
-		//cout << "waiting for receiving of a sent message" << endl;
-	}*/
-	if ( verb )
-		cout << "wu_vec[wu_id].status " << wu_vec[wu_id].status << endl;
 }
 
 void writeInfoOutFile(const string control_process_ofile_name, vector<wu> wu_vec, const double start_time, 
@@ -461,7 +438,6 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 	if ( verb ) {
 		log_file.open(log_file_name, ios_base::out);
 		log_file.close();
-		log_file.clear();
 	}
 
 	string local_solver_file_name = LOCAL_DIR;
@@ -509,20 +485,12 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 
 	int wu_id = -1;
 	for (;;) {
-		if (verb) {
-			log_file.open(log_file_name, ios_base::app);
-			log_file << "waiting for a task" << endl;
-			log_file.close();
-			log_file.clear();
-		}
-		
-		MPI_Recv( &wu_id, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status );
+		MPI_Recv( &wu_id, 1, MPI_INT,  0, 0, MPI_COMM_WORLD, &status );
 
 		if ( verb ) {
 			log_file.open(log_file_name, ios_base::app);
 			log_file << "got task id " << wu_id << endl;
 			log_file.close();
-			log_file.clear();
 		}
 
 		//cout << "received wu_id " << wu_id << endl;
@@ -562,7 +530,6 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			log_file.open(log_file_name, ios_base::app);
 			log_file << "system_str : " << system_str << endl;
 			log_file.close();
-			log_file.clear();
 		}
 
 		double elapsed_solving_time = MPI_Wtime();
@@ -575,7 +542,6 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			log_file << "out : " << sstream.str() << endl;
 			log_file << "elapsed_solving_time : " << elapsed_solving_time << endl;
 			log_file.close();
-			log_file.clear();
 		}
 
 		local_out_file << sstream.str();
@@ -593,7 +559,6 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			exec(system_str);
 		}
 		else if (elapsed_solving_time > cube_cpu_lim + 10.0) {
-			cout << "extra elapsed_solving_time : " << elapsed_solving_time << endl;
 			system_str = "cp " + local_out_file_name + " ./!extra_time_out_id_" + wu_id_str;
 			exec(system_str);
 		}
@@ -606,21 +571,19 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 			log_file.open(log_file_name, ios_base::app);
 			log_file << "before sending result " << res << " for task id " << wu_id << endl;
 			log_file.close();
-			log_file.clear();
 		}
 		
 		// send calculated result to the control process
 		//cout << "sending wu_id " << wu_id << endl;
 		//cout << "sending res " << res << endl;
-		MPI_Send( &wu_id,                1, MPI_INT,    0, 0, MPI_COMM_WORLD);
-		MPI_Send( &res,                  1, MPI_INT,    0, 0, MPI_COMM_WORLD);
-		MPI_Send( &elapsed_solving_time, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+		MPI_Send( &wu_id, 1, MPI_INT,    0, 0, MPI_COMM_WORLD);
+		MPI_Send( &res,   1, MPI_INT,    0, 0, MPI_COMM_WORLD);
+		MPI_Send( &elapsed_solving_time,  1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 
 		if ( verb ) {
 			log_file.open(log_file_name, ios_base::app);
 			log_file << "after sending result " << res << " for task id " << wu_id << endl;
 			log_file.close();
-			log_file.clear();
 		}
 	}
 	MPI_Finalize();
@@ -629,9 +592,9 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 void writeProcessingInfo(vector<wu> &wu_vec)
 {
 	ofstream ofile("!processing_info");
-	ofile << "cube_id cube_status cube_result cube_time" << endl;
+	ofile << "cube_id cube_result cube_time" << endl;
 	for (auto &cur_wu : wu_vec)
-		ofile << cur_wu.id << " " << cur_wu.status << " " << cur_wu.result << " " << cur_wu.processing_time << endl;
+		ofile << cur_wu.id << " " << cur_wu.result << " " << cur_wu.processing_time << endl;
 	ofile.close();
 	ofile.clear();
 }
