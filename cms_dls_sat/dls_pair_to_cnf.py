@@ -94,7 +94,7 @@ if len(clauses_pair) > 0:
 else:
 	add_name = '_known_' + cmsname + '.cnf'
 
-with open(cnfname.replace('.cnf','') + add_name, 'w') as cnf:
+with open(cnfname.replace('.cnf','') + add_name.replace('./',''), 'w') as cnf:
 	cnf.write('p cnf ' + str(var_num) + ' ' + str(len(clauses) + len(clauses_pair) + len(clauses_cms)) + '\n')
 	for clause in clauses_pair:
 		cnf.write(clause)
