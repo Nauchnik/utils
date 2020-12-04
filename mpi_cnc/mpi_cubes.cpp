@@ -14,15 +14,6 @@ const int TIME_BUFFER_SIZE = 80;
 
 using namespace std;
 
-struct wu
-{
-	int id;
-	int status;
-	int result;
-	vector<int> cube;
-	double processing_time;
-};
-
 const int NOT_STARTED = -1;
 const int IN_PROGRESS = 0;
 const int PROCESSED = 1;
@@ -33,10 +24,25 @@ const int REPORT_EVERY_SEC = 100;
 const int CORES_PER_NODE = 36;
 const string LOCAL_DIR = "/store/ozaikin/";
 
+struct wu
+{
+	int id;
+	int status;
+	int result;
+	vector<int> cube;
+	double processing_time;
+};
+
+bool compareByCubeSize(const wu &a, const wu &b)
+{
+    return a.cube.size() > b.cube.size();
+}
+
 vector<string> files_to_copy{"./iglucose", "./cadical130", "./march_cu", "./timelimit"};
 
 void controlProcess(const int corecount, const string cubes_file_name, const string cube_cpu_lim_str);
 vector<wu> readCubes(const string cubes_file_name);
+vector<wu> readAndSortCubes(const string cubes_file_name);
 void sendWU(vector<wu> &wu_vec, const int wu_id, const int computing_process_id);
 void computingProcess(const int rank, const string solver_file_name, const string cnf_file_name, 
 					  const string cubes_file_name, const string cube_cpu_lim_str);
@@ -132,6 +138,13 @@ string intToStr(const int x)
 	return sstream.str();
 }
 
+vector<wu> readAndSortCubes(const string cubes_file_name)
+{
+	vector<wu> wu_vec = readCubes(cubes_file_name);
+	sort(wu_vec.begin(), wu_vec.end(), compareByCubeSize);
+	return wu_vec;
+}
+
 vector<wu> readCubes(const string cubes_file_name)
 {
 	vector<wu> res_wu_cubes;
@@ -177,7 +190,7 @@ vector<wu> readCubes(const string cubes_file_name)
 void controlProcess(const int corecount, const string cubes_file_name, const string cube_cpu_lim_str)
 {
 	double start_time = MPI_Wtime();
-	vector<wu> wu_vec = readCubes(cubes_file_name);
+	vector<wu> wu_vec = readAndSortCubes(cubes_file_name);
 
 	cout << "wu_vec size : " << wu_vec.size() << endl;
 	cout << "first cubes : " << endl;
@@ -472,7 +485,7 @@ void computingProcess(const int rank, const string solver_file_name, const strin
 	if (rank == 1)
 		cout << "local_solver_file_name : " << local_solver_file_name << endl;
 
-	vector<wu> wu_vec = readCubes(cubes_file_name);
+	vector<wu> wu_vec = readAndSortCubes(cubes_file_name);
 	
 	stringstream cnf_sstream;
 	ifstream cnf_file(cnf_file_name);
