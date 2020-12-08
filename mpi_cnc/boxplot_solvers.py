@@ -9,7 +9,6 @@ import os
 CLUSTER_CORES = 359
 CLUSTER_CPU_FRAC = 2.2
 SOLVER_TIME_LIM = 5000.0
-MESSAGE_COST = 0.1 # cost of sending and recieving a message on a cluster
 y_limit = 5100
 
 solvers_short_names_dict = {'./kissat-unsat' : 'kissat-u', './kissat-sat' : 'kissat-s', './cryptominisat5.7.1' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
@@ -130,7 +129,7 @@ def read_unsat_samples(unsat_samples_file_name : str):
 		n = int(row['n'])
 		t = float(row['time'])
 		if t >= SOLVER_TIME_LIM:
-			t = SOLVER_TIME_LIM*2 # PAR-2 penalty
+			t = -1
 		s = solvers_short_names_dict[row['solver']]
 		if n not in unsat_samples:
 			unsat_samples[n] = dict()
@@ -142,11 +141,15 @@ def read_unsat_samples(unsat_samples_file_name : str):
 	for n in unsat_samples:
 		unsat_samples_mean[n] = dict()
 		for s in unsat_samples[n]:
-			unsat_samples_mean[n][s] = statistics.mean(unsat_samples[n][s])
-			if n == 2670:
-				myFig = plt.figure();
-				plt.hist(unsat_samples[n][s], bins = 100)
-				myFig.savefig('n_' + str(n) + 's_' + s + '_' + unsat_samples_file_name.split('.')[0] + ".pdf", format="pdf")
+			unsolved_num = unsat_samples[n][s].count(-1) # count unsolved instances
+			if unsolved_num > 0:
+				unsat_samples_mean[n][s] = -unsolved_num # show number of unsolved
+			else:
+				unsat_samples_mean[n][s] = statistics.mean(unsat_samples[n][s])
+			#if n == 2670:
+			#	myFig = plt.figure();
+			#	plt.hist(unsat_samples[n][s], bins = 100)
+			#	myFig.savefig('n_' + str(n) + 's_' + s + '_' + unsat_samples_file_name.split('.')[0] + ".pdf", format="pdf")
 	return unsat_samples, unsat_samples_mean
 
 def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
@@ -162,7 +165,10 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 		for s in unsat_samples_mean[n]:
 			if s not in solvers:
 				solvers.append(s)
-			unsat_samples_est[n][s] = (unsat_samples_mean[n][s] + MESSAGE_COST ) * cubes_dict[n] * CLUSTER_CPU_FRAC / 86400 / CLUSTER_CORES 
+			if unsat_samples_mean[n][s] > 0:
+				unsat_samples_est[n][s] = unsat_samples_mean[n][s] * cubes_dict[n] * CLUSTER_CPU_FRAC / 86400 / CLUSTER_CORES 
+			else:
+				unsat_samples_est[n][s] = ' unsolved_' + str(abs(unsat_samples_mean[n][s])) + '/' + str(len(unsat_samples[n][s]))
 		with open('est_' + unsat_samples_file_name, 'w') as unsat_samples_est_file:
 			unsat_samples_est_file.write('n')
 			for s in solvers:
@@ -176,7 +182,10 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 				unsat_samples_est_file.write('%d' % n)
 				#for s in samples_unsat_est[n]:
 				for s in solvers:
-					unsat_samples_est_file.write(' %.5f' % unsat_samples_est[n][s])
+					if isinstance(unsat_samples_est[n][s], str):
+						unsat_samples_est_file.write(unsat_samples_est[n][s])
+					else:
+						unsat_samples_est_file.write(' %.5f' % unsat_samples_est[n][s])
 				unsat_samples_est_file.write('\n')
 	print('unsat_samples_est : ')
 	print(unsat_samples_est)
