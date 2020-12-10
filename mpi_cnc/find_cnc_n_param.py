@@ -63,18 +63,19 @@ def get_random_cubes(cubes_name):
 	remaining_cubes_str = []
 	with open(cubes_name, 'r') as cubes_file:
 		lines = cubes_file.readlines()
-		random_lines = random.sample(lines, RANDOM_SAMPLE_SIZE)
-		for line in random_lines:
-			lst = line.split(' ')[1:-1] # skip 'a' and '0'
-			random_cubes.append(lst)
-		remaining_cubes_str = [line for line in lines if line not in random_lines]
-	if len(random_cubes) < RANDOM_SAMPLE_SIZE:
-		logging.error('too few cubes : %d' % len(random_cubes))
-		exit(1)
-	if len(random_cubes) + len(remaining_cubes_str) != len(lines):
-		logging.error('incorrect number of of random and remaining cubes')
-		exit(1)
-	return random_cubes, remaining_cubes_str
+		if len(lines) > RANDOM_SAMPLE_SIZE:
+			random_lines = random.sample(lines, RANDOM_SAMPLE_SIZE)
+			for line in random_lines:
+				lst = line.split(' ')[1:-1] # skip 'a' and '0'
+				random_cubes.append(lst)
+			remaining_cubes_str = [line for line in lines if line not in random_lines]
+		else:
+			logging.error('skip n: number of cubes is smaller than random sample size')
+
+if len(random_cubes) > 0 and len(random_cubes) + len(remaining_cubes_str) != len(lines):
+logging.error('incorrect number of of random and remaining cubes')
+exit(1)
+return random_cubes, remaining_cubes_str
 	
 def process_n(n : int, cnf_name : str):
 	print('n : %d' % n)
@@ -111,11 +112,12 @@ def collect_n_result(res):
 		if is_unsat_sample_solving:
 			random_cubes = []
 			random_cubes, remaining_cubes_str = get_random_cubes(cubes_name)
-			random_cubes_n[n] = random_cubes
-			# write all cubes which are not from the random sample to solve them further in the case n is the best one
-			with open(cubes_name, 'w') as remaining_cubes_file:
-				for cube in remaining_cubes_str:
-					remaining_cubes_file.write(cube)
+			if len(random_cubes) > 0: # if random sample is small enough to obtain it
+				random_cubes_n[n] = random_cubes
+				# write all cubes which are not from the random sample to solve them further in the case n is the best one
+				with open(cubes_name, 'w') as remaining_cubes_file:
+					for cube in remaining_cubes_str:
+						remaining_cubes_file.write(cube)
 	else:
 		remove_file(cubes_name)
 	if cubes_num > MAX_CUBES or march_time > MAX_MARCH_TIME:
