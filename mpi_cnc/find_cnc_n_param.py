@@ -247,14 +247,9 @@ if __name__ == '__main__':
 			sample_file.write('n cube-index solver time\n')
 		# sort dict by n in descending order
 		sorted_random_cubes_n = collections.OrderedDict(sorted(random_cubes_n.items()))
+		# if only the sample for the first (easiest) n is needed
 		if is_one_sample:
-			n_v = -1
-			rc_v = []
-			for n, random_cubes in sorted_random_cubes_n.items():
-				n_v = n
-				rc_v = random_cubes
-				break
-			sorted_random_cubes_n = {n_v : rc_v}
+			sorted_random_cubes_n = sorted_random_cubes_n.popitem(last=False)
 		logging.info('sorted_random_cubes_n : ')
 		logging.info(sorted_random_cubes_n)
 		# for evary n solve cube-problems from the random sample
