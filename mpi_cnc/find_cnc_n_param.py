@@ -72,10 +72,10 @@ def get_random_cubes(cubes_name):
 		else:
 			logging.error('skip n: number of cubes is smaller than random sample size')
 
-if len(random_cubes) > 0 and len(random_cubes) + len(remaining_cubes_str) != len(lines):
-logging.error('incorrect number of of random and remaining cubes')
-exit(1)
-return random_cubes, remaining_cubes_str
+	if len(random_cubes) > 0 and len(random_cubes) + len(remaining_cubes_str) != len(lines):
+		logging.error('incorrect number of of random and remaining cubes')
+		exit(1)
+	return random_cubes, remaining_cubes_str
 	
 def process_n(n : int, cnf_name : str):
 	print('n : %d' % n)
