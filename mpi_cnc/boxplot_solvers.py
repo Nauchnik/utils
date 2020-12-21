@@ -10,11 +10,12 @@ CLUSTER_CORES = 359
 CLUSTER_CPU_FRAC = 2.2
 SOLVER_TIME_LIM = 5000.0
 y_limit = 5100
+EST_STR_WIDTH = 15
 
 solvers_short_names_dict = {'./kissat-unsat' : 'kissat-u', './kissat-sat' : 'kissat-s', './cryptominisat5.7.1' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
 './kissat' : 'kissat', './cadical130' : 'cad130', './cube-glucose-min10sec-cad130.sh' : 'igl-10s', \
-'./cube-glucose-min1min-cad130.sh' : 'igl-1m', './cube-cad130-min10sec-cad130.sh' : 'icad130-10s', \
-'./cube-cad130-min1min-cad130.sh' : 'icad130-min1m'}
+'./cube-glucose-min1min-cad130.sh' : 'igl-1m', './cube-glucose-min2min-cad130.sh' : 'igl-2m', './cube-cad130-min10sec-cad130.sh' : 'icad130-10s', \
+'./cube-cad130-min1min-cad130.sh' : 'icad130-min1m', './cube-cad130-min2min-cad130.sh' : 'icad130-min2m'}
 
 def make_medians_upper_whiskers(df):
 	medians = dict()
@@ -168,24 +169,25 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 			if unsat_samples_mean[n][s] > 0:
 				unsat_samples_est[n][s] = unsat_samples_mean[n][s] * cubes_dict[n] * CLUSTER_CPU_FRAC / 86400 / CLUSTER_CORES 
 			else:
-				unsat_samples_est[n][s] = ' unsolved_' + str(abs(unsat_samples_mean[n][s])) + '/' + str(len(unsat_samples[n][s]))
+				unsat_samples_est[n][s] = 'uns_' + str(abs(unsat_samples_mean[n][s])) + '/' + str(len(unsat_samples[n][s]))
 		with open('est_' + unsat_samples_file_name, 'w') as unsat_samples_est_file:
-			unsat_samples_est_file.write('n')
+			unsat_samples_est_file.write('n'.ljust(5))
 			for s in solvers:
-				unsat_samples_est_file.write(' ' + s)
+				unsat_samples_est_file.write(s.ljust(EST_STR_WIDTH))
 			unsat_samples_est_file.write('\n')
 			lst_n = []
 			for n in unsat_samples_est:
 				lst_n.append(n)
 			lst_n.reverse()
 			for n in lst_n:
-				unsat_samples_est_file.write('%d' % n)
+				unsat_samples_est_file.write(('%d' % n).ljust(5))
 				#for s in samples_unsat_est[n]:
 				for s in solvers:
 					if isinstance(unsat_samples_est[n][s], str):
-						unsat_samples_est_file.write(unsat_samples_est[n][s])
+						unsat_samples_est_file.write(unsat_samples_est[n][s].ljust(EST_STR_WIDTH))
 					else:
-						unsat_samples_est_file.write(' %.5f' % unsat_samples_est[n][s])
+						m_s = ('%.3f' % unsat_samples_est[n][s]).ljust(EST_STR_WIDTH)
+						unsat_samples_est_file.write(m_s)
 				unsat_samples_est_file.write('\n')
 	print('unsat_samples_est : ')
 	print(unsat_samples_est)
