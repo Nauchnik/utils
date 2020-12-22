@@ -9,9 +9,9 @@ import predict_cnc as p_c
 
 MIN_REFUTED_LEAVES = 1000
 MIN_CUBES = 0
-MAX_CUBES = 5000000
+MAX_CUBES = 50000000
 MAX_MARCH_TIME = 86400.0
-RANDOM_SAMPLE_SIZE = 1000
+RANDOM_SAMPLE_SIZE = 100
 SOLVER_TIME_LIMIT = 5000
 cnf_name = ''
 stat_name = ''
@@ -170,10 +170,7 @@ def collect_cube_solver_result(res):
 	
 if __name__ == '__main__':
 	cpu_number = mp.cpu_count()
-	if cpu_number > 16:
-		cpu_number = int(cpu_number/2)
-	
-	pool = mp.Pool(cpu_number)
+
 	is_exit = False
 
 	if len(sys.argv) < 2:
@@ -218,6 +215,11 @@ if __name__ == '__main__':
 	stat_file.close()
 
 	random_cubes_n = dict()
+	# use 1 CPU core if many cubes (much RAM)
+	if MAX_CUBES > 5000000:
+		pool = mp.Pool(1)
+	else:
+		pool = mp.Pool(cpu_number)
 	# find required n and their cubes numbers
 	while not is_exit:
 		pool.apply_async(process_n, args=(n, cnf_name), callback=collect_n_result)
@@ -236,6 +238,11 @@ if __name__ == '__main__':
 	logging.info('elapsed_time : ' + str(elapsed_time))
 	logging.info('random_cubes_n : ')
 	#print(random_cubes_n)
+
+	pool.close()
+	pool.join()
+
+	pool2 = mp.Pool(cpu_number)
 	
 	if is_unsat_sample_solving:
 		# prepare file for results
@@ -269,7 +276,7 @@ if __name__ == '__main__':
 			task_index = 0
 			for cube in random_cubes:
 				for solver in p_c.solvers:
-					pool.apply_async(process_cube_solver, args=(cnf_name, n, cube, cube_index, task_index, solver), callback=collect_cube_solver_result)
+					pool2.apply_async(process_cube_solver, args=(cnf_name, n, cube, cube_index, task_index, solver), callback=collect_cube_solver_result)
 					task_index += 1
 				cube_index += 1
 			# wait for all results
@@ -283,9 +290,9 @@ if __name__ == '__main__':
 			with open(sample_name, 'a') as sample_file:
 				for res in results[n]:
 					sample_file.write('%d %d %s %.2f\n' % (n, res[0], res[1], res[2])) # tuple (cube_index,solver,solver_time)
-	
-	pool.close()
-	pool.join()
+
+		pool2.close()
+		pool2.join()
 
 	elapsed_time = time.time() - start_time
 	logging.info('elapsed_time : ' + str(elapsed_time))
