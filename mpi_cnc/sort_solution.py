@@ -6,6 +6,7 @@
 #v 0
 
 import sys
+import binascii
 
 KNOWN_VARS_NUM = 512 
 
@@ -33,9 +34,25 @@ literals = sorted(literals, key=abs)
 #	print('%d 0' % literals[i])
 
 s = ''
+
 for lit in literals:
 	s += str(lit) + ' '
+
+input_bits = ['']
+k = 0	
+for lit in literals:
+	if len(input_bits[k]) == 32:
+	    k += 1
+	    if k == 16:
+		    break
+	    input_bits.append('')
+	input_bits[k] += '0' if lit < 0 else '1'
+
 print(s)
+print('\n')
+for x in input_bits:
+	print(x)
+	print(str(hex(int(x, 2))))
 
 vars_num = 0
 clauses_num = 0
@@ -57,3 +74,4 @@ with open(cnfname.split('.cnf')[0] + '_known' + str(KNOWN_VARS_NUM) + '.cnf', 'w
 		f.write(str(literals[i]) + ' 0\n')
 	for c in clauses:
 		f.write(c + '\n')
+
