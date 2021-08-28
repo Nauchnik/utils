@@ -50,9 +50,12 @@ for lit in literals:
 
 print(s)
 print('\n')
+k = 0
 for x in input_bits:
-	print(x)
-	print(str(hex(int(x, 2))))
+    s = x[::-1]
+    #print(s)
+    print('X[' + str(k) + '] = ' + str(hex(int(s, 2))) + ';')
+    k += 1
 
 vars_num = 0
 clauses_num = 0
