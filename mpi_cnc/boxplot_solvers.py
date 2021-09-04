@@ -6,13 +6,14 @@ import sys
 import glob
 import os
 
-CLUSTER_CORES = 359
-CLUSTER_CPU_FRAC = 2.2
+version = "0.1.1"
+
+PC_CORES = 12
 SOLVER_TIME_LIM = 5000.0
 y_limit = 5100
 EST_STR_WIDTH = 15
 
-solvers_short_names_dict = {'./kissat-unsat' : 'kissat-u', './kissat-sat' : 'kissat-s', './cryptominisat5.7.1' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
+solvers_short_names_dict = {'./kissat_sc2021' : 'kissat-2021', './kissat-unsat' : 'kissat-u', './kissat-sat' : 'kissat-s', './cryptominisat5.7.1' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
 './kissat' : 'kissat', './cadical130' : 'cad130', './cube-glucose-min10sec-cad130.sh' : 'igl-10s', \
 './cube-glucose-min1min-cad130.sh' : 'igl-1m', './cube-glucose-min2min-cad130.sh' : 'igl-2m', './cube-cad130-min10sec-cad130.sh' : 'icad130-10s', \
 './cube-cad130-min1min-cad130.sh' : 'icad130-min1m', './cube-cad130-min2min-cad130.sh' : 'icad130-min2m'}
@@ -147,10 +148,6 @@ def read_unsat_samples(unsat_samples_file_name : str):
 				unsat_samples_mean[n][s] = -unsolved_num # show number of unsolved
 			else:
 				unsat_samples_mean[n][s] = statistics.mean(unsat_samples[n][s])
-			#if n == 2670:
-			#	myFig = plt.figure();
-			#	plt.hist(unsat_samples[n][s], bins = 100)
-			#	myFig.savefig('n_' + str(n) + 's_' + s + '_' + unsat_samples_file_name.split('.')[0] + ".pdf", format="pdf")
 	return unsat_samples, unsat_samples_mean
 
 def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
@@ -167,7 +164,7 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 			if s not in solvers:
 				solvers.append(s)
 			if unsat_samples_mean[n][s] > 0:
-				unsat_samples_est[n][s] = unsat_samples_mean[n][s] * cubes_dict[n] * CLUSTER_CPU_FRAC / 86400 / CLUSTER_CORES 
+				unsat_samples_est[n][s] = unsat_samples_mean[n][s] * cubes_dict[n] / 86400 / PC_CORES
 			else:
 				unsat_samples_est[n][s] = 'uns_' + str(abs(unsat_samples_mean[n][s])) + '/' + str(len(unsat_samples[n][s]))
 		with open('est_' + unsat_samples_file_name, 'w') as unsat_samples_est_file:
@@ -195,7 +192,7 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 # main 
 
 if len(sys.argv) < 3:
-    print('Usage: cubes_file [-u=unsat_log] [-s=sat_logs_mask]')
+    print('Usage: stat_file [-u=unsat_log] [-s=sat_logs_mask]')
     exit(1)
 
 cubes_stat_file_name = sys.argv[1]
