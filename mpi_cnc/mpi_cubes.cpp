@@ -1,3 +1,8 @@
+// Oleg Zaikin, 01.04.2020 (Irkutsk)
+/* Copyright 2020, 2021 Oleg Zaikin */
+
+// Solving cubes in parallel via MPI.
+
 #include <mpi.h>
 #include <iostream>
 #include <string>
