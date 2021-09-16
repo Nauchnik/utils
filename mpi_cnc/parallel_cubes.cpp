@@ -16,7 +16,7 @@
 
 #include <omp.h>
 
-std::string version = "0.2.0";
+std::string version = "0.2.1";
 
 bool verb = false;
 
@@ -73,12 +73,16 @@ bool compare_by_cube_size(const workunit &a, const workunit &b) {
 }
 
 std::vector<workunit> read_cubes(const std::string cubes_file_name);
-void solve_cube(const cnf c, const std::string solver_name,
-		workunit &wu, const unsigned cube_time_lim);
-void write_cubes_info(const std::vector<workunit> &wu_vec);
-void write_stat(const std::string progress_name, const std::vector<workunit> &wu_vec,
+void solve_cube(const cnf c, const std::string postfix,
+								const std::string solver_name, const std::string cnf_name,
+								const time_point_t program_start,	workunit &wu,
+								const unsigned cube_time_lim);
+void write_cubes_info(const std::string postfix,
+                      const std::vector<workunit> &wu_vec);
+void write_stat(const std::string postfix,
+                const std::vector<workunit> &wu_vec,
 								const time_point_t start);
-void write_interrupted_cubes(const std::string cubes_file_name,
+void write_interrupted_cubes(const std::string postfix,
                              const std::vector<workunit> &wu_vec);
 std::string exec(const std::string cmd_str);
 result read_solver_result(const std::string fname);
@@ -91,6 +95,14 @@ void print_usage() {
 void print_version() {
 	std::cout << "version: " << version << std::endl;
 }
+
+std::string clear_name(const std::string name) {
+	std::string res = name;
+	res.erase(remove(res.begin(), res.end(), '.'), res.end());
+	res.erase(remove(res.begin(), res.end(), '/'), res.end());
+	return res;
+}
+
 
 int main(const int argc, const char *argv[]) {
 	std::vector<std::string> str_argv;
@@ -109,10 +121,10 @@ int main(const int argc, const char *argv[]) {
 		std::exit(EXIT_FAILURE);
 	}
 
-	const std::string solver_name       = str_argv[1];
-	const std::string cnf_name	    = str_argv[2];
-	const std::string cubes_name	    = str_argv[3];
-	const unsigned cube_time_lim = std::stoi(str_argv[4]);
+	std::string solver_name	= str_argv[1];
+	std::string cnf_name    = str_argv[2];
+	std::string cubes_name  = str_argv[3];
+	const unsigned cube_time_lim  = std::stoi(str_argv[4]);
 	assert(cube_time_lim > 0);
 	verb = (argc == 6 and str_argv[5] == "--verb") ? true : false;
 	std::cout << "solver_name : "   << solver_name   << std::endl;
@@ -125,7 +137,7 @@ int main(const int argc, const char *argv[]) {
 	std::cout << "threads : " << nthreads << std::endl;
 	omp_set_num_threads(nthreads);
 
-	const time_point_t start = std::chrono::system_clock::now();
+	const time_point_t program_start = std::chrono::system_clock::now();
 
 	std::vector<workunit> wu_vec = read_cubes(cubes_name);
 	// Sort cubes by size in descending order:
@@ -137,45 +149,28 @@ int main(const int argc, const char *argv[]) {
 	cnf c(cnf_name);
 	c.print();
 
-	// Erase progress file:
-	const std::string progress_name = "!progress";
-	std::ofstream ofile(progress_name, std::ios_base::out);
-	ofile.close();
+	const std::string postfix = clear_name(solver_name) + "_" + clear_name(cnf_name) +
+	                            "_" + clear_name(cubes_name);
 
 	unsigned long long solved_cubes = 0;
 	#pragma omp parallel for schedule(dynamic, 1)
 	for (auto &wu : wu_vec) {
-	    solve_cube(c, solver_name, wu, cube_time_lim);
-	    solved_cubes++;
-	    std::cout << "solved cubes : " << solved_cubes << std::endl;
+		solve_cube(c, postfix, solver_name, cnf_name, program_start, wu, cube_time_lim);
+		solved_cubes++;
+		std::cout << "solved cubes : " << solved_cubes << std::endl;
 	}
 
-	write_stat(progress_name, wu_vec, start);
-	write_cubes_info(wu_vec);
-
-	/*
-
-	if (res == SAT) {
-			is_SAT = true;
-			break;
-	}*/
-
-	// write results to a file not more often than every given seconds
-	/*if ((result_writing_time < 0) || (MPI_Wtime() - result_writing_time > REPORT_EVERY_SEC)) {
-		writeInfoOutFile(ofile_name, wu_vec, start_time, cube_cpu_lim_str);
-		writeProcessingInfo(wu_vec);
-		result_writing_time = MPI_Wtime();
-	}
-
-	*/
+	// Write statistics:
+	write_stat(postfix, wu_vec, program_start);
+	write_cubes_info(postfix, wu_vec);
 
 	// Write interrupted cubes to a file:
-	write_interrupted_cubes(cubes_name, wu_vec);
+	write_interrupted_cubes(postfix, wu_vec);
 
-	const time_point_t end = std::chrono::system_clock::now();
+	const time_point_t program_end = std::chrono::system_clock::now();
 
 	std::cout << "elapsed : "
-	<< std::chrono::duration_cast<std::chrono::seconds>(end - start).count()
+	<< std::chrono::duration_cast<std::chrono::seconds>(program_end - program_start).count()
 	<< " seconds" << std::endl;
 
 	return 0;
@@ -215,11 +210,9 @@ std::vector<workunit> read_cubes(const std::string cubes_name) {
 	return wu_vec;
 }
 
-void write_interrupted_cubes(const std::string cubes_file_name,
+void write_interrupted_cubes(const std::string postfix,
                              const std::vector<workunit> &wu_vec) {
-	std::string fname = "!interrupted_" + cubes_file_name;
-	fname.erase(remove(fname.begin(),fname.end(), '.'),fname.end());
-	fname.erase(remove(fname.begin(), fname.end(), '/'), fname.end());
+	std::string fname = "!interrupted_" + postfix;
 	std::ofstream inter_file(fname, std::ios_base::out);
 	for (auto &wu : wu_vec) {
 		assert(wu.stts == PROCESSED);
@@ -232,9 +225,10 @@ void write_interrupted_cubes(const std::string cubes_file_name,
 	inter_file.close();
 }
 
-void write_cubes_info(const std::vector<workunit> &wu_vec)
-{
-	std::ofstream ofile("!cubes_info");
+void write_cubes_info(const std::string postfix,
+                      const std::vector<workunit> &wu_vec) {
+	std::string fname = "!cubes_info_" + postfix;
+	std::ofstream ofile(fname, std::ios_base::out);
 	ofile << "id status result time" << std::endl;
 	for (auto &wu : wu_vec)
 		ofile << wu.id << " " << wu.stts << " " << wu.rslt << " " <<
@@ -242,10 +236,13 @@ void write_cubes_info(const std::vector<workunit> &wu_vec)
 	ofile.close();
 }
 
-void write_stat(const std::string progress_name,
-                const std::vector<workunit> &wu_vec,
-								const time_point_t start) {
+void write_stat(const std::string postfix,
+							  const std::vector<workunit> &wu_vec,
+								const time_point_t program_start) {
 	assert(wu_vec.size() > 0);
+	
+	std::string progress_name = "!progress_" + postfix;
+
 	double min_time_unsat = std::numeric_limits<double>::max();
 	double max_time_unsat = -1;
 	double avg_time_unsat = -1;
@@ -283,15 +280,6 @@ void write_stat(const std::string progress_name,
 			min_time_sat = std::min(wu.time, min_time_sat);
 			max_time_sat = std::max(wu.time, max_time_sat);
 			sum_time_sat += wu.time;
-			std::string ofile_name = "!sat_cube_id_" + std::to_string(wu.id);
-			std::ofstream ofile(ofile_name, std::ios_base::out);
-			ofile << "SAT" << std::endl;
-			ofile << "time : " << wu.time << " s" << std::endl;
-			ofile << "cube id : " << wu.id << std::endl;
-			ofile << "cube : " << std::endl;
-			for (auto &x : wu.cube) ofile << x << " ";
-			ofile << std::endl;
-			ofile.close();
 		}
 	}
 
@@ -299,11 +287,11 @@ void write_stat(const std::string progress_name,
 	if (sum_time_sat > 0) avg_time_sat = sum_time_sat / sat_cubes;
 	if (sum_time_indet > 0) avg_time_indet = sum_time_indet / indet_cubes;
 	double percent_val = double(processed_wus * 100) / (double)wu_vec.size();
-	const time_point_t end = std::chrono::system_clock::now();
-	const double elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+	const time_point_t program_end = std::chrono::system_clock::now();
+	const double elapsed = std::chrono::duration_cast<std::chrono::seconds>(program_end - program_start).count();
 
 	std::ofstream ofile(progress_name, std::ios_base::app);
-	ofile << std::endl << "***" << std::endl
+	ofile << "***" << std::endl
 	<< "elapsed time    : " << elapsed       << std::endl
 	<< "cubes           : " << wu_vec.size() << std::endl
 	<< "processed cubes : " << processed_wus << ", i.e. " << percent_val
@@ -319,13 +307,14 @@ void write_stat(const std::string progress_name,
   << "avg_time_sat    : " << avg_time_sat   << std::endl
 	<< "min_time_indet  : " << min_time_indet << std::endl
 	<< "max_time_indet  : " << max_time_indet << std::endl
-	<< "avg_time_indet  : " << avg_time_indet << std::endl
-	<< std::endl;
+	<< "avg_time_indet  : " << avg_time_indet << std::endl;
 	ofile.close();
 }
 
-void solve_cube(const cnf c, const std::string solver_name,
-		workunit &wu, const unsigned cube_time_lim)
+void solve_cube(const cnf c, const std::string postfix,
+    const std::string solver_name, const std::string cnf_name,
+		const time_point_t program_start, workunit &wu,
+		const unsigned cube_time_lim)
 {
 	std::string wu_id_str = std::to_string(wu.id);
 	std::string local_cnf_file_name = "id-" + wu_id_str + "-cnf";
@@ -345,15 +334,15 @@ void solve_cube(const cnf c, const std::string solver_name,
 
 	if ( verb ) std::cout << "system_str : " << system_str << std::endl;
 
-	const time_point_t start = std::chrono::system_clock::now();
+	const time_point_t solver_start = std::chrono::system_clock::now();
 	std::string res_str = exec(system_str);
-	const time_point_t end = std::chrono::system_clock::now();
-	const double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / (double)1000;
-	wu.time = elapsed;
+	const time_point_t solver_end = std::chrono::system_clock::now();
+	const double solver_time = std::chrono::duration_cast<std::chrono::milliseconds>(solver_end - solver_start).count() / (double)1000;
+	wu.time = solver_time;
 
 	if ( verb ) {
 		std::cout << "out : " << res_str << std::endl;
-		std::cout << "solving time : " << elapsed << std::endl;
+		std::cout << "solver time : " << solver_time << std::endl;
 	}
 
 	local_out_file << res_str;
@@ -365,13 +354,29 @@ void solve_cube(const cnf c, const std::string solver_name,
 
 	// Remove temporary files:
 	if (res == SAT) {
-		system_str = "cp " + local_out_file_name + " ./!sat_out_id_" + wu_id_str;
+		const time_point_t program_end = std::chrono::system_clock::now();
+		const double elapsed = std::chrono::duration_cast<std::chrono::seconds>(program_end - program_start).count();
+		std::string fname = "!sat_info_cube_id_" + std::to_string(wu.id) +
+												"_" + postfix;
+		std::ofstream ofile(fname, std::ios_base::out);
+		ofile << "SAT" << std::endl;
+		ofile << "elapsed : " << elapsed << " seconds" << std::endl;
+		ofile << "solver time : " << wu.time << " s" << std::endl;
+		ofile << "cube id : " << wu.id << std::endl;
+		ofile << "cube : " << std::endl;
+		for (auto &x : wu.cube) ofile << x << " ";
+		ofile << std::endl;
+		ofile.close();
+		system_str = "cp " + local_out_file_name + " ./!sat_out_cube_id_" +
+		             wu_id_str + "_" + postfix;
+		exec(system_str);
+		system_str = "cp " + local_cnf_file_name +
+		             " ./!sat_cnf_cube_id_" + wu_id_str + "_" + postfix;
 		exec(system_str);
 	}
-	else {
-		system_str = "rm id-" + wu_id_str + "-*";
-		exec(system_str);
-	}
+
+	system_str = "rm id-" + wu_id_str + "-*";
+	exec(system_str);
 }
 
 std::string exec(const std::string cmd_str) {
