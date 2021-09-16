@@ -11,14 +11,20 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <limits>
+#include <thread>
+
 #include <omp.h>
 
-std::string version = "0.1.0";
+std::string version = "0.2.0";
+
+bool verb = false;
 
 enum status{ NOT_STARTED = -1, IN_PROGRESS = 0, PROCESSED = 1};
-enum result{ UNSAT = 2, SAT = 3, INDET = 4 };
+enum result{ UNSAT = 0, SAT = 1, INDET = 2 };
 
 #define cube_t std::vector<int> 
+#define time_point_t std::chrono::time_point<std::chrono::system_clock>
 
 struct workunit {
 	int id;
@@ -33,19 +39,49 @@ struct workunit {
 	}
 };
 
-bool compareByCubeSize(const workunit &a, const workunit &b) {
+struct cnf {
+	long long int var_num;
+	long long int clause_num;
+	std::vector<std::string> clauses;
+	cnf() : var_num(0), clause_num(0), clauses() {}
+	cnf(std::string cnf_name) : var_num(0), clause_num(0), clauses() {
+		read(cnf_name);
+	}
+	void read(std::string cnf_name) {
+		std::ifstream cnf_file(cnf_name, std::ios_base::in);
+		std::string str;
+		while (getline(cnf_file, str)) {
+			if (str.size() == 0 or str[0] == 'p' or str[0] == 'c')
+				continue;
+			clauses.push_back(str);
+			clause_num++;
+			std::stringstream sstream;
+			sstream << str;
+			long long int ival;
+			while (sstream >> ival)	var_num = std::max(llabs(ival), var_num);
+		}
+		cnf_file.close();
+	}
+	void print() {
+		std::cout << "var_num : " << var_num << std::endl;
+		std::cout << "clause_num : " << clause_num << std::endl;
+	};
+};
+
+bool compare_by_cube_size(const workunit &a, const workunit &b) {
 	return a.cube.size() > b.cube.size();
 }
 
-std::vector<workunit> readCubes(const std::string cubes_file_name);
-/*void computingProcess(const int rank, const string solver_file_name, const string cnf_file_name, 
-					  const string cubes_file_name, const string cube_cpu_lim_str);
-void writeInfoOutFile(const string process_ofile_name, vector<wu> wu_vec, 
-	const double start_time, const string cube_cpu_lim_str);
-int read_solver_result(const string out_name);
-void writeProcessingInfo(vector<wu> &wu_vec);
-string exec(const string cmd_str);
-/*/
+std::vector<workunit> read_cubes(const std::string cubes_file_name);
+void solve_cube(const cnf c, const std::string solver_name,
+		workunit &wu, const unsigned cube_time_lim);
+void write_cubes_info(const std::vector<workunit> &wu_vec);
+void write_stat(const std::string progress_name, const std::vector<workunit> &wu_vec,
+								const time_point_t start);
+void write_interrupted_cubes(const std::string cubes_file_name,
+                             const std::vector<workunit> &wu_vec);
+std::string exec(const std::string cmd_str);
+result read_solver_result(const std::string fname);
 
 void print_usage() {
 	std::cout << "Usage : parallel_cubes solver-name cnf-name cubes-name " <<
@@ -57,9 +93,7 @@ void print_version() {
 }
 
 int main(const int argc, const char *argv[]) {
-
 	std::vector<std::string> str_argv;
-
 	for (int i=0; i < argc; ++i) str_argv.push_back(argv[i]);
 	assert(str_argv.size() == argc);
 	if (argc == 2 and str_argv[1] == "-h") {
@@ -75,108 +109,87 @@ int main(const int argc, const char *argv[]) {
 		std::exit(EXIT_FAILURE);
 	}
 
-	std::string solver_name       = str_argv[1];
-	std::string cnf_name	        = str_argv[2];
-	std::string cubes_name	      = str_argv[3];
-	const double cube_time_lim = std::stod(str_argv[4]);
+	const std::string solver_name       = str_argv[1];
+	const std::string cnf_name	    = str_argv[2];
+	const std::string cubes_name	    = str_argv[3];
+	const unsigned cube_time_lim = std::stoi(str_argv[4]);
 	assert(cube_time_lim > 0);
-	bool verb = (argc == 6 and str_argv[5] == "--verb") ? true : false;
+	verb = (argc == 6 and str_argv[5] == "--verb") ? true : false;
 	std::cout << "solver_name : "   << solver_name   << std::endl;
 	std::cout << "cnf_name : "      << cnf_name      << std::endl;
 	std::cout << "cubes_name : "    << cubes_name    << std::endl;
 	std::cout << "cube_time_lim : " << cube_time_lim << std::endl;
 	std::cout << "verbosity : "     << verb          << std::endl;
 
-	int threads = omp_get_num_threads();
-	std::cout << "threads : " << threads << std::endl << std::endl;
+	const unsigned nthreads = std::thread::hardware_concurrency();
+	std::cout << "threads : " << nthreads << std::endl;
+	omp_set_num_threads(nthreads);
 
-	auto start = std::chrono::steady_clock::now();
+	const time_point_t start = std::chrono::system_clock::now();
 
-	std::vector<workunit> wu_vec = readCubes(cubes_name);
+	std::vector<workunit> wu_vec = read_cubes(cubes_name);
 	// Sort cubes by size in descending order:
-	std::stable_sort(wu_vec.begin(), wu_vec.end(), compareByCubeSize);
+	std::stable_sort(wu_vec.begin(), wu_vec.end(), compare_by_cube_size);
 	std::cout << "cubes : " << wu_vec.size() << std::endl;
 	std::cout << "first cubes : " << std::endl;
 	for (unsigned i = 0; i < 3; i++) wu_vec[i].print();
-	
-	// erase progress file
-	std::string process_ofile_name = "!total_progress";
-	std::ofstream process_ofile(process_ofile_name, std::ios_base::out);
-	process_ofile.close();
-	
-	// total_processed_wus
 
-	/*wu_vec[wu_id].status = PROCESSED;
-	wu_vec[wu_id].result = res;
-	wu_vec[wu_id].processing_time = time;
-	total_processed_wus++;
+	cnf c(cnf_name);
+	c.print();
 
-	if (verb) {
-		cout << "got result, time " << res << ", " << time << " for task id " << wu_id << endl;
-		cout << "current_status.MPI_SOURCE : " << current_status.MPI_SOURCE << endl;
-		cout << "total_processed_wus : " << total_processed_wus << endl;
+	// Erase progress file:
+	const std::string progress_name = "!progress";
+	std::ofstream ofile(progress_name, std::ios_base::out);
+	ofile.close();
+
+	unsigned long long solved_cubes = 0;
+	#pragma omp parallel for schedule(dynamic, 1)
+	for (auto &wu : wu_vec) {
+	    solve_cube(c, solver_name, wu, cube_time_lim);
+	    solved_cubes++;
+	    std::cout << "solved cubes : " << solved_cubes << std::endl;
 	}
-	
+
+	write_stat(progress_name, wu_vec, start);
+	write_cubes_info(wu_vec);
+
+	/*
+
 	if (res == SAT) {
 			is_SAT = true;
 			break;
-	}
-	
-	// write results to a file not more often than every 100 seconds
-	if ((result_writing_time < 0) || (MPI_Wtime() - result_writing_time > REPORT_EVERY_SEC)) {
-		writeInfoOutFile(process_ofile_name, wu_vec, start_time, cube_cpu_lim_str);
+	}*/
+
+	// write results to a file not more often than every given seconds
+	/*if ((result_writing_time < 0) || (MPI_Wtime() - result_writing_time > REPORT_EVERY_SEC)) {
+		writeInfoOutFile(ofile_name, wu_vec, start_time, cube_cpu_lim_str);
 		writeProcessingInfo(wu_vec);
 		result_writing_time = MPI_Wtime();
 	}
-	
-	writeInfoOutFile(process_ofile_name, wu_vec, start_time, cube_cpu_lim_str);
-	cout << "control process finished" << endl;
 
-	writeProcessingInfo(wu_vec);
-	
-	// remove temporary files
-	string system_str = "rm " + LOCAL_DIR + "id-" + time_str + "-*";
-	cout << "system_str : " << system_str << endl;
-	exec(system_str);
-	
-	if (is_SAT) {
-		MPI_Abort(MPI_COMM_WORLD, 0);
-	} else {
-		string inter_cubes_file_name = "!interrupted_" + cubes_file_name;
-		inter_cubes_file_name.erase(remove(inter_cubes_file_name.begin(), inter_cubes_file_name.end(), '.'), inter_cubes_file_name.end());
-		inter_cubes_file_name.erase(remove(inter_cubes_file_name.begin(), inter_cubes_file_name.end(), '/'), inter_cubes_file_name.end());
-		ofstream inter_cubes_file(inter_cubes_file_name);
-		for (auto &cur_wu : wu_vec) {
-			if (cur_wu.status != PROCESSED) {
-				cerr << "cur_wu.status != PROCESSED" << endl;
-				MPI_Abort(MPI_COMM_WORLD, 0);
-			}
-			if (cur_wu.result == INDET) {
-				inter_cubes_file << "a ";
-				for (auto lit : cur_wu.cube)
-					inter_cubes_file << lit << " ";
-				inter_cubes_file << "0" << endl;
-			}
-		}
-		inter_cubes_file.close();
-	}*/
+	*/
 
-	auto end = std::chrono::steady_clock::now();
-	double elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+	// Write interrupted cubes to a file:
+	write_interrupted_cubes(cubes_name, wu_vec);
 
-	std::cout << "elapsed : " << elapsed << " seconds" << std::endl;
+	const time_point_t end = std::chrono::system_clock::now();
+
+	std::cout << "elapsed : "
+	<< std::chrono::duration_cast<std::chrono::seconds>(end - start).count()
+	<< " seconds" << std::endl;
 
 	return 0;
 }
 
 // Read cubes from a given file
-std::vector<workunit> readCubes(const std::string cubes_name) {
+std::vector<workunit> read_cubes(const std::string cubes_name) {
 	std::vector<workunit> wu_cubes;
 	std::ifstream cubes_file(cubes_name);
 	if (!cubes_file.is_open()) {
 		std::cerr << "cubes_file " << cubes_name << " wasn't opened\n";
 		std::exit(EXIT_FAILURE);
 	}
+	
 	std::string str;
 	std::stringstream sstream;
 	std::vector<workunit> wu_vec;
@@ -198,103 +211,170 @@ std::vector<workunit> readCubes(const std::string cubes_name) {
 		wu_vec.push_back(wu);
 	}
 	cubes_file.close();
-	if (!wu_vec.size()) {
-		std::cerr << "wu_vec.size() == 0";
-		std::exit(EXIT_FAILURE);
-	}
+	assert(wu_vec.size() > 0);
 	return wu_vec;
 }
 
-/*
-void write_info(const string process_ofile_name, vector<wu> wu_vec, const double start_time, 
-	const string cube_cpu_lim_str)
+void write_interrupted_cubes(const std::string cubes_file_name,
+                             const std::vector<workunit> &wu_vec) {
+	std::string fname = "!interrupted_" + cubes_file_name;
+	fname.erase(remove(fname.begin(),fname.end(), '.'),fname.end());
+	fname.erase(remove(fname.begin(), fname.end(), '/'), fname.end());
+	std::ofstream inter_file(fname, std::ios_base::out);
+	for (auto &wu : wu_vec) {
+		assert(wu.stts == PROCESSED);
+		if (wu.rslt == INDET) {
+			inter_file << "a ";
+			for (auto lit : wu.cube) inter_file << lit << " ";
+			inter_file << "0" << std::endl;
+		}
+	}
+	inter_file.close();
+}
+
+void write_cubes_info(const std::vector<workunit> &wu_vec)
 {
-	double min_solving_time_unsat = 1e+308;
-	double max_solving_time_unsat = -1;
-	double avg_solving_time_unsat = -1;
+	std::ofstream ofile("!cubes_info");
+	ofile << "id status result time" << std::endl;
+	for (auto &wu : wu_vec)
+		ofile << wu.id << " " << wu.stts << " " << wu.rslt << " " <<
+				     wu.time << std::endl;
+	ofile.close();
+}
+
+void write_stat(const std::string progress_name,
+                const std::vector<workunit> &wu_vec,
+								const time_point_t start) {
+	assert(wu_vec.size() > 0);
+	double min_time_unsat = std::numeric_limits<double>::max();
+	double max_time_unsat = -1;
+	double avg_time_unsat = -1;
 	double sum_time_unsat = 0.0;
-	double min_solving_time_inter_march = 1e+308;
-	double max_solving_time_inter_march = -1;
-	double avg_solving_time_inter_march = -1;
-	double sum_time_inter_march = 0.0;
-	int k = 0;
+	double min_time_sat = std::numeric_limits<double>::max();
+	double max_time_sat = -1;
+	double avg_time_sat = -1;
+	double sum_time_sat = 0.0;
+	double min_time_indet = std::numeric_limits<double>::max();
+	double max_time_indet = -1;
+	double avg_time_indet = -1;
+	double sum_time_indet = 0.0;
 	int sat_cubes = 0;
 	int unsat_cubes = 0;
 	int indet_cubes = 0;
-	int inter_march_cubes = 0;
-	
-	for (auto cur_wu : wu_vec) {
-		if (cur_wu.status != PROCESSED)
-			continue;
-		k++;
-		if (cur_wu.result == UNSAT) {
+
+	unsigned long long processed_wus = 0;
+	for (auto wu : wu_vec) {
+		if (wu.stts != PROCESSED) continue;
+		processed_wus++;
+		if (wu.rslt == UNSAT) {
 			unsat_cubes++;
-			max_solving_time_unsat = cur_wu.processing_time > max_solving_time_unsat ? cur_wu.processing_time : max_solving_time_unsat;
-			min_solving_time_unsat = cur_wu.processing_time < min_solving_time_unsat ? cur_wu.processing_time : min_solving_time_unsat;
-			sum_time_unsat += cur_wu.processing_time;
+			min_time_unsat = std::min(wu.time, min_time_unsat);
+			max_time_unsat = std::max(wu.time, max_time_unsat);
+			sum_time_unsat += wu.time;
 		}
-		else if (cur_wu.result == INDET) {
+		else if (wu.rslt == INDET) {
 			indet_cubes++;
-			double cube_cpu_lim;
-			istringstream(cube_cpu_lim_str) >> cube_cpu_lim;
-			if (cur_wu.processing_time < cube_cpu_lim - 10.0) {
-				inter_march_cubes++;
-				max_solving_time_inter_march = cur_wu.processing_time > max_solving_time_inter_march ? cur_wu.processing_time : max_solving_time_inter_march;
-				min_solving_time_inter_march = cur_wu.processing_time < min_solving_time_inter_march ? cur_wu.processing_time : min_solving_time_inter_march;
-				sum_time_inter_march += cur_wu.processing_time;
-			}
+			min_time_indet = std::min(wu.time, min_time_indet);
+			max_time_indet = std::max(wu.time, max_time_indet);
+			sum_time_indet += wu.time;
 		}
-		else if (cur_wu.result == SAT) {
+		else if (wu.rslt == SAT) {
 			sat_cubes++;
-			string ofile_name = "!sat_cube_id_" + intToStr(cur_wu.id);
-			ofstream ofile(ofile_name, ios_base::out);
-			
-			ofile << "SAT" << endl;
-			ofile << "time : " << cur_wu.processing_time << " s" << endl;
-			ofile << "cube id : " << cur_wu.id << endl;
-			ofile << "cube : " << endl;
-			for (auto &x : cur_wu.cube)
-				ofile << x << " ";
-			ofile << endl;
+			min_time_sat = std::min(wu.time, min_time_sat);
+			max_time_sat = std::max(wu.time, max_time_sat);
+			sum_time_sat += wu.time;
+			std::string ofile_name = "!sat_cube_id_" + std::to_string(wu.id);
+			std::ofstream ofile(ofile_name, std::ios_base::out);
+			ofile << "SAT" << std::endl;
+			ofile << "time : " << wu.time << " s" << std::endl;
+			ofile << "cube id : " << wu.id << std::endl;
+			ofile << "cube : " << std::endl;
+			for (auto &x : wu.cube) ofile << x << " ";
+			ofile << std::endl;
 			ofile.close();
 		}
 	}
-	if (k != total_processed_wus) {
-		cerr << "k != total_processed_wus" << endl;
-		cerr << k << " != " << total_processed_wus << endl;
-		MPI_Abort(MPI_COMM_WORLD, 0);
-		exit(-1);
-	}
-	if (sum_time_unsat > 0)
-		avg_solving_time_unsat = sum_time_unsat / unsat_cubes;
-	if (sum_time_inter_march > 0)
-		avg_solving_time_inter_march = sum_time_inter_march / inter_march_cubes;
-	
-	double percent_val;
-	ofstream process_ofile(process_ofile_name, ios_base::app);
-	process_ofile << endl << "***" << endl;
-	process_ofile << "elapsed time : " << MPI_Wtime() - start_time << endl;
-	process_ofile << "total WUs : " << wu_vec.size() << endl;
-	percent_val = double(total_processed_wus * 100) / (double)wu_vec.size();
-	process_ofile << "total_processed_wus : " << total_processed_wus
-		<< ", i.e. " << percent_val << " %" << endl;
-	process_ofile << "sat_cubes : " << sat_cubes << endl;
-	process_ofile << "indet_cubes : " << indet_cubes << endl;
-	process_ofile << "unsat_cubes : " << unsat_cubes << endl;
-	process_ofile << "min_solving_time_unsat : " << min_solving_time_unsat << endl;
-	process_ofile << "max_solving_time_unsat : " << max_solving_time_unsat << endl;
-	process_ofile << "avg_solving_time_unsat : " << avg_solving_time_unsat << endl;
-	process_ofile << "inter_march_cubes (part of indet) : " << inter_march_cubes << endl;
-	process_ofile << "min_solving_time_inter_march : " << min_solving_time_inter_march << endl;
-	process_ofile << "max_solving_time_inter_march : " << max_solving_time_inter_march << endl;
-	process_ofile << "avg_solving_time_inter_march : " << avg_solving_time_inter_march << endl;
-	process_ofile << endl;
-	process_ofile.close();
+
+	if (sum_time_unsat > 0) avg_time_unsat = sum_time_unsat / unsat_cubes;
+	if (sum_time_sat > 0) avg_time_sat = sum_time_sat / sat_cubes;
+	if (sum_time_indet > 0) avg_time_indet = sum_time_indet / indet_cubes;
+	double percent_val = double(processed_wus * 100) / (double)wu_vec.size();
+	const time_point_t end = std::chrono::system_clock::now();
+	const double elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+
+	std::ofstream ofile(progress_name, std::ios_base::app);
+	ofile << std::endl << "***" << std::endl
+	<< "elapsed time    : " << elapsed       << std::endl
+	<< "cubes           : " << wu_vec.size() << std::endl
+	<< "processed cubes : " << processed_wus << ", i.e. " << percent_val
+	<< " %" << std::endl
+	<< "unsat_cubes     : " << unsat_cubes    << std::endl
+	<< "sat_cubes       : " << sat_cubes      << std::endl
+	<< "indet_cubes     : " << indet_cubes    << std::endl
+	<< "min_time_unsat  : " << min_time_unsat << std::endl
+	<< "max_time_unsat  : " << max_time_unsat << std::endl
+  << "avg_time_unsat  : " << avg_time_unsat << std::endl
+	<< "min_time_sat    : " << min_time_sat   << std::endl
+	<< "max_time_sat    : " << max_time_sat   << std::endl
+  << "avg_time_sat    : " << avg_time_sat   << std::endl
+	<< "min_time_indet  : " << min_time_indet << std::endl
+	<< "max_time_indet  : " << max_time_indet << std::endl
+	<< "avg_time_indet  : " << avg_time_indet << std::endl
+	<< std::endl;
+	ofile.close();
 }
 
-string exec(const string cmd_str)
+void solve_cube(const cnf c, const std::string solver_name,
+		workunit &wu, const unsigned cube_time_lim)
 {
-	string result = "";
+	std::string wu_id_str = std::to_string(wu.id);
+	std::string local_cnf_file_name = "id-" + wu_id_str + "-cnf";
+
+	std::ofstream local_cnf_file(local_cnf_file_name, std::ios_base::out);
+	local_cnf_file << "p cnf " << c.var_num << " "
+	               << c.clause_num + wu.cube.size() << std::endl;
+	for (auto cl : c.clauses) local_cnf_file << cl << std::endl;
+	for (auto x : wu.cube) local_cnf_file << x << " 0" << std::endl;
+	local_cnf_file.close();
+
+	std::string system_str = "./timelimit -t " + std::to_string(cube_time_lim) +
+	                         " -T 1 " + solver_name + " " + local_cnf_file_name;
+	std::string local_out_file_name = "id-" + wu_id_str + "-out";
+	std::fstream local_out_file;
+	local_out_file.open(local_out_file_name, std::ios_base::out);
+
+	if ( verb ) std::cout << "system_str : " << system_str << std::endl;
+
+	const time_point_t start = std::chrono::system_clock::now();
+	std::string res_str = exec(system_str);
+	const time_point_t end = std::chrono::system_clock::now();
+	const double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / (double)1000;
+	wu.time = elapsed;
+
+	if ( verb ) {
+		std::cout << "out : " << res_str << std::endl;
+		std::cout << "solving time : " << elapsed << std::endl;
+	}
+
+	local_out_file << res_str;
+	local_out_file.close(); local_out_file.clear();
+
+	result res = read_solver_result(local_out_file_name);
+	wu.rslt = res;
+	wu.stts = PROCESSED;
+
+	// Remove temporary files:
+	if (res == SAT) {
+		system_str = "cp " + local_out_file_name + " ./!sat_out_id_" + wu_id_str;
+		exec(system_str);
+	}
+	else {
+		system_str = "rm id-" + wu_id_str + "-*";
+		exec(system_str);
+	}
+}
+
+std::string exec(const std::string cmd_str) {
 	char* cmd = new char[cmd_str.size() + 1];
 	for (unsigned i = 0; i < cmd_str.size(); i++)
 		cmd[i] = cmd_str[i];
@@ -303,6 +383,7 @@ string exec(const string cmd_str)
 	delete[] cmd;
 	if (!pipe) return "ERROR";
 	char buffer[128];
+	std::string result = "";
 	while (!feof(pipe)) {
 		if (fgets(buffer, 128, pipe) != NULL)
 			result += buffer;
@@ -311,207 +392,24 @@ string exec(const string cmd_str)
 	return result;
 }
 
-int read_solver_result(const std::string out_name)
-{
-	int result = INDET;
-	ifstream out_file(out_name);
-	if (out_file.is_open()) {
-		string str;
-		while (getline(out_file, str)) {
-			if ((str.find("s SATISFIABLE") != string::npos) || (str.find("SATISFIABLE") == 0)) {
-				result = SAT;
-				break;
-			}
-			else if ((str.find("s UNSATISFIABLE") != string::npos) || (str.find("UNSATISFIABLE") == 0)) {
-				result = UNSAT;
-				break;
-			}
-		}
-		out_file.close();
+result read_solver_result(const std::string fname) {
+	result res = INDET;
+	std::ifstream ifile(fname, std::ios_base::in);
+	if (!ifile.is_open()) {
+		std::cerr << "solver result file " << fname << " wasn't opened\n";
+		std::exit(EXIT_FAILURE);
 	}
-	else
-		cerr << "out file " << out_name << " was not opened" << endl;
-	
-	return result;
-}
-
-void computingProcess(const int rank, const string solver_file_name, const string cnf_file_name, 
-					  const string cubes_file_name, const string cube_cpu_lim_str)
-{
-	string rank_str = intToStr(rank);
-
-	string log_file_name = "log_process_" + rank_str;
-	ofstream log_file;
-
-	if ( verb ) {
-		log_file.open(log_file_name, ios_base::out);
-		log_file.close();
-		log_file.clear();
-	}
-
-	string local_solver_file_name = LOCAL_DIR;
-	if (solver_file_name.find("./") != string::npos)
-		local_solver_file_name += solver_file_name.substr(solver_file_name.find("./") + 2);
-	else
-		local_solver_file_name += solver_file_name;
-	if (rank == 1)
-		cout << "local_solver_file_name : " << local_solver_file_name << endl;
-
-	vector<wu> wu_vec = readAndSortCubes(cubes_file_name);
-	
-	stringstream cnf_sstream;
-	ifstream cnf_file(cnf_file_name);
-	string str;
-	unsigned cnf_main_clauses = 0;
-	unsigned cnf_main_variables = 0;
-	while (getline(cnf_file, str)) {
-		if ((str.size() == 0) || (str[0] == 'p') || (str[0] == 'c'))
-			continue;
-		cnf_sstream << str << endl;
-		cnf_main_clauses++;
-		stringstream sstream;
-		sstream << str;
-		vector<int> vec;
-		int ival;
-		while (sstream >> ival) {
-			int abs_ival = abs(ival);
-			cnf_main_variables = (abs_ival > cnf_main_variables) ? abs_ival : cnf_main_variables;
-		}
-	}
-	cnf_file.close();
-
-	MPI_Status status;
-	
-	char time_char_arr[TIME_BUFFER_SIZE];
-	MPI_Recv( time_char_arr, TIME_BUFFER_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &status );
-	string time_str = time_char_arr;
-
-	int wu_id = -1;
-	for (;;) {
-		if (verb) {
-			log_file.open(log_file_name, ios_base::app);
-			log_file << "waiting for a task" << endl;
-			log_file.close();
-			log_file.clear();
-		}
-		
-		MPI_Recv( &wu_id, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status );
-
-		if ( verb ) {
-			log_file.open(log_file_name, ios_base::app);
-			log_file << "got task id " << wu_id << endl;
-			log_file.close();
-			log_file.clear();
-		}
-
-		//cout << "received wu_id " << wu_id << endl;
-		if (wu_id == -1) {// stop message
-			cout << "computing prosess " << rank << " got the stop message" << endl;
+	std::string str;
+	while (getline(ifile, str)) {
+		if (str.find("s SATISFIABLE") != std::string::npos) {
+			res = SAT;
 			break;
 		}
-		
-		string wu_id_str = intToStr(wu_id);
-		string local_cnf_file_name = LOCAL_DIR + "id-" + time_str + '-' + wu_id_str + "-cnf";
-		
-		stringstream cube_sstream;
-		for (auto x : wu_vec[wu_id].cube)
-			cube_sstream << x << " 0" << endl;
-		
-		ofstream local_cnf_file(local_cnf_file_name, ios_base::out);
-		local_cnf_file << "p cnf " << cnf_main_variables << " " << cnf_main_clauses + wu_vec[wu_id].cube.size() << endl;
-		local_cnf_file << cnf_sstream.str();
-		local_cnf_file << cube_sstream.str();
-		local_cnf_file.close();
-		
-		string system_str;
-		if (local_solver_file_name.find(".sh") != string::npos) {
-			// cube_cpu_lim_str is used as cpu-lim for an incremental SAT solver
-			system_str = local_solver_file_name + " " + local_cnf_file_name
-				+ " " + wu_id_str + " " + cube_cpu_lim_str;
-		}
-		else {
-			system_str = LOCAL_DIR + "timelimit -t " + cube_cpu_lim_str + " -T 1 " 
-				+ local_solver_file_name + " " + local_cnf_file_name;
-		}
-		string local_out_file_name = LOCAL_DIR + "id-" + time_str + '-' + wu_id_str + "-out";
-		fstream local_out_file;
-		local_out_file.open(local_out_file_name, ios_base::out);
-
-		if ( verb ) {
-			log_file.open(log_file_name, ios_base::app);
-			log_file << "system_str : " << system_str << endl;
-			log_file.close();
-			log_file.clear();
-		}
-
-		double elapsed_solving_time = MPI_Wtime();
-		stringstream sstream;
-		sstream << exec(system_str);
-		elapsed_solving_time = MPI_Wtime() - elapsed_solving_time;
-
-		if ( verb ) {
-			log_file.open(log_file_name, ios_base::app);
-			log_file << "out : " << sstream.str() << endl;
-			log_file << "elapsed_solving_time : " << elapsed_solving_time << endl;
-			log_file.close();
-			log_file.clear();
-		}
-
-		local_out_file << sstream.str();
-		local_out_file.close();
-		local_out_file.clear();
-		int res = INDET;
-		double cube_cpu_lim = -1.0;
-		istringstream(cube_cpu_lim_str) >> cube_cpu_lim;
-		res = getResultFromFile(local_out_file_name);
-		// remove the temporary cnf file
-		if (res == SAT) {
-			system_str = "cp " + local_out_file_name + " ./!sat_out_id_" + wu_id_str;
-			exec(system_str);
-			system_str = "cp " + LOCAL_DIR + "id-" + time_str + '-' + wu_id_str + "-*" + " ./";
-			exec(system_str);
-		}
-		else if (elapsed_solving_time > cube_cpu_lim + 10.0) {
-			cout << "extra elapsed_solving_time : " << elapsed_solving_time << endl;
-			system_str = "cp " + local_out_file_name + " ./!extra_time_out_id_" + wu_id_str;
-			exec(system_str);
-		}
-		else {
-			system_str = "rm " + LOCAL_DIR + "id-" + time_str + '-' + wu_id_str + "-*";
-			exec(system_str);
-		}
-
-		if ( verb ) {
-			log_file.open(log_file_name, ios_base::app);
-			log_file << "before sending result " << res << " for task id " << wu_id << endl;
-			log_file.close();
-			log_file.clear();
-		}
-		
-		// send calculated result to the control process
-		//cout << "sending wu_id " << wu_id << endl;
-		//cout << "sending res " << res << endl;
-		MPI_Send( &wu_id,                1, MPI_INT,    0, 0, MPI_COMM_WORLD);
-		MPI_Send( &res,                  1, MPI_INT,    0, 0, MPI_COMM_WORLD);
-		MPI_Send( &elapsed_solving_time, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-
-		if ( verb ) {
-			log_file.open(log_file_name, ios_base::app);
-			log_file << "after sending result " << res << " for task id " << wu_id << endl;
-			log_file.close();
-			log_file.clear();
+		else if (str.find("s UNSATISFIABLE") != std::string::npos) {
+			res = UNSAT;
+			break;
 		}
 	}
-	MPI_Finalize();
-}
-*/
-
-void write_processing_info(const std::vector<workunit> &wu_vec)
-{
-	std::ofstream ofile("!cubes_processing_info");
-	ofile << "id status result time" << std::endl;
-	for (auto &wu : wu_vec)
-		ofile << wu.id << " " << wu.stts << " " << wu.rslt << " " <<
-				     wu.time << std::endl;
-	ofile.close();
+	ifile.close();
+	return res;
 }
