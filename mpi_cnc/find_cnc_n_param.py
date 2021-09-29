@@ -7,9 +7,11 @@ import collections
 import logging
 import predict_cnc as p_c
 
-MIN_REFUTED_LEAVES = 1000
+version = "1.0.2"
+
+MIN_REFUTED_LEAVES = 100
 MIN_CUBES = 0
-MAX_CUBES = 50000000
+MAX_CUBES = 1000000
 MAX_MARCH_TIME = 86400.0
 RANDOM_SAMPLE_SIZE = 100
 SOLVER_TIME_LIMIT = 5000
@@ -28,7 +30,7 @@ def kill_unuseful_processes():
 	o = os.popen(sys_str).read()
 	
 def remove_file(file_name):
-	sys_str = 'rm ' + file_name
+	sys_str = 'rm -f ' + file_name
 	o = os.popen(sys_str).read()
 
 def get_free_vars(cnf_name):
@@ -97,7 +99,7 @@ def process_n(n : int, cnf_name : str):
 
 def collect_n_result(res):
 	global random_cubes_n
-	global is_exit
+	global exit_cubes_creating
 	global is_unsat_sample_solving
 	n = res[0]
 	cubes_num = res[1]
@@ -121,9 +123,9 @@ def collect_n_result(res):
 	else:
 		remove_file(cubes_name)
 	if cubes_num > MAX_CUBES or march_time > MAX_MARCH_TIME:
-		is_exit = True
-		logging.info('is_exit : ' + str(is_exit))
-	
+		exit_cubes_creating = True
+		logging.info('exit_cubes_creating : ' + str(exit_cubes_creating))
+
 def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, task_index : int, solver : str):
 	known_cube_cnf_name = './sample_cnf_n_' + str(n) + '_cube_' + str(cube_index) + '_task_' + str(task_index) + '.cnf'
 	p_c.add_cube(cnf_name, known_cube_cnf_name, cube)
@@ -138,6 +140,7 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 	solver_time = float(t)
 	isSat = p_c.find_sat_log(o)
 	if isSat:
+		logging.info('*** Writing satisfying assignment to a file')
 		sat_name = cnf_name.replace('./','').replace('.cnf','') + '_' + solver + '_cube_index_' + str(cube_index) 
 		sat_name = sat_name.replace('./','')
 		with open('!sat_' + sat_name, 'w') as ofile:
@@ -148,11 +151,12 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 		remove_file(known_cube_cnf_name)
 		# remove tmp files from solver's script
 		remove_file('./id-' + str(task_index) + '-*')
-		
+
 	return n, cube_index, solver, solver_time, isSat
-	
+
 def collect_cube_solver_result(res):
 	global results
+	global exit_solving
 	n = res[0]
 	cube_index = res[1]
 	solver = res[2]
@@ -160,18 +164,23 @@ def collect_cube_solver_result(res):
 	isSat = res[4]
 	results[n].append((cube_index,solver,solver_time)) # append a tuple
 	logging.info('n : %d, got %d results - cube_index %d, solver %s, time %f' % (n, len(results[n]), cube_index, solver, solver_time))
-
 	if isSat:
-		logging('*** SAT found')
-		logging(res)
+		logging.info('*** SAT found')
+		logging.info(res)
 		elapsed_time = time.time() - start_time
 		logging.info('elapsed_time : ' + str(elapsed_time))
-		exit(1)
-	
+		exit_solving = True
+	elif solver_time >= SOLVER_TIME_LIMIT:
+		logging.info('*** Reached solver time limit')
+		logging.info(res)
+		elapsed_time = time.time() - start_time
+		logging.info('elapsed_time : ' + str(elapsed_time))
+		exit_solving = True
+
 if __name__ == '__main__':
 	cpu_number = mp.cpu_count()
 
-	is_exit = False
+	exit_cubes_creating = False
 
 	if len(sys.argv) < 2:
 		print('Usage : prog cnf-name [--nosample | --onesample]')
@@ -221,12 +230,12 @@ if __name__ == '__main__':
 	else:
 		pool = mp.Pool(cpu_number)
 	# find required n and their cubes numbers
-	while not is_exit:
+	while not exit_cubes_creating:
 		pool.apply_async(process_n, args=(n, cnf_name), callback=collect_n_result)
 		while len(pool._cache) >= cpu_number: # wait until any cpu is free
 			time.sleep(2)
 		n -= 10
-		if is_exit or n <= 0:
+		if exit_cubes_creating or n <= 0:
 			#print('terminating pool')
 			#pool.terminate()
 			logging.info('killing unuseful processes')
@@ -265,6 +274,7 @@ if __name__ == '__main__':
 		logging.info('')
 		
 		results = dict()
+		exit_solving = False
 		for n, random_cubes in sorted_random_cubes_n.items():
 			logging.info('*** n : %d' % n)
 			logging.info('random_cubes size : %d' % len(random_cubes))
@@ -272,7 +282,6 @@ if __name__ == '__main__':
 			results_size = len(random_cubes) * len(p_c.solvers)
 			logging.info('results size : %d' % results_size)
 			cube_index = 0
-			
 			task_index = 0
 			for cube in random_cubes:
 				for solver in p_c.solvers:
@@ -290,6 +299,9 @@ if __name__ == '__main__':
 			with open(sample_name, 'a') as sample_file:
 				for res in results[n]:
 					sample_file.write('%d %d %s %.2f\n' % (n, res[0], res[1], res[2])) # tuple (cube_index,solver,solver_time)
+			if exit_solving:
+				logging.info('stop main loop')
+				break
 
 		pool2.close()
 		pool2.join()
