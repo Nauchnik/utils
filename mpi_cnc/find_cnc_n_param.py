@@ -7,14 +7,15 @@ import collections
 import logging
 import predict_cnc as p_c
 
-version = "1.0.2"
+version = "1.0.5"
 
-MIN_REFUTED_LEAVES = 100
 MIN_CUBES = 0
 MAX_CUBES = 1000000
+MIN_REFUTED_LEAVES = 500
+SOLVER_TIME_LIMIT = 5000
 MAX_MARCH_TIME = 86400.0
 RANDOM_SAMPLE_SIZE = 100
-SOLVER_TIME_LIMIT = 5000
+
 cnf_name = ''
 stat_name = ''
 start_time = 0.0
@@ -24,11 +25,15 @@ class random_cube_data:
 	solved_tasks = 0
 
 def kill_unuseful_processes():
-	sys_str = 'killall -9 ./march_cu'
+	sys_str = 'killall -9 march_cu'
 	o = os.popen(sys_str).read()
-	sys_str = 'killall -9 ./timelimit'
+	sys_str = 'killall -9 timelimit'
 	o = os.popen(sys_str).read()
-	
+
+def kill_solver(solver):
+	sys_str = 'killall -9 ' + solver.replace('./','')
+	o = os.popen(sys_str).read()
+
 def remove_file(file_name):
 	sys_str = 'rm -f ' + file_name
 	o = os.popen(sys_str).read()
@@ -149,14 +154,14 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 	else:
 		# remove cnf with known cube
 		remove_file(known_cube_cnf_name)
-		# remove tmp files from solver's script
-		remove_file('./id-' + str(task_index) + '-*')
 
 	return n, cube_index, solver, solver_time, isSat
 
 def collect_cube_solver_result(res):
 	global results
 	global exit_solving
+	if exit_solving:
+		return
 	n = res[0]
 	cube_index = res[1]
 	solver = res[2]
@@ -274,37 +279,44 @@ if __name__ == '__main__':
 		logging.info('')
 		
 		results = dict()
-		exit_solving = False
 		for n, random_cubes in sorted_random_cubes_n.items():
 			logging.info('*** n : %d' % n)
 			logging.info('random_cubes size : %d' % len(random_cubes))
 			results[n] = []
-			results_size = len(random_cubes) * len(p_c.solvers)
-			logging.info('results size : %d' % results_size)
-			cube_index = 0
 			task_index = 0
-			for cube in random_cubes:
-				for solver in p_c.solvers:
+			for solver in p_c.solvers:
+				cube_index = 0
+				exit_solving = False
+				for cube in random_cubes:
+					while len(pool2._cache) >= cpu_number:
+						time.sleep(2)
 					pool2.apply_async(process_cube_solver, args=(cnf_name, n, cube, cube_index, task_index, solver), callback=collect_cube_solver_result)
 					task_index += 1
-				cube_index += 1
-			# wait for all results
-			while len(results[n]) < results_size:
-				time.sleep(5)
+					cube_index += 1
+					if exit_solving:
+						time.sleep(2) # wait for remaining solver's runs
+						kill_solver(solver)
+						break
 			logging.info('results[n] len : %d' % len(results[n]))
 			logging.info(results[n])
 			elapsed_time = time.time() - start_time
 			logging.info('elapsed_time : ' + str(elapsed_time) + '\n')
-			# write to result file
-			with open(sample_name, 'a') as sample_file:
-				for res in results[n]:
-					sample_file.write('%d %d %s %.2f\n' % (n, res[0], res[1], res[2])) # tuple (cube_index,solver,solver_time)
+			
 			if exit_solving:
 				logging.info('stop main loop')
 				break
 
 		pool2.close()
 		pool2.join()
+
+		# write results
+		for n, res in results.items():
+			with open(sample_name, 'a') as sample_file:
+				for r in res:
+					sample_file.write('%d %d %s %.2f\n' % (n, r[0], r[1], r[2])) # tuple (cube_index,solver,solver_time)
+
+	# remove tmp files from solver's script
+	remove_file('./id-*')
 
 	elapsed_time = time.time() - start_time
 	logging.info('elapsed_time : ' + str(elapsed_time))
