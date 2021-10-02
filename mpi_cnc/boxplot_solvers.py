@@ -6,12 +6,13 @@ import sys
 import glob
 import os
 
-version = "0.1.1"
+version = "0.1.2"
 
 PC_CORES = 12
 SOLVER_TIME_LIM = 5000.0
 y_limit = 5100
 EST_STR_WIDTH = 15
+SAMPLE_SIZE = 100
 
 solvers_short_names_dict = {'./kissat_sc2021' : 'kissat-2021', './kissat-unsat' : 'kissat-u', './kissat-sat' : 'kissat-s', './cryptominisat5.7.1' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
 './kissat' : 'kissat', './cadical130' : 'cad130', './cube-glucose-min10sec-cad130.sh' : 'igl-10s', \
@@ -163,10 +164,12 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 		for s in unsat_samples_mean[n]:
 			if s not in solvers:
 				solvers.append(s)
-			if unsat_samples_mean[n][s] > 0:
+			if len(unsat_samples[n][s]) < SAMPLE_SIZE:
+				unsat_samples_est[n][s] = 'solved_' + str(len(unsat_samples[n][s])) + '/' + str(SAMPLE_SIZE)
+			elif unsat_samples_mean[n][s] > 0:
 				unsat_samples_est[n][s] = unsat_samples_mean[n][s] * cubes_dict[n] / 86400 / PC_CORES
 			else:
-				unsat_samples_est[n][s] = 'uns_' + str(abs(unsat_samples_mean[n][s])) + '/' + str(len(unsat_samples[n][s]))
+				unsat_samples_est[n][s] = 'inter_' + str(abs(unsat_samples_mean[n][s])) + '/' + str(len(unsat_samples[n][s]))
 		with open('est_' + unsat_samples_file_name, 'w') as unsat_samples_est_file:
 			unsat_samples_est_file.write('n'.ljust(5))
 			for s in solvers:
