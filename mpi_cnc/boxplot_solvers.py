@@ -6,7 +6,7 @@ import sys
 import glob
 import os
 
-version = "0.1.2"
+version = "0.1.3"
 
 PC_CORES = 12
 SOLVER_TIME_LIM = 5000.0
@@ -164,12 +164,13 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 		for s in unsat_samples_mean[n]:
 			if s not in solvers:
 				solvers.append(s)
-			if len(unsat_samples[n][s]) < SAMPLE_SIZE:
+
+			if unsat_samples_mean[n][s] < 0:
+				unsat_samples_est[n][s] = 'inter_' + str(abs(unsat_samples_mean[n][s])) + '/' + str(len(unsat_samples[n][s]))
+			elif len(unsat_samples[n][s]) < SAMPLE_SIZE:
 				unsat_samples_est[n][s] = 'solved_' + str(len(unsat_samples[n][s])) + '/' + str(SAMPLE_SIZE)
 			elif unsat_samples_mean[n][s] > 0:
 				unsat_samples_est[n][s] = unsat_samples_mean[n][s] * cubes_dict[n] / 86400 / PC_CORES
-			else:
-				unsat_samples_est[n][s] = 'inter_' + str(abs(unsat_samples_mean[n][s])) + '/' + str(len(unsat_samples[n][s]))
 		with open('est_' + unsat_samples_file_name, 'w') as unsat_samples_est_file:
 			unsat_samples_est_file.write('n'.ljust(5))
 			for s in solvers:
