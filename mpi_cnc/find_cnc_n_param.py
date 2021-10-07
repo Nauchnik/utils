@@ -7,18 +7,20 @@ import collections
 import logging
 import predict_cnc as p_c
 
-version = "1.0.5"
+version = "1.0.7"
 
 MIN_CUBES = 0
 MAX_CUBES = 1000000
 MIN_REFUTED_LEAVES = 500
 SOLVER_TIME_LIMIT = 5000
 MAX_MARCH_TIME = 86400.0
-RANDOM_SAMPLE_SIZE = 100
+RANDOM_SAMPLE_SIZE = 1000
 
 cnf_name = ''
 stat_name = ''
 start_time = 0.0
+
+solvers = ['./kissat_sc2021']
 
 class random_cube_data:
 	cube_cnf_name = ''
@@ -284,7 +286,7 @@ if __name__ == '__main__':
 			logging.info('random_cubes size : %d' % len(random_cubes))
 			results[n] = []
 			task_index = 0
-			for solver in p_c.solvers:
+			for solver in solvers:
 				cube_index = 0
 				exit_solving = False
 				for cube in random_cubes:
@@ -297,8 +299,9 @@ if __name__ == '__main__':
 						time.sleep(2) # wait for remaining solver's runs
 						kill_solver(solver)
 						break
+			time.sleep(2)
 			logging.info('results[n] len : %d' % len(results[n]))
-			logging.info(results[n])
+			#logging.info(results[n])
 			elapsed_time = time.time() - start_time
 			logging.info('elapsed_time : ' + str(elapsed_time) + '\n')
 			
