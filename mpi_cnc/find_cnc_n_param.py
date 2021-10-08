@@ -7,7 +7,7 @@ import collections
 import logging
 import predict_cnc as p_c
 
-version = "1.0.7"
+version = "1.0.8"
 
 MIN_CUBES = 0
 MAX_CUBES = 1000000
@@ -176,7 +176,6 @@ def collect_cube_solver_result(res):
 		logging.info(res)
 		elapsed_time = time.time() - start_time
 		logging.info('elapsed_time : ' + str(elapsed_time))
-		exit_solving = True
 	elif solver_time >= SOLVER_TIME_LIMIT:
 		logging.info('*** Reached solver time limit')
 		logging.info(res)
