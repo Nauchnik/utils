@@ -6,12 +6,12 @@ import sys
 import glob
 import os
 
-version = "0.1.4"
+version = "0.1.5"
 
 PC_CORES = 12
 SOLVER_TIME_LIM = 5000.0
 y_limit = 5100
-EST_STR_WIDTH = 15
+EST_STR_WIDTH = 25
 SAMPLE_SIZE = 1000
 
 solvers_short_names_dict = {'./kissat_sc2021' : 'kissat-2021', './kissat-unsat' : 'kissat-u', './kissat-sat' : 'kissat-s', './cryptominisat5.7.1' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
@@ -171,11 +171,14 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 				unsat_samples_est[n][s] = 'solved_' + str(len(unsat_samples[n][s])) + '/' + str(SAMPLE_SIZE)
 			else:
 				remaining_cubes_num = cubes_dict[n] - SAMPLE_SIZE
-				unsat_samples_est[n][s] = unsat_samples_mean[n][s] * remaining_cubes_num / 86400 / PC_CORES
+				unsat_samples_est[n][s] = unsat_samples_mean[n][s] * remaining_cubes_num
 		with open('est_' + unsat_samples_file_name, 'w') as unsat_samples_est_file:
 			unsat_samples_est_file.write('n'.ljust(5))
 			for s in solvers:
-				unsat_samples_est_file.write(s.ljust(EST_STR_WIDTH))
+				st = s + '_sec_1core'
+				unsat_samples_est_file.write(st.ljust(EST_STR_WIDTH))
+				st = s + '_days_' + str(PC_CORES) + "cores"
+				unsat_samples_est_file.write(st.ljust(EST_STR_WIDTH))
 			unsat_samples_est_file.write('\n')
 			lst_n = []
 			for n in unsat_samples_est:
@@ -187,8 +190,13 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 				for s in solvers:
 					if isinstance(unsat_samples_est[n][s], str):
 						unsat_samples_est_file.write(unsat_samples_est[n][s].ljust(EST_STR_WIDTH))
+						unsat_samples_est_file.write(unsat_samples_est[n][s].ljust(EST_STR_WIDTH))
 					else:
-						m_s = ('%.3f' % unsat_samples_est[n][s]).ljust(EST_STR_WIDTH)
+						int_sec = int(unsat_samples_est[n][s])
+						m_s = str(int_sec).ljust(EST_STR_WIDTH)
+						unsat_samples_est_file.write(m_s)
+						float_days = unsat_samples_est[n][s] / 86400 / PC_CORES
+						m_s = ('%.3f' % float_days).ljust(EST_STR_WIDTH)
 						unsat_samples_est_file.write(m_s)
 				unsat_samples_est_file.write('\n')
 	print('unsat_samples_est : ')
