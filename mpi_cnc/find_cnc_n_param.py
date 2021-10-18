@@ -7,7 +7,7 @@ import collections
 import logging
 import predict_cnc as p_c
 
-version = "1.0.8"
+version = "1.0.9"
 
 MIN_CUBES = 0
 MAX_CUBES = 1000000
@@ -148,7 +148,7 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 	isSat = p_c.find_sat_log(o)
 	if isSat:
 		logging.info('*** Writing satisfying assignment to a file')
-		sat_name = cnf_name.replace('./','').replace('.cnf','') + '_' + solver + '_cube_index_' + str(cube_index) 
+		sat_name = cnf_name.replace('./','').replace('.cnf','') + '_n' + str(n) + '_' + solver + '_cube_index_' + str(cube_index) 
 		sat_name = sat_name.replace('./','')
 		with open('!sat_' + sat_name, 'w') as ofile:
 			ofile.write('*** SAT found\n')
