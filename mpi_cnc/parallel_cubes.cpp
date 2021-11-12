@@ -16,7 +16,7 @@
 
 #include <omp.h>
 
-std::string version = "0.2.1";
+std::string version = "0.2.2";
 
 bool verb = false;
 
@@ -141,7 +141,7 @@ int main(const int argc, const char *argv[]) {
 
 	std::vector<workunit> wu_vec = read_cubes(cubes_name);
 	// Sort cubes by size in descending order:
-	std::stable_sort(wu_vec.begin(), wu_vec.end(), compare_by_cube_size);
+	//std::stable_sort(wu_vec.begin(), wu_vec.end(), compare_by_cube_size);
 	std::cout << "cubes : " << wu_vec.size() << std::endl;
 	std::cout << "first cubes : " << std::endl;
 	for (unsigned i = 0; i < 3; i++) wu_vec[i].print();
