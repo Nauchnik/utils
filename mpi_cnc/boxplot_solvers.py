@@ -14,8 +14,8 @@ y_limit = 5100
 EST_STR_WIDTH = 25
 SAMPLE_SIZE = 1000
 
-solvers_short_names_dict = {'./kissat_sc2021' : 'kissat-2021', './kissat-unsat' : 'kissat-u', './kissat-sat' : 'kissat-s', './cryptominisat5.7.1' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
-'./kissat' : 'kissat', './cadical130' : 'cad130', './cube-glucose-min10sec-cad130.sh' : 'igl-10s', \
+solvers_short_names_dict = {'./rokk' : 'rokk', './minisat2.2' : 'minisat', './slime' : 'slime', './cdclcrypto' : 'cdclcrypto', './kissat_sc2021' : 'kissat-2021', './kissat-unsat' : 'kissat-u', './kissat-sat' : 'kissat-s', './cryptominisat5' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
+'./kissat' : 'kissat', './cadical_1.4.1' : 'cadical', './cube-glucose-min10sec-cad130.sh' : 'igl-10s', \
 './cube-glucose-min1min-cad130.sh' : 'igl-1m', './cube-glucose-min2min-cad130.sh' : 'igl-2m', './cube-cad130-min10sec-cad130.sh' : 'icad130-10s', \
 './cube-cad130-min1min-cad130.sh' : 'icad130-min1m', './cube-cad130-min2min-cad130.sh' : 'icad130-min2m'}
 

@@ -36,7 +36,7 @@ print('literals_blocks size : ', len(literals_blocks))
 
 bin_back_str_lst = []
 k = 0
-with open('out', 'w') as o:
+with open(ifilename + '_hex', 'w') as o:
 	for literals in literals_blocks:
 		s = ''
 		for lit in literals:
@@ -44,7 +44,11 @@ with open('out', 'w') as o:
 		o.write(s + '\n')
 		bin_back_str_lst.append(s[::-1])
 	o.write('\n')
+	total_hex_str = ''
 	for bbs in bin_back_str_lst:
 		h = hex(int(bbs, 2))
-		o.write('X[' + str(k) + '] = ' + str(h) + ';\n')
+		h_str = str(h)
+		o.write('X[' + str(k) + '] = ' + h_str + ';\n')
+		total_hex_str += h_str + ' '
 		k += 1
+	o.write('\n' + total_hex_str + '\n')
