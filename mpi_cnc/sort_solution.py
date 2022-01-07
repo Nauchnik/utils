@@ -51,11 +51,15 @@ for lit in literals:
 print(s)
 print('\n')
 k = 0
+total_hex_str = ''
 for x in input_bits:
     s = x[::-1]
-    #print(s)
-    print('X[' + str(k) + '] = ' + str(hex(int(s, 2))) + ';')
+    hex_str = str(hex(int(s, 2)))
+    print('X[' + str(k) + '] = ' + hex_str + ';')
+    total_hex_str += hex_str + ' '
     k += 1
+
+print('\n' + total_hex_str)
 
 vars_num = 0
 clauses_num = 0
@@ -77,4 +81,3 @@ with open(cnfname.split('.cnf')[0] + '_known' + str(KNOWN_VARS_NUM) + '.cnf', 'w
 		f.write(str(literals[i]) + ' 0\n')
 	for c in clauses:
 		f.write(c + '\n')
-
