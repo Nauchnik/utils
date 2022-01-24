@@ -51,4 +51,4 @@ with open(ifilename + '_hex', 'w') as o:
 		o.write('X[' + str(k) + '] = ' + h_str + ';\n')
 		total_hex_str += h_str + ' '
 		k += 1
-	o.write('\n' + total_hex_str + '\n')
+	o.write('\n' + total_hex_str[:-1] + '\n')
