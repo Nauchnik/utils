@@ -7,7 +7,7 @@ import collections
 import logging
 import predict_cnc as p_c
 
-version = "1.0.9"
+version = "1.1.0"
 
 MIN_CUBES = 0
 MAX_CUBES = 1000000
@@ -20,7 +20,7 @@ cnf_name = ''
 stat_name = ''
 start_time = 0.0
 
-solvers = ['./kissat_sc2021']
+solvers = ['kissat_sc2021', 'cnc-glucose.sh']
 
 class random_cube_data:
 	cube_cnf_name = ''
@@ -90,7 +90,7 @@ def process_n(n : int, cnf_name : str):
 	print('n : %d' % n)
 	start_t = time.time()
 	cubes_name = './cubes_n_' + str(n) + '_' + cnf_name.replace('./','').replace('.cnf','')
-	system_str = './timelimit -T 1 -t ' + str(int(MAX_MARCH_TIME)) +  ' ./march_cu ' + cnf_name + \
+	system_str = 'timelimit -T 1 -t ' + str(int(MAX_MARCH_TIME)) +  ' ./march_cu ' + cnf_name + \
 	' -n ' + str(n) + ' -o ' + cubes_name
 	#print('system_str : ' + system_str)
 	o = os.popen(system_str).read()
@@ -139,7 +139,7 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 	if '.sh' in solver:
 		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(task_index) + ' ' + str(SOLVER_TIME_LIMIT)
 	else:
-		sys_str = './timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + known_cube_cnf_name
+		sys_str = 'timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + known_cube_cnf_name
 	#print('system command : ' + sys_str)
 	t = time.time()
 	o = os.popen(sys_str).read()
