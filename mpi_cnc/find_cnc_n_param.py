@@ -7,7 +7,7 @@ import collections
 import logging
 import predict_cnc as p_c
 
-version = "1.1.0"
+version = "1.1.1"
 
 MIN_CUBES = 0
 MAX_CUBES = 1000000
@@ -20,7 +20,7 @@ cnf_name = ''
 stat_name = ''
 start_time = 0.0
 
-solvers = ['kissat_sc2021', 'cnc-glucose.sh']
+solvers = ['kissat_sc2021']
 
 class random_cube_data:
 	cube_cnf_name = ''
@@ -113,7 +113,7 @@ def collect_n_result(res):
 	refuted_leaves = res[2]
 	march_time = res[3]
 	cubes_name = res[4]
-	if cubes_num >= MIN_CUBES and cubes_num <= MAX_CUBES and refuted_leaves >= MIN_REFUTED_LEAVES:
+	if cubes_num >= MIN_CUBES and cubes_num <= MAX_CUBES and cubes_numb >= RANDOM_SAMPLE_SIZE and refuted_leaves >= MIN_REFUTED_LEAVES:
 		logging.info(res)
 		ofile = open(stat_name,'a')
 		ofile.write('%d %d %d %.2f\n' % (n, cubes_num, refuted_leaves, march_time))
