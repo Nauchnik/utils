@@ -6,16 +6,17 @@ import sys
 import glob
 import os
 
-version = "0.1.5"
+version = "0.1.6"
 
 PC_CORES = 12
 SOLVER_TIME_LIM = 5000.0
 y_limit = 5100
 EST_STR_WIDTH = 25
 SAMPLE_SIZE = 1000
+PARSE_TIME = 0.01
 
 solvers_short_names_dict = {'./rokk' : 'rokk', './minisat2.2' : 'minisat', './slime' : 'slime', './cdclcrypto' : 'cdclcrypto', './kissat_sc2021' : 'kissat-2021', './kissat-unsat' : 'kissat-u', './kissat-sat' : 'kissat-s', './cryptominisat5' : 'cm5', './v3' : 'v3', './MapleLCMDistChrBt-DL-v3' : 'v3', \
-'./kissat' : 'kissat', './cadical_1.4.1' : 'cadical', './cube-glucose-min10sec-cad130.sh' : 'igl-10s', \
+'./kissat' : 'kissat', 'kissat_sc2021' : 'kissat', './cadical_1.4.1' : 'cadical', './cube-glucose-min10sec-cad130.sh' : 'igl-10s', \
 './cube-glucose-min1min-cad130.sh' : 'igl-1m', './cube-glucose-min2min-cad130.sh' : 'igl-2m', './cube-cad130-min10sec-cad130.sh' : 'icad130-10s', \
 './cube-cad130-min1min-cad130.sh' : 'icad130-min1m', './cube-cad130-min2min-cad130.sh' : 'icad130-min2m'}
 
@@ -171,7 +172,7 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 				unsat_samples_est[n][s] = 'solved_' + str(len(unsat_samples[n][s])) + '/' + str(SAMPLE_SIZE)
 			else:
 				remaining_cubes_num = cubes_dict[n] - SAMPLE_SIZE
-				unsat_samples_est[n][s] = unsat_samples_mean[n][s] * remaining_cubes_num
+				unsat_samples_est[n][s] = (unsat_samples_mean[n][s] + PARSE_TIME) * remaining_cubes_num
 		with open('est_' + unsat_samples_file_name, 'w') as unsat_samples_est_file:
 			unsat_samples_est_file.write('n'.ljust(5))
 			for s in solvers:
