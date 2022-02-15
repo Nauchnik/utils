@@ -7,7 +7,7 @@ import collections
 import logging
 import predict_cnc as p_c
 
-version = "1.1.2"
+version = "1.1.3"
 
 MIN_CUBES = 0
 MAX_CUBES = 1000000
@@ -20,7 +20,7 @@ cnf_name = ''
 stat_name = ''
 start_time = 0.0
 
-solvers = ['kissat_sc2021']
+solvers = ['./cnc-glucose.sh', 'kissat_sc2021']
 
 class random_cube_data:
 	cube_cnf_name = ''
@@ -137,10 +137,10 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 	known_cube_cnf_name = './sample_cnf_n_' + str(n) + '_cube_' + str(cube_index) + '_task_' + str(task_index) + '.cnf'
 	p_c.add_cube(cnf_name, known_cube_cnf_name, cube)
 	if '.sh' in solver:
-		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(task_index) + ' ' + str(SOLVER_TIME_LIMIT)
+		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(SOLVER_TIME_LIMIT)
 	else:
 		sys_str = 'timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + known_cube_cnf_name
-	#print('system command : ' + sys_str)
+	print('system command : ' + sys_str)
 	t = time.time()
 	o = os.popen(sys_str).read()
 	t = time.time() - t
@@ -153,9 +153,9 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 		with open('!sat_' + sat_name, 'w') as ofile:
 			ofile.write('*** SAT found\n')
 			ofile.write(o)
-	else:
+	#else:
 		# remove cnf with known cube
-		remove_file(known_cube_cnf_name)
+		#remove_file(known_cube_cnf_name)
 
 	return n, cube_index, solver, solver_time, isSat
 

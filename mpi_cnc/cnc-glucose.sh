@@ -1,27 +1,31 @@
 #!/bin/bash
 
+version="0.1.1"
+
+if ([ $# -ne 2 ]) then
+  echo -e "script CNF CPULIM\n"
+  exit 1
+fi
+
 CNF=$1
-id=$2
-CPULIM=$3
+CPULIM=$2
 
 DIR=.
 SIMPLIFIER="cadical_1.4.1"
 LOOKAHEAD="march_cu"
 
-if ([ $# -ne 3 ]) then
-  echo -e "script CNF cube-id CPULIM\n"
-  exit 1
-fi
-
 printf "CNF : %s\n" $CNF
-printf "id : %d\n" $id
 printf "CPULIM : %d\n" $CPULIM
 
+CNFBASE=$(basename -- "$CNF")
+CNFNOEXT="${CNFBASE%.*}"
+printf "CNF without extension : %s\n" $CNFNOEXT
+
 res1=$(date +%s.%N)
-mincnf=$DIR/id-$id-mincnf
-cubes=$DIR/id-$id-cubes
-formula=$DIR/id-$id-formula.icnf
-ext=$DIR/id-$id-ext
+mincnf=$DIR/$CNFNOEXT.mincnf
+cubes=$DIR/$CNFNOEXT.cubes
+formula=$DIR/$CNFNOEXT.icnf
+ext=$DIR/$CNFNOEXT.ext
 # Given "-c 1", cadical stops upen the first conflict, i.e. performs BCP:
 $SIMPLIFIER -c 1 $CNF -o $mincnf -e $ext -q
 res2=$(date +%s.%N)
@@ -50,4 +54,4 @@ cat $mincnf | grep -v c >> $formula
 cat $cubes >> $formula
 timelimit -t $rem -T 1 iglucose $formula -verb=0 -cpu-lim=$rem
 
-rm id-$id*
+rm $mincnf $cubes $formula $ext
