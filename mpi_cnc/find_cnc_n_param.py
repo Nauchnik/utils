@@ -7,7 +7,7 @@ import collections
 import logging
 import predict_cnc as p_c
 
-version = "1.1.3"
+version = "1.1.4"
 
 MIN_CUBES = 0
 MAX_CUBES = 1000000
@@ -20,7 +20,7 @@ cnf_name = ''
 stat_name = ''
 start_time = 0.0
 
-solvers = ['./cnc-glucose.sh', 'kissat_sc2021']
+solvers = ['kissat_sc2021', './cnc-glucose.sh', './cnc-cadical.sh']
 
 class random_cube_data:
 	cube_cnf_name = ''
@@ -153,9 +153,9 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 		with open('!sat_' + sat_name, 'w') as ofile:
 			ofile.write('*** SAT found\n')
 			ofile.write(o)
-	#else:
+	else:
 		# remove cnf with known cube
-		#remove_file(known_cube_cnf_name)
+		remove_file(known_cube_cnf_name)
 
 	return n, cube_index, solver, solver_time, isSat
 
