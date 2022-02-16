@@ -140,7 +140,7 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(SOLVER_TIME_LIMIT)
 	else:
 		sys_str = 'timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + known_cube_cnf_name
-	print('system command : ' + sys_str)
+	#print('system command : ' + sys_str)
 	t = time.time()
 	o = os.popen(sys_str).read()
 	t = time.time() - t
@@ -318,7 +318,10 @@ if __name__ == '__main__':
 					sample_file.write('%d %d %s %.2f\n' % (n, r[0], r[1], r[2])) # tuple (cube_index,solver,solver_time)
 
 	# remove tmp files from solver's script
-	remove_file('./id-*')
+	remove_file('./*.mincnf')
+	remove_file('./*.cubes')
+	remove_file('./*.ext')
+	remove_file('./*.icnf')
 
 	elapsed_time = time.time() - start_time
 	logging.info('elapsed_time : ' + str(elapsed_time))
