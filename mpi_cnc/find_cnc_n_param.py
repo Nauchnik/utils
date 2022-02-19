@@ -7,7 +7,7 @@ import collections
 import logging
 import predict_cnc as p_c
 
-version = "1.1.4"
+version = "1.1.5"
 
 MIN_CUBES = 0
 MAX_CUBES = 1000000
@@ -161,9 +161,7 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 
 def collect_cube_solver_result(res):
 	global results
-	global exit_solving
-	if exit_solving:
-		return
+	global stopped_solvers
 	n = res[0]
 	cube_index = res[1]
 	solver = res[2]
@@ -181,7 +179,9 @@ def collect_cube_solver_result(res):
 		logging.info(res)
 		elapsed_time = time.time() - start_time
 		logging.info('elapsed_time : ' + str(elapsed_time))
-		exit_solving = True
+		stopped_solvers.add(solver)
+		logging.info('stopped solvers : ')
+		logging.info(stopped_solvers)
 
 if __name__ == '__main__':
 	cpu_number = mp.cpu_count()
@@ -279,6 +279,7 @@ if __name__ == '__main__':
 		logging.info('processing random samples')
 		logging.info('')
 		
+		stopped_solvers = set()
 		results = dict()
 		for n, random_cubes in sorted_random_cubes_n.items():
 			logging.info('*** n : %d' % n)
@@ -286,25 +287,29 @@ if __name__ == '__main__':
 			results[n] = []
 			task_index = 0
 			for solver in solvers:
+				if solver in stopped_solvers:
+				    continue
 				cube_index = 0
 				exit_solving = False
 				for cube in random_cubes:
 					while len(pool2._cache) >= cpu_number:
 						time.sleep(2)
+					# Break if solver becomes a stopped one:
+					if solver in stopped_solvers:
+						# Kill only a binary solver, let a script solver finisn and clean:
+						if '.sh' not in solver:
+						    kill_solver(solver)
+						break
 					pool2.apply_async(process_cube_solver, args=(cnf_name, n, cube, cube_index, task_index, solver), callback=collect_cube_solver_result)
 					task_index += 1
 					cube_index += 1
-					if exit_solving:
-						time.sleep(2) # wait for remaining solver's runs
-						kill_solver(solver)
-						break
 			time.sleep(2)
 			logging.info('results[n] len : %d' % len(results[n]))
 			#logging.info(results[n])
 			elapsed_time = time.time() - start_time
 			logging.info('elapsed_time : ' + str(elapsed_time) + '\n')
 			
-			if exit_solving:
+			if len(stopped_solvers) == len(solvers):
 				logging.info('stop main loop')
 				break
 
