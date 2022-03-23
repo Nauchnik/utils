@@ -7,27 +7,28 @@ import collections
 import logging
 import predict_cnc as p_c
 
-version = "1.1.5"
+version = "1.1.6"
 
+CNC_SOLVER = 'march_cu'
+MAX_CUBING_TIME = 86400.0
 MIN_CUBES = 0
 MAX_CUBES = 1000000
 MIN_REFUTED_LEAVES = 500
 SOLVER_TIME_LIMIT = 5000
-MAX_MARCH_TIME = 86400.0
 RANDOM_SAMPLE_SIZE = 1000
 
 cnf_name = ''
 stat_name = ''
 start_time = 0.0
 
-solvers = ['kissat_sc2021', './cnc-glucose.sh', './cnc-cadical.sh']
+solvers = ['kissat_sc2021']
 
 class random_cube_data:
 	cube_cnf_name = ''
 	solved_tasks = 0
 
 def kill_unuseful_processes():
-	sys_str = 'killall -9 march_cu'
+	sys_str = 'killall -9 ' + CNC_SOLVER
 	o = os.popen(sys_str).read()
 	sys_str = 'killall -9 timelimit'
 	o = os.popen(sys_str).read()
@@ -56,7 +57,7 @@ def get_free_vars(cnf_name):
 					free_vars.append(var)
 	return free_vars
 
-def parse_march_log(o):
+def parse_cubing_log(o):
 	cubes = -1
 	refuted_leaves = -1
 	lines = o.split('\n')
@@ -90,19 +91,19 @@ def process_n(n : int, cnf_name : str):
 	print('n : %d' % n)
 	start_t = time.time()
 	cubes_name = './cubes_n_' + str(n) + '_' + cnf_name.replace('./','').replace('.cnf','')
-	system_str = 'timelimit -T 1 -t ' + str(int(MAX_MARCH_TIME)) +  ' ./march_cu ' + cnf_name + \
+	system_str = 'timelimit -T 1 -t ' + str(int(MAX_CUBING_TIME)) +  ' ' + CNC_SOLVER + ' ' + cnf_name + \
 	' -n ' + str(n) + ' -o ' + cubes_name
 	#print('system_str : ' + system_str)
 	o = os.popen(system_str).read()
 	t = time.time() - start_t
 	cubes_num = -1
 	refuted_leaves = -1
-	march_time = -1.0
-	cubes_num, refuted_leaves = parse_march_log(o)
-	march_time = float(t)
+	cubing_time = -1.0
+	cubes_num, refuted_leaves = parse_cubing_log(o)
+	cubing_time = float(t)
 	#print('elapsed_time : %.2f' % elapsed_time)
 	
-	return n, cubes_num, refuted_leaves, march_time, cubes_name
+	return n, cubes_num, refuted_leaves, cubing_time, cubes_name
 
 def collect_n_result(res):
 	global random_cubes_n
@@ -111,12 +112,12 @@ def collect_n_result(res):
 	n = res[0]
 	cubes_num = res[1]
 	refuted_leaves = res[2]
-	march_time = res[3]
+	cubing_time = res[3]
 	cubes_name = res[4]
 	if cubes_num >= MIN_CUBES and cubes_num <= MAX_CUBES and cubes_num >= RANDOM_SAMPLE_SIZE and refuted_leaves >= MIN_REFUTED_LEAVES:
 		logging.info(res)
 		ofile = open(stat_name,'a')
-		ofile.write('%d %d %d %.2f\n' % (n, cubes_num, refuted_leaves, march_time))
+		ofile.write('%d %d %d %.2f\n' % (n, cubes_num, refuted_leaves, cubing_time))
 		ofile.close()
 		if is_unsat_sample_solving:
 			random_cubes = []
@@ -129,7 +130,7 @@ def collect_n_result(res):
 						remaining_cubes_file.write(cube)
 	else:
 		remove_file(cubes_name)
-	if cubes_num > MAX_CUBES or march_time > MAX_MARCH_TIME:
+	if cubes_num > MAX_CUBES or cubing_time > MAX_CUBING_TIME:
 		exit_cubes_creating = True
 		logging.info('exit_cubes_creating : ' + str(exit_cubes_creating))
 
@@ -226,7 +227,7 @@ if __name__ == '__main__':
 	stat_name = stat_name.replace('.','')
 	stat_name = stat_name.replace('/','')
 	stat_file = open(stat_name,'w')
-	stat_file.write('n cubes refuted-leaves march-cu-time\n')
+	stat_file.write('n cubes refuted-leaves cubing-time\n')
 	stat_file.close()
 
 	random_cubes_n = dict()
