@@ -5,9 +5,8 @@ import multiprocessing as mp
 import random
 import collections
 import logging
-import predict_cnc as p_c
 
-version = "1.1.6"
+version = "1.1.7"
 
 CNC_SOLVER = 'march_cu'
 MAX_CUBING_TIME = 86400.0
@@ -66,6 +65,39 @@ def parse_cubing_log(o):
 			cubes = int(line.split('c number of cubes ')[1].split(',')[0])
 			refuted_leaves = int(line.split(' refuted leaves')[0].split(' ')[-1])
 	return cubes, refuted_leaves
+
+def add_cube(old_cnf_name : str, new_cnf_name : str, cube : list):
+	cnf_var_number = 0
+	clauses = []
+	with open(old_cnf_name, 'r') as cnf_file:
+		lines = cnf_file.readlines()
+		for line in lines:
+			if len(line) < 2 or line[0] == 'c':
+				continue
+			if line[0] == 'p':
+				cnf_var_number = line.split(' ')[2]
+			else:
+				clauses.append(line)
+	clauses_number = len(clauses) + len(cube)
+	#print('clauses_number : %d' % clauses_number)
+	with open(new_cnf_name, 'w') as cnf_file:
+		cnf_file.write('p cnf ' + str(cnf_var_number) + ' ' + str(clauses_number) + '\n')
+		for cl in clauses:
+			cnf_file.write(cl)
+		for c in cube:
+			cnf_file.write(c + ' 0\n')
+
+def find_sat_log(o):
+	res = False
+	lines = o.split('\n')
+	for line in lines:
+		if len(line) < 12:
+			continue
+		if 's SATISFIABLE' in line:
+			res = True
+			break
+	return res
+
 
 def get_random_cubes(cubes_name):
 	lines = []
