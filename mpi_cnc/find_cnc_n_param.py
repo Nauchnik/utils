@@ -6,11 +6,11 @@ import random
 import collections
 import logging
 
-version = "1.1.7"
+version = "1.1.8"
 
 CNC_SOLVER = 'march_cu'
 MAX_CUBING_TIME = 86400.0
-MIN_CUBES = 0
+MIN_CUBES = 1000
 MAX_CUBES = 1000000
 MIN_REFUTED_LEAVES = 500
 SOLVER_TIME_LIMIT = 5000
@@ -168,7 +168,7 @@ def collect_n_result(res):
 
 def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, task_index : int, solver : str):
 	known_cube_cnf_name = './sample_cnf_n_' + str(n) + '_cube_' + str(cube_index) + '_task_' + str(task_index) + '.cnf'
-	p_c.add_cube(cnf_name, known_cube_cnf_name, cube)
+	add_cube(cnf_name, known_cube_cnf_name, cube)
 	if '.sh' in solver:
 		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(SOLVER_TIME_LIMIT)
 	else:
@@ -178,7 +178,7 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 	o = os.popen(sys_str).read()
 	t = time.time() - t
 	solver_time = float(t)
-	isSat = p_c.find_sat_log(o)
+	isSat = find_sat_log(o)
 	if isSat:
 		logging.info('*** Writing satisfying assignment to a file')
 		sat_name = cnf_name.replace('./','').replace('.cnf','') + '_n' + str(n) + '_' + solver + '_cube_index_' + str(cube_index) 
