@@ -1,1 +1,3 @@
 parallel_cubes
+mpi_cubes
+*.o

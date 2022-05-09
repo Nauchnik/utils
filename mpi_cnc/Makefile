@@ -1,13 +1,13 @@
-CPP = mpicxx
-CPPFLAGS = -cxx=g++ -O3 -std=c++11
+CPP = g++
+CPPFLAGS = -O3 -std=c++20 -fopenmp
 
-mpi_cubes: mpi_cubes.o
-	${CPP} ${CPPFLAGS} mpi_cubes.o -o mpi_cubes
+parallel_cubes: parallel_cubes.o
+	${CPP} ${CPPFLAGS} parallel_cubes.o -o parallel_cubes
 
-mpi_cubes.o: mpi_cubes.cpp
-	${CPP} ${CPPFLAGS} mpi_cubes.cpp -c
+parallel_cubes.o: parallel_cubes.cpp
+	${CPP} ${CPPFLAGS} parallel_cubes.cpp -c
 
 clean:
 	rm -rf *.o
-	rm mpi_cubes
+	rm parallel_cubes
 	clear
