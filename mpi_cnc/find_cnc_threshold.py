@@ -5,27 +5,60 @@ import multiprocessing as mp
 import random
 import collections
 import logging
+import time
 
-version = "1.1.10"
+version = "1.2.0"
 
-CNC_SOLVER = 'march_cu'
-MAX_CUBING_TIME = 86400.0
-MIN_CUBES = 1000
-MAX_CUBES = 1000000
+# Constants:
+LA_SOLVER = 'march_cu'
 MAX_CUBES_PARALLEL = 5000000
-MIN_REFUTED_LEAVES = 500
-SOLVER_TIME_LIMIT = 5000
-RANDOM_SAMPLE_SIZE = 1000
-STEP = 10
+SOLVERS = ['kissat_sc2021']
 
 cnf_name = ''
 stat_name = ''
 start_time = 0.0
 
-solvers = ['kissat_sc2021']
+class Options:
+	sample_size = 1000
+	min_cubes = 1000
+	max_cubes = 1000000
+	min_refuted_leaves = 500
+	max_la_time = 86400
+	max_cdcl_time = 5000
+	nstep = 10
+	seed = 0
+	def __init__(self):
+		self.seed = round(time.time() * 1000)
+	def __str__(self):
+		return 'sample_size : ' + str(self.sample_size) + '\n' +\
+		'min_cubes : ' + str(self.min_cubes) + '\n' +\
+		'max_cubes : ' + str(self.max_cubes) + '\n' +\
+		'min_refuted_leaves : ' + str(self.min_refuted_leaves) + '\n' +\
+		'max_la_time : ' + str(self.max_la_time) + '\n' +\
+		'max_cdcl_time : ' + str(self.max_cdcl_time) + '\n' +\
+		'nstep : ' + str(self.nstep) + '\n' +\
+		'seed : ' + str(self.seed) + '\n'
+	def read(self, argv) :
+		for p in argv:
+			if '-sample=' in p:
+				self.sample_size = int(p.split('-sample=')[1])
+			if '-maxlat=' in p:
+				self.max_la_time = int(p.split('-maxlat=')[1])
+			if '-maxcdclt=' in p:
+				self.max_cdcl_time = int(p.split('-maxcdclt=')[1])
+			if '-minc=' in p:
+				self.min_cubes = int(p.split('-minc=')[1])
+			if '-maxc=' in p:
+				self.max_cubes = int(p.split('-maxc=')[1])
+			if '-minref=' in p:
+				self.min_refuted_leaves = int(p.split('-minref=')[1])
+			if '-seed=' in p:
+				self.seed = int(p.split('-seed=')[1])
+			if '-nstep=' in p:
+				self.nstep = int(p.split('-nstep=')[1])
 
 def kill_unuseful_processes():
-	sys_str = 'killall -9 ' + CNC_SOLVER
+	sys_str = 'killall -9 ' + LA_SOLVER
 	o = os.popen(sys_str).read()
 	sys_str = 'killall -9 timelimit'
 	o = os.popen(sys_str).read()
@@ -116,11 +149,11 @@ def get_random_cubes(cubes_name, random):
 		exit(1)
 	return random_cubes, remaining_cubes_str
 	
-def process_n(n : int, cnf_name : str):
+def process_n(n : int, cnf_name : str, op : Options):
 	print('n : %d' % n)
 	start_t = time.time()
 	cubes_name = './cubes_n_' + str(n) + '_' + cnf_name.replace('./','').replace('.cnf','')
-	system_str = 'timelimit -T 1 -t ' + str(int(MAX_CUBING_TIME)) +  ' ' + CNC_SOLVER + ' ' + cnf_name + \
+	system_str = 'timelimit -T 1 -t ' + str(int(op.max_la_time)) +  ' ' + LA_SOLVER + ' ' + cnf_name + \
 	' -n ' + str(n) + ' -o ' + cubes_name
 	#print('system_str : ' + system_str)
 	o = os.popen(system_str).read()
@@ -136,13 +169,13 @@ def process_n(n : int, cnf_name : str):
 def collect_n_result(res):
 	global random_cubes_n
 	global exit_cubes_creating
-	global is_unsat_sample_solving
+	global op
 	n = res[0]
 	cubes_num = res[1]
 	refuted_leaves = res[2]
 	cubing_time = res[3]
 	cubes_name = res[4]
-	if cubes_num >= MIN_CUBES and cubes_num <= MAX_CUBES and cubes_num >= RANDOM_SAMPLE_SIZE and refuted_leaves >= MIN_REFUTED_LEAVES:
+	if cubes_num >= op.min_cubes and cubes_num <= op.max_cubes and cubes_num >= op.sample_size and refuted_leaves >= op.min_refuted_leaves:
 		logging.info(res)
 		ofile = open(stat_name,'a')
 		ofile.write('%d %d %d %.2f\n' % (n, cubes_num, refuted_leaves, cubing_time))
@@ -158,18 +191,18 @@ def collect_n_result(res):
 						remaining_cubes_file.write(cube)
 	else:
 		remove_file(cubes_name)
-	if cubes_num > MAX_CUBES or cubing_time > MAX_CUBING_TIME:
+	if cubes_num > op.max_cubes or cubing_time > op.max_la_time:
 		exit_cubes_creating = True
 		logging.info('exit_cubes_creating : ' + str(exit_cubes_creating))
 
 def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, task_index : int, solver : str):
+	global op
 	known_cube_cnf_name = './sample_cnf_n_' + str(n) + '_cube_' + str(cube_index) + '_task_' + str(task_index) + '.cnf'
 	add_cube(cnf_name, known_cube_cnf_name, cube)
 	if '.sh' in solver:
-		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(SOLVER_TIME_LIMIT)
+		sys_str = solver + ' ' + known_cube_cnf_name + ' ' + str(op.max_cdcl_time)
 	else:
-		sys_str = 'timelimit -T 1 -t ' + str(SOLVER_TIME_LIMIT) + ' ' + solver + ' ' + known_cube_cnf_name
-	#print('system command : ' + sys_str)
+		sys_str = 'timelimit -T 1 -t ' + str(op.max_cdcl_time) + ' ' + solver + ' ' + known_cube_cnf_name
 	t = time.time()
 	o = os.popen(sys_str).read()
 	t = time.time() - t
@@ -216,18 +249,24 @@ if __name__ == '__main__':
 	exit_cubes_creating = False
 
 	if len(sys.argv) < 2:
-		print('Usage : script cnf-name [seed]')
+		print('Usage : script cnf-name [options]')
+		print('options :\n' +\
+		'-sample_size=' + '\n' +\
+		'-min_cubes=' + '\n' +\
+		'-max_cubes=' + '\n' +\
+		'-min_refuted_leaves=' + '\n' +\
+		'-max_la_time=' + '\n' +\
+		'-max_cdcl_time=' + '\n' +\
+		'-nstep=' + '\n' +\
+		'-seed=')
 		exit(1)
 	cnf_name = sys.argv[1]
-	if len(sys.argv) > 2:
-		dseed = int(sys.argv[2])
-		print('seed was read from input')
-	else:
-		from datetime import datetime
-		dseed = int(round(datetime.now().timestamp()))
-		print('seed was generated randomly')
-	print("seed : " + str(dseed))
-	random.seed(dseed)
+
+	op = Options()
+	op.read(sys.argv[2:])
+	print(op)
+
+	random.seed(op.seed)
 
 	log_name = './find_n_' + cnf_name.replace('./','').replace('.','') + '.log'
 	print('log_name : ' + log_name)
@@ -236,15 +275,15 @@ if __name__ == '__main__':
 	logging.info('cnf : ' + cnf_name)
 	logging.info('total number of processors: %d' % mp.cpu_count())
 	logging.info('cpu_number : %d' % cpu_number)
-	logging.info('seed : ' + str(dseed))
+	logging.info('Options: \n' + str(op))
 
 	start_time = time.time()
-	
-	# count free variables
+
+	# Count free variables:
 	free_vars = get_free_vars(cnf_name)
 	logging.info('free vars : %d' % len(free_vars))
 	n = len(free_vars)
-	while n % 10 != 0:
+	while n % op.nstep != 0 and n > 0:
 		n -= 1
 	logging.info('start n : %d ' % n)
 
@@ -258,16 +297,16 @@ if __name__ == '__main__':
 
 	random_cubes_n = dict()
 	# use 1 CPU core if many cubes (much RAM)
-	if MAX_CUBES > MAX_CUBES_PARALLEL:
+	if op.max_cubes > MAX_CUBES_PARALLEL:
 		pool = mp.Pool(1)
 	else:
 		pool = mp.Pool(cpu_number)
 	# find required n and their cubes numbers
 	while not exit_cubes_creating:
-		pool.apply_async(process_n, args=(n, cnf_name), callback=collect_n_result)
+		pool.apply_async(process_n, args=(n, cnf_name, op), callback=collect_n_result)
 		while len(pool._cache) >= cpu_number: # wait until any cpu is free
 			time.sleep(2)
-		n -= STEP
+		n -= op.nstep
 		if exit_cubes_creating or n <= 0:
 			#pool.terminate()
 			logging.info('killing unuseful processes')
@@ -278,7 +317,6 @@ if __name__ == '__main__':
 	elapsed_time = time.time() - start_time
 	logging.info('elapsed_time : ' + str(elapsed_time))
 	logging.info('random_cubes_n : ')
-	#print(random_cubes_n)
 
 	pool.close()
 	pool.join()
@@ -309,7 +347,7 @@ if __name__ == '__main__':
 		logging.info('random_cubes size : %d' % len(random_cubes))
 		results[n] = []
 		task_index = 0
-		for solver in solvers:
+		for solver in SOLVERS:
 			if solver in stopped_solvers:
 				continue
 			cube_index = 0
