@@ -7,7 +7,7 @@ import collections
 import logging
 import time
 
-version = "1.2.0"
+version = "1.2.1"
 
 # Constants:
 LA_SOLVER = 'march_cu'
@@ -180,15 +180,14 @@ def collect_n_result(res):
 		ofile = open(stat_name,'a')
 		ofile.write('%d %d %d %.2f\n' % (n, cubes_num, refuted_leaves, cubing_time))
 		ofile.close()
-		if is_unsat_sample_solving:
-			random_cubes = []
-			random_cubes, remaining_cubes_str = get_random_cubes(cubes_name)
-			if len(random_cubes) > 0: # if random sample is small enough to obtain it
-				random_cubes_n[n] = random_cubes
-				# write all cubes which are not from the random sample to solve them further in the case n is the best one
-				with open(cubes_name, 'w') as remaining_cubes_file:
-					for cube in remaining_cubes_str:
-						remaining_cubes_file.write(cube)
+		random_cubes = []
+		random_cubes, remaining_cubes_str = get_random_cubes(cubes_name)
+		if len(random_cubes) > 0: # if random sample is small enough to obtain it
+			random_cubes_n[n] = random_cubes
+			# write all cubes which are not from the random sample to solve them further in the case n is the best one
+			with open(cubes_name, 'w') as remaining_cubes_file:
+				for cube in remaining_cubes_str:
+					remaining_cubes_file.write(cube)
 	else:
 		remove_file(cubes_name)
 	if cubes_num > op.max_cubes or cubing_time > op.max_la_time:
