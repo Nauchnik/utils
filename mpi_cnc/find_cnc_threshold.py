@@ -6,7 +6,7 @@ import random
 import collections
 import logging
 
-version = "1.1.8"
+version = "1.1.9"
 
 CNC_SOLVER = 'march_cu'
 MAX_CUBING_TIME = 86400.0
@@ -98,8 +98,7 @@ def find_sat_log(o):
 			break
 	return res
 
-
-def get_random_cubes(cubes_name):
+def get_random_cubes(cubes_name, random):
 	lines = []
 	random_cubes = []
 	remaining_cubes_str = []
@@ -218,13 +217,21 @@ def collect_cube_solver_result(res):
 
 if __name__ == '__main__':
 	cpu_number = mp.cpu_count()
-
 	exit_cubes_creating = False
 
 	if len(sys.argv) < 2:
-		print('Usage : prog cnf-name [--nosample | --onesample]')
+		print('Usage : script cnf-name [seed]')
 		exit(1)
 	cnf_name = sys.argv[1]
+	if len(sys.argv) > 2:
+		dseed = int(sys.argv[2])
+		print("seed was read from input")
+	else:
+		from datetime import datetime
+		dseed = int(round(datetime.now().timestamp()))
+		print("seed was generated randomly")
+	print("seed : " + str(dseed))
+	random.seed(dseed)
 
 	log_name = './find_n_' + cnf_name.replace('./','').replace('.','') + '.log'
 	print('log_name : ' + log_name)
@@ -233,17 +240,8 @@ if __name__ == '__main__':
 	logging.info('cnf : ' + cnf_name)
 	logging.info("total number of processors: %d" % mp.cpu_count())
 	logging.info('cpu_number : %d' % cpu_number)
+	logging.info('seed : ' + str(dseed))
 
-	is_unsat_sample_solving = True
-	is_one_sample = False
-	if len(sys.argv) > 2:
-		if sys.argv[2] == '--nosample':
-			is_unsat_sample_solving = False
-		elif sys.argv[2] == '--onesample':
-			is_one_sample = True
-	logging.info('is_unsat_sample_solving : ' + str(is_unsat_sample_solving))
-	logging.info('is_one_sample : ' + str(is_one_sample))
-	
 	start_time = time.time()
 	
 	# count free variables
@@ -292,68 +290,65 @@ if __name__ == '__main__':
 
 	pool2 = mp.Pool(cpu_number)
 	
-	if is_unsat_sample_solving:
-		# prepare file for results
-		sample_name = 'sample_results_' + cnf_name
-		sample_name = sample_name.replace('.','')
-		sample_name = sample_name.replace('/','')
-		sample_name += '.csv'
-		with open(sample_name, 'w') as sample_file:
-			sample_file.write('n cube-index solver time\n')
-		# sort dict by n in descending order
-		sorted_random_cubes_n = collections.OrderedDict(sorted(random_cubes_n.items()))
-		# if only the sample for the first (easiest) n is needed
-		if is_one_sample:
-			sorted_random_cubes_n = sorted_random_cubes_n.popitem(last=False)
-		logging.info('sorted_random_cubes_n : ')
-		logging.info(sorted_random_cubes_n)
-		# for evary n solve cube-problems from the random sample
-		logging.info('')
-		logging.info('processing random samples')
-		logging.info('')
-		
-		stopped_solvers = set()
-		results = dict()
-		for n, random_cubes in sorted_random_cubes_n.items():
-			logging.info('*** n : %d' % n)
-			logging.info('random_cubes size : %d' % len(random_cubes))
-			results[n] = []
-			task_index = 0
-			for solver in solvers:
+	# prepare file for results
+	sample_name = 'sample_results_' + cnf_name
+	sample_name = sample_name.replace('.','')
+	sample_name = sample_name.replace('/','')
+	sample_name += '.csv'
+	with open(sample_name, 'w') as sample_file:
+		sample_file.write('n cube-index solver time\n')
+	# sort dict by n in descending order
+	sorted_random_cubes_n = collections.OrderedDict(sorted(random_cubes_n.items()))
+	
+	logging.info('sorted_random_cubes_n : ')
+	logging.info(sorted_random_cubes_n)
+	# for evary n solve cube-problems from the random sample
+	logging.info('')
+	logging.info('processing random samples')
+	logging.info('')
+	
+	stopped_solvers = set()
+	results = dict()
+	for n, random_cubes in sorted_random_cubes_n.items():
+		logging.info('*** n : %d' % n)
+		logging.info('random_cubes size : %d' % len(random_cubes))
+		results[n] = []
+		task_index = 0
+		for solver in solvers:
+			if solver in stopped_solvers:
+				continue
+			cube_index = 0
+			exit_solving = False
+			for cube in random_cubes:
+				while len(pool2._cache) >= cpu_number:
+					time.sleep(2)
+				# Break if solver becomes a stopped one:
 				if solver in stopped_solvers:
-				    continue
-				cube_index = 0
-				exit_solving = False
-				for cube in random_cubes:
-					while len(pool2._cache) >= cpu_number:
-						time.sleep(2)
-					# Break if solver becomes a stopped one:
-					if solver in stopped_solvers:
-						# Kill only a binary solver, let a script solver finisn and clean:
-						if '.sh' not in solver:
-						    kill_solver(solver)
-						break
-					pool2.apply_async(process_cube_solver, args=(cnf_name, n, cube, cube_index, task_index, solver), callback=collect_cube_solver_result)
-					task_index += 1
-					cube_index += 1
-			time.sleep(2)
-			logging.info('results[n] len : %d' % len(results[n]))
-			#logging.info(results[n])
-			elapsed_time = time.time() - start_time
-			logging.info('elapsed_time : ' + str(elapsed_time) + '\n')
-			
-			if len(stopped_solvers) == len(solvers):
-				logging.info('stop main loop')
-				break
+					# Kill only a binary solver, let a script solver finisn and clean:
+					if '.sh' not in solver:
+						kill_solver(solver)
+					break
+				pool2.apply_async(process_cube_solver, args=(cnf_name, n, cube, cube_index, task_index, solver), callback=collect_cube_solver_result)
+				task_index += 1
+				cube_index += 1
+		time.sleep(2)
+		logging.info('results[n] len : %d' % len(results[n]))
+		#logging.info(results[n])
+		elapsed_time = time.time() - start_time
+		logging.info('elapsed_time : ' + str(elapsed_time) + '\n')
+		
+		if len(stopped_solvers) == len(solvers):
+			logging.info('stop main loop')
+			break
 
-		pool2.close()
-		pool2.join()
+	pool2.close()
+	pool2.join()
 
-		# write results
-		for n, res in results.items():
-			with open(sample_name, 'a') as sample_file:
-				for r in res:
-					sample_file.write('%d %d %s %.2f\n' % (n, r[0], r[1], r[2])) # tuple (cube_index,solver,solver_time)
+	# write results
+	for n, res in results.items():
+		with open(sample_name, 'a') as sample_file:
+			for r in res:
+				sample_file.write('%d %d %s %.2f\n' % (n, r[0], r[1], r[2])) # tuple (cube_index,solver,solver_time)
 
 	# remove tmp files from solver's script
 	remove_file('./*.mincnf')
