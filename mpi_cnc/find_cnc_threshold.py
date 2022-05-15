@@ -6,25 +6,23 @@ import random
 import collections
 import logging
 
-version = "1.1.9"
+version = "1.1.10"
 
 CNC_SOLVER = 'march_cu'
 MAX_CUBING_TIME = 86400.0
 MIN_CUBES = 1000
 MAX_CUBES = 1000000
+MAX_CUBES_PARALLEL = 5000000
 MIN_REFUTED_LEAVES = 500
 SOLVER_TIME_LIMIT = 5000
 RANDOM_SAMPLE_SIZE = 1000
+STEP = 10
 
 cnf_name = ''
 stat_name = ''
 start_time = 0.0
 
 solvers = ['kissat_sc2021']
-
-class random_cube_data:
-	cube_cnf_name = ''
-	solved_tasks = 0
 
 def kill_unuseful_processes():
 	sys_str = 'killall -9 ' + CNC_SOLVER
@@ -133,7 +131,6 @@ def process_n(n : int, cnf_name : str):
 	cubes_num, refuted_leaves = parse_cubing_log(o)
 	cubing_time = float(t)
 	#print('elapsed_time : %.2f' % elapsed_time)
-	
 	return n, cubes_num, refuted_leaves, cubing_time, cubes_name
 
 def collect_n_result(res):
@@ -188,7 +185,6 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 	else:
 		# remove cnf with known cube
 		remove_file(known_cube_cnf_name)
-
 	return n, cube_index, solver, solver_time, isSat
 
 def collect_cube_solver_result(res):
@@ -225,11 +221,11 @@ if __name__ == '__main__':
 	cnf_name = sys.argv[1]
 	if len(sys.argv) > 2:
 		dseed = int(sys.argv[2])
-		print("seed was read from input")
+		print('seed was read from input')
 	else:
 		from datetime import datetime
 		dseed = int(round(datetime.now().timestamp()))
-		print("seed was generated randomly")
+		print('seed was generated randomly')
 	print("seed : " + str(dseed))
 	random.seed(dseed)
 
@@ -238,7 +234,7 @@ if __name__ == '__main__':
 	logging.basicConfig(filename=log_name, filemode = 'w', level=logging.INFO)
 
 	logging.info('cnf : ' + cnf_name)
-	logging.info("total number of processors: %d" % mp.cpu_count())
+	logging.info('total number of processors: %d' % mp.cpu_count())
 	logging.info('cpu_number : %d' % cpu_number)
 	logging.info('seed : ' + str(dseed))
 
@@ -262,7 +258,7 @@ if __name__ == '__main__':
 
 	random_cubes_n = dict()
 	# use 1 CPU core if many cubes (much RAM)
-	if MAX_CUBES > 5000000:
+	if MAX_CUBES > MAX_CUBES_PARALLEL:
 		pool = mp.Pool(1)
 	else:
 		pool = mp.Pool(cpu_number)
@@ -271,9 +267,8 @@ if __name__ == '__main__':
 		pool.apply_async(process_n, args=(n, cnf_name), callback=collect_n_result)
 		while len(pool._cache) >= cpu_number: # wait until any cpu is free
 			time.sleep(2)
-		n -= 10
+		n -= STEP
 		if exit_cubes_creating or n <= 0:
-			#print('terminating pool')
 			#pool.terminate()
 			logging.info('killing unuseful processes')
 			kill_unuseful_processes()
