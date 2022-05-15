@@ -7,7 +7,7 @@ import collections
 import logging
 import time
 
-version = "1.2.1"
+version = "1.2.2"
 
 # Constants:
 LA_SOLVER = 'march_cu'
@@ -129,14 +129,15 @@ def find_sat_log(o):
 			break
 	return res
 
-def get_random_cubes(cubes_name, random):
+def get_random_cubes(cubes_name):
+	global op
 	lines = []
 	random_cubes = []
 	remaining_cubes_str = []
 	with open(cubes_name, 'r') as cubes_file:
 		lines = cubes_file.readlines()
-		if len(lines) > RANDOM_SAMPLE_SIZE:
-			random_lines = random.sample(lines, RANDOM_SAMPLE_SIZE)
+		if len(lines) > op.sample_size:
+			random_lines = random.sample(lines, op.sample_size)
 			for line in random_lines:
 				lst = line.split(' ')[1:-1] # skip 'a' and '0'
 				random_cubes.append(lst)
