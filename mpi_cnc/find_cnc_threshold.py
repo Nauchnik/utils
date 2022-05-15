@@ -7,7 +7,7 @@ import collections
 import logging
 import time
 
-version = "1.2.2"
+version = "1.2.4"
 
 # Constants:
 LA_SOLVER = 'march_cu'
@@ -223,6 +223,7 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 def collect_cube_solver_result(res):
 	global results
 	global stopped_solvers
+	global op
 	n = res[0]
 	cube_index = res[1]
 	solver = res[2]
@@ -235,7 +236,7 @@ def collect_cube_solver_result(res):
 		logging.info(res)
 		elapsed_time = time.time() - start_time
 		logging.info('elapsed_time : ' + str(elapsed_time))
-	elif solver_time >= SOLVER_TIME_LIMIT:
+	elif solver_time >= op.max_cdcl_time:
 		logging.info('*** Reached solver time limit')
 		logging.info(res)
 		elapsed_time = time.time() - start_time
@@ -251,14 +252,14 @@ if __name__ == '__main__':
 	if len(sys.argv) < 2:
 		print('Usage : script cnf-name [options]')
 		print('options :\n' +\
-		'-sample_size=' + '\n' +\
-		'-min_cubes=' + '\n' +\
-		'-max_cubes=' + '\n' +\
-		'-min_refuted_leaves=' + '\n' +\
-		'-max_la_time=' + '\n' +\
-		'-max_cdcl_time=' + '\n' +\
-		'-nstep=' + '\n' +\
-		'-seed=')
+		'-sample=x - random sample size' + '\n' +\
+		'-minc=x - minimal number of cubes' + '\n' +\
+		'-maxc=x - maximal number of cubes' + '\n' +\
+		'-minref=x - minimal number of refuted leaves' + '\n' +\
+		'-maxlat=x - maximal time of the lookahead solver' + '\n' +\
+		'-maxcdclt=x - maximal time of the cdcl solver' + '\n' +\
+		'-nstep=x - step for decreasing n' + '\n' +\
+		'-seed=x - seed for pseudorandom generator')
 		exit(1)
 	cnf_name = sys.argv[1]
 
@@ -370,7 +371,7 @@ if __name__ == '__main__':
 		elapsed_time = time.time() - start_time
 		logging.info('elapsed_time : ' + str(elapsed_time) + '\n')
 		
-		if len(stopped_solvers) == len(solvers):
+		if len(stopped_solvers) == len(SOLVERS):
 			logging.info('stop main loop')
 			break
 
