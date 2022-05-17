@@ -3,7 +3,7 @@
 # Use two limits of the number of clauses: 1 and 1000000.
 # The first one corresponds to Unit Popagation.
 #
-# version 0.0.2
+# version 0.0.3
 
 cnf=$1
 log=simpl-$(basename $cnf)
@@ -38,7 +38,3 @@ newcnf=${cnf%.*}
 newcnf=$newcnf-10milcnfl.cnf
 cadical_1.5 -c 10000000 $cnf -o $newcnf >> $log
 echo -e "\n" >> $log
-#
-newcnf=${cnf%.*}
-newcnf=$newcnf-100milcnfl.cnf
-cadical_1.5 -c 100000000 $cnf -o $newcnf >> $log
