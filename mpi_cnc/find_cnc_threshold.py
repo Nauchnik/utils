@@ -6,8 +6,9 @@ import random
 import collections
 import logging
 import time
+from enum import Enum
 
-version = "1.2.4"
+version = "1.2.5"
 
 # Constants:
 LA_SOLVER = 'march_cu'
@@ -18,6 +19,10 @@ cnf_name = ''
 stat_name = ''
 start_time = 0.0
 
+class Mode(Enum):
+	eager = 0
+	relaxed = 1
+
 class Options:
 	sample_size = 1000
 	min_cubes = 1000
@@ -26,6 +31,7 @@ class Options:
 	max_la_time = 86400
 	max_cdcl_time = 5000
 	nstep = 10
+	isrelaxed = False
 	seed = 0
 	def __init__(self):
 		self.seed = round(time.time() * 1000)
@@ -37,25 +43,28 @@ class Options:
 		'max_la_time : ' + str(self.max_la_time) + '\n' +\
 		'max_cdcl_time : ' + str(self.max_cdcl_time) + '\n' +\
 		'nstep : ' + str(self.nstep) + '\n' +\
-		'seed : ' + str(self.seed) + '\n'
+		'seed : ' + str(self.seed) + '\n' +\
+		'isrelaxed : ' + str(self.isrelaxed) + '\n'
 	def read(self, argv) :
 		for p in argv:
 			if '-sample=' in p:
 				self.sample_size = int(p.split('-sample=')[1])
-			if '-maxlat=' in p:
-				self.max_la_time = int(p.split('-maxlat=')[1])
-			if '-maxcdclt=' in p:
-				self.max_cdcl_time = int(p.split('-maxcdclt=')[1])
 			if '-minc=' in p:
 				self.min_cubes = int(p.split('-minc=')[1])
 			if '-maxc=' in p:
 				self.max_cubes = int(p.split('-maxc=')[1])
 			if '-minref=' in p:
 				self.min_refuted_leaves = int(p.split('-minref=')[1])
-			if '-seed=' in p:
-				self.seed = int(p.split('-seed=')[1])
+			if '-maxlat=' in p:
+				self.max_la_time = int(p.split('-maxlat=')[1])
+			if '-maxcdclt=' in p:
+				self.max_cdcl_time = int(p.split('-maxcdclt=')[1])
 			if '-nstep=' in p:
 				self.nstep = int(p.split('-nstep=')[1])
+			if '-seed=' in p:
+				self.seed = int(p.split('-seed=')[1])
+			if p == '--relaxed':
+				self.isrelaxed = True
 
 def kill_unuseful_processes():
 	sys_str = 'killall -9 ' + LA_SOLVER
@@ -236,8 +245,8 @@ def collect_cube_solver_result(res):
 		logging.info(res)
 		elapsed_time = time.time() - start_time
 		logging.info('elapsed_time : ' + str(elapsed_time))
-	elif solver_time >= op.max_cdcl_time:
-		logging.info('*** Reached solver time limit')
+	elif solver_time >= op.max_cdcl_time and not op.isrelaxed:
+		logging.info('*** CDCL solver reached time limit, so interrupt')
 		logging.info(res)
 		elapsed_time = time.time() - start_time
 		logging.info('elapsed_time : ' + str(elapsed_time))
@@ -252,14 +261,15 @@ if __name__ == '__main__':
 	if len(sys.argv) < 2:
 		print('Usage : script cnf-name [options]')
 		print('options :\n' +\
-		'-sample=x - random sample size' + '\n' +\
-		'-minc=x - minimal number of cubes' + '\n' +\
-		'-maxc=x - maximal number of cubes' + '\n' +\
-		'-minref=x - minimal number of refuted leaves' + '\n' +\
-		'-maxlat=x - maximal time of the lookahead solver' + '\n' +\
-		'-maxcdclt=x - maximal time of the cdcl solver' + '\n' +\
-		'-nstep=x - step for decreasing n' + '\n' +\
-		'-seed=x - seed for pseudorandom generator')
+		'-sample=x   - (default : 1000)    random sample size' + '\n' +\
+		'-minc=x     - (default : 1000)    minimal number of cubes' + '\n' +\
+		'-maxc=x     - (default : 1000000) maximal number of cubes' + '\n' +\
+		'-minref=x   - (default : 500)     minimal number of refuted leaves' + '\n' +\
+		'-maxlat=x   - (default : 86400)   time limit in seconds for lookahead solver' + '\n' +\
+		'-maxcdclt=x - (default : 5000)    time limit in seconds for CDCL solver' + '\n' +\
+		'-nstep=x    - (default : 10)      step for decreasing threshold n for lookahead solver' + '\n' +\
+		'-seed=x     - (default : time)    seed for pseudorandom generator' + '\n' +\
+		'--relaxed   - (default : False)   do not stop if CDCL solver is interrupted')
 		exit(1)
 	cnf_name = sys.argv[1]
 
@@ -269,7 +279,7 @@ if __name__ == '__main__':
 
 	random.seed(op.seed)
 
-	log_name = './find_n_' + cnf_name.replace('./','').replace('.','') + '.log'
+	log_name = './log_' + cnf_name.replace('./','').replace('.','')
 	print('log_name : ' + log_name)
 	logging.basicConfig(filename=log_name, filemode = 'w', level=logging.INFO)
 
