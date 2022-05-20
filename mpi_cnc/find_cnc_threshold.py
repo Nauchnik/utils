@@ -8,16 +8,12 @@ import logging
 import time
 from enum import Enum
 
-version = "1.2.5"
+version = "1.2.6"
 
 # Constants:
 LA_SOLVER = 'march_cu'
 MAX_CUBES_PARALLEL = 5000000
 SOLVERS = ['kissat_sc2021']
-
-cnf_name = ''
-stat_name = ''
-start_time = 0.0
 
 class Mode(Enum):
 	eager = 0
@@ -72,9 +68,12 @@ def kill_unuseful_processes():
 	sys_str = 'killall -9 timelimit'
 	o = os.popen(sys_str).read()
 
-def kill_solver(solver):
-	sys_str = 'killall -9 ' + solver.replace('./','')
-	o = os.popen(sys_str).read()
+def kill_solver(solver : str):
+	# Kill only a binary solver, let a script solver finisn and clean:
+	if '.sh' not in solver:
+	    logging.info("Killing solver " + solver)
+	    sys_str = 'killall -9 ' + solver.replace('./','')
+	    o = os.popen(sys_str).read()
 
 def remove_file(file_name):
 	sys_str = 'rm -f ' + file_name
@@ -165,15 +164,13 @@ def process_n(n : int, cnf_name : str, op : Options):
 	cubes_name = './cubes_n_' + str(n) + '_' + cnf_name.replace('./','').replace('.cnf','')
 	system_str = 'timelimit -T 1 -t ' + str(int(op.max_la_time)) +  ' ' + LA_SOLVER + ' ' + cnf_name + \
 	' -n ' + str(n) + ' -o ' + cubes_name
-	#print('system_str : ' + system_str)
-	o = os.popen(system_str).read()
+	out = os.popen(system_str).read()
 	t = time.time() - start_t
 	cubes_num = -1
 	refuted_leaves = -1
 	cubing_time = -1.0
-	cubes_num, refuted_leaves = parse_cubing_log(o)
+	cubes_num, refuted_leaves = parse_cubing_log(out)
 	cubing_time = float(t)
-	#print('elapsed_time : %.2f' % elapsed_time)
 	return n, cubes_num, refuted_leaves, cubing_time, cubes_name
 
 def collect_n_result(res):
@@ -204,6 +201,19 @@ def collect_n_result(res):
 		exit_cubes_creating = True
 		logging.info('exit_cubes_creating : ' + str(exit_cubes_creating))
 
+def stop_solver(solver : str, message : str, res=[]):
+	global stopped_solvers
+	global start_time
+	logging.info('*** Interrupt due to: ' + message)
+	logging.info('Result:')
+	logging.info(res)
+	elapsed_time = time.time() - start_time
+	logging.info('elapsed_time : ' + str(elapsed_time))
+	stopped_solvers.add(solver)
+	logging.info('stopped solvers : ')
+	logging.info(stopped_solvers)
+	kill_solver(solver)
+
 def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, task_index : int, solver : str):
 	global op
 	known_cube_cnf_name = './sample_cnf_n_' + str(n) + '_cube_' + str(cube_index) + '_task_' + str(task_index) + '.cnf'
@@ -213,46 +223,41 @@ def process_cube_solver(cnf_name : str, n : int, cube : list, cube_index : int, 
 	else:
 		sys_str = 'timelimit -T 1 -t ' + str(op.max_cdcl_time) + ' ' + solver + ' ' + known_cube_cnf_name
 	t = time.time()
-	o = os.popen(sys_str).read()
+	cdcl_log = os.popen(sys_str).read()
 	t = time.time() - t
 	solver_time = float(t)
-	isSat = find_sat_log(o)
-	if isSat:
-		logging.info('*** Writing satisfying assignment to a file')
+	isSat = find_sat_log(cdcl_log)
+	if not isSat:
+		# remove cnf with known cube
+		remove_file(known_cube_cnf_name)
+		cdcl_log = ''
+	return cnf_name, n, cube_index, solver, solver_time, isSat, cdcl_log
+
+def collect_cube_solver_result(res):
+	global results
+	global op
+	global start_time
+	cnf_name = res[0]
+	n = res[1]
+	cube_index = res[2]
+	solver = res[3]
+	solver_time = res[4]
+	isSat = res[5]
+	cdcl_log = res[6]
+	results[n].append((cube_index,solver,solver_time)) # append a tuple
+	logging.info('n : %d, got %d results - cube_index %d, solver %s, time %f' % (n, len(results[n]), cube_index, solver, solver_time))
+	if isSat and op.isrelaxed:
+		logging.info('*** SAT. Writing satisfying assignment to a file.')
+		elapsed_time = time.time() - start_time
+		logging.info('elapsed_time : ' + str(elapsed_time))
 		sat_name = cnf_name.replace('./','').replace('.cnf','') + '_n' + str(n) + '_' + solver + '_cube_index_' + str(cube_index) 
 		sat_name = sat_name.replace('./','')
 		with open('!sat_' + sat_name, 'w') as ofile:
 			ofile.write('*** SAT found\n')
-			ofile.write(o)
-	else:
-		# remove cnf with known cube
-		remove_file(known_cube_cnf_name)
-	return n, cube_index, solver, solver_time, isSat
-
-def collect_cube_solver_result(res):
-	global results
-	global stopped_solvers
-	global op
-	n = res[0]
-	cube_index = res[1]
-	solver = res[2]
-	solver_time = res[3]
-	isSat = res[4]
-	results[n].append((cube_index,solver,solver_time)) # append a tuple
-	logging.info('n : %d, got %d results - cube_index %d, solver %s, time %f' % (n, len(results[n]), cube_index, solver, solver_time))
-	if isSat:
-		logging.info('*** SAT found')
-		logging.info(res)
-		elapsed_time = time.time() - start_time
-		logging.info('elapsed_time : ' + str(elapsed_time))
+			ofile.write(cdcl_log)
+		stop_solver(solver, 'SAT was found', res)
 	elif solver_time >= op.max_cdcl_time and not op.isrelaxed:
-		logging.info('*** CDCL solver reached time limit, so interrupt')
-		logging.info(res)
-		elapsed_time = time.time() - start_time
-		logging.info('elapsed_time : ' + str(elapsed_time))
-		stopped_solvers.add(solver)
-		logging.info('stopped solvers : ')
-		logging.info(stopped_solvers)
+		stop_solver(solver, 'CDCL solver reached time limit', res)
 
 if __name__ == '__main__':
 	cpu_number = mp.cpu_count()
@@ -366,11 +371,8 @@ if __name__ == '__main__':
 			for cube in random_cubes:
 				while len(pool2._cache) >= cpu_number:
 					time.sleep(2)
-				# Break if solver becomes a stopped one:
+				# Break if solver becomes a stopped one.
 				if solver in stopped_solvers:
-					# Kill only a binary solver, let a script solver finisn and clean:
-					if '.sh' not in solver:
-						kill_solver(solver)
 					break
 				pool2.apply_async(process_cube_solver, args=(cnf_name, n, cube, cube_index, task_index, solver), callback=collect_cube_solver_result)
 				task_index += 1
