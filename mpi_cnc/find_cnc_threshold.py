@@ -8,7 +8,7 @@ import logging
 import time
 from enum import Enum
 
-version = "1.2.6"
+version = "1.2.7"
 
 # Constants:
 LA_SOLVER = 'march_cu'
@@ -21,13 +21,14 @@ class Mode(Enum):
 
 class Options:
 	sample_size = 1000
-	min_cubes = 1000
+	min_cubes = 10000
 	max_cubes = 1000000
-	min_refuted_leaves = 500
+	min_refuted_leaves = 1000
 	max_la_time = 86400
 	max_cdcl_time = 5000
 	nstep = 10
-	isrelaxed = False
+	stop_sat = False
+	stop_time = False
 	seed = 0
 	def __init__(self):
 		self.seed = round(time.time() * 1000)
@@ -39,8 +40,9 @@ class Options:
 		'max_la_time : ' + str(self.max_la_time) + '\n' +\
 		'max_cdcl_time : ' + str(self.max_cdcl_time) + '\n' +\
 		'nstep : ' + str(self.nstep) + '\n' +\
-		'seed : ' + str(self.seed) + '\n' +\
-		'isrelaxed : ' + str(self.isrelaxed) + '\n'
+		'stop_sat : ' + str(self.stop_sat) + '\n' +\
+		'stop_time: ' + str(self.stop_time) + '\n' +\
+		'seed : ' + str(self.seed) + '\n'
 	def read(self, argv) :
 		for p in argv:
 			if '-sample=' in p:
@@ -59,8 +61,10 @@ class Options:
 				self.nstep = int(p.split('-nstep=')[1])
 			if '-seed=' in p:
 				self.seed = int(p.split('-seed=')[1])
-			if p == '--relaxed':
-				self.isrelaxed = True
+			if p == '--stop_sat':
+				self.stop_sat = True
+			if p == '--stop_time':
+				self.stop_time = True
 
 def kill_unuseful_processes():
 	sys_str = 'killall -9 ' + LA_SOLVER
@@ -246,7 +250,7 @@ def collect_cube_solver_result(res):
 	cdcl_log = res[6]
 	results[n].append((cube_index,solver,solver_time)) # append a tuple
 	logging.info('n : %d, got %d results - cube_index %d, solver %s, time %f' % (n, len(results[n]), cube_index, solver, solver_time))
-	if isSat and op.isrelaxed:
+	if isSat:
 		logging.info('*** SAT. Writing satisfying assignment to a file.')
 		elapsed_time = time.time() - start_time
 		logging.info('elapsed_time : ' + str(elapsed_time))
@@ -255,8 +259,9 @@ def collect_cube_solver_result(res):
 		with open('!sat_' + sat_name, 'w') as ofile:
 			ofile.write('*** SAT found\n')
 			ofile.write(cdcl_log)
-		stop_solver(solver, 'SAT was found', res)
-	elif solver_time >= op.max_cdcl_time and not op.isrelaxed:
+		if op.stop_sat:
+			stop_solver(solver, 'SAT was found', res)
+	elif solver_time > op.max_cdcl_time and op.stop_time:
 		stop_solver(solver, 'CDCL solver reached time limit', res)
 
 if __name__ == '__main__':
@@ -267,14 +272,15 @@ if __name__ == '__main__':
 		print('Usage : script cnf-name [options]')
 		print('options :\n' +\
 		'-sample=x   - (default : 1000)    random sample size' + '\n' +\
-		'-minc=x     - (default : 1000)    minimal number of cubes' + '\n' +\
+		'-minc=x     - (default : 10000)   minimal number of cubes' + '\n' +\
 		'-maxc=x     - (default : 1000000) maximal number of cubes' + '\n' +\
-		'-minref=x   - (default : 500)     minimal number of refuted leaves' + '\n' +\
+		'-minref=x   - (default : 1000)    minimal number of refuted leaves' + '\n' +\
 		'-maxlat=x   - (default : 86400)   time limit in seconds for lookahead solver' + '\n' +\
 		'-maxcdclt=x - (default : 5000)    time limit in seconds for CDCL solver' + '\n' +\
 		'-nstep=x    - (default : 10)      step for decreasing threshold n for lookahead solver' + '\n' +\
 		'-seed=x     - (default : time)    seed for pseudorandom generator' + '\n' +\
-		'--relaxed   - (default : False)   do not stop if CDCL solver is interrupted')
+		'--stop_time - (default : False)   stop if CDCL solver is interrupted' + '\n' +\
+		'--stop_sat  - (default : False)   stop if a satisfying assignment is found' + '\n')
 		exit(1)
 	cnf_name = sys.argv[1]
 
