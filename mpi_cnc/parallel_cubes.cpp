@@ -1,5 +1,5 @@
 // Oleg Zaikin, 1.04.2020 (Irkutsk)
-/* Copyright 2020, 2021 Oleg Zaikin */
+/* Copyright 2020, 2021, 2022 Oleg Zaikin */
 
 // Solving cubes in parallel via OpenMP.
 
@@ -16,7 +16,7 @@
 
 #include <omp.h>
 
-std::string version = "0.2.2";
+std::string version = "0.2.3";
 
 bool verb = false;
 
@@ -326,7 +326,7 @@ void solve_cube(const cnf c, const std::string postfix,
 	for (auto x : wu.cube) local_cnf_file << x << " 0" << std::endl;
 	local_cnf_file.close();
 
-	std::string system_str = "./timelimit -t " + std::to_string(cube_time_lim) +
+	std::string system_str = "timelimit -t " + std::to_string(cube_time_lim) +
 	                         " -T 1 " + solver_name + " " + local_cnf_file_name;
 	std::string local_out_file_name = "id-" + wu_id_str + "-out";
 	std::fstream local_out_file;
