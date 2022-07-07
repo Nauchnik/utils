@@ -6,7 +6,7 @@ import sys
 import glob
 import os
 
-version = "0.1.7"
+version = "0.1.8"
 
 PC_CORES = 12
 SOLVER_TIME_LIM = 5000.0
@@ -180,6 +180,7 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 				unsat_samples_est_file.write(st.ljust(EST_STR_WIDTH))
 				st = s + '_days_' + str(PC_CORES) + "cores"
 				unsat_samples_est_file.write(st.ljust(EST_STR_WIDTH))
+				unsat_samples_est_file.write('cubes')
 			unsat_samples_est_file.write('\n')
 			lst_n = []
 			for n in unsat_samples_est:
@@ -199,6 +200,7 @@ def process_unsat_samples(unsat_samples_file_name : str, cubes_dict : dict ):
 						float_days = unsat_samples_est[n][s] / 86400 / PC_CORES
 						m_s = ('%.3f' % float_days).ljust(EST_STR_WIDTH)
 						unsat_samples_est_file.write(m_s)
+				unsat_samples_est_file.write(str(cubes_dict[n]))
 				unsat_samples_est_file.write('\n')
 	print('unsat_samples_est : ')
 	print(unsat_samples_est)
